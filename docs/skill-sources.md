@@ -15,6 +15,12 @@ renamed `convertible`. guildmaster's re-broadcast still carries the old
 `outsource` name, so `ask-colleague` is vendored **directly from colleague** as a
 tracked local divergence (see [below](#local-divergence--outsource--ask-colleague-2026-06-06)).
 
+Two skills, `remember` and `recall`, are **first-party to
+[`agentculture/eidetic-cli`](https://github.com/agentculture/eidetic-cli)** — the
+write and read halves of eidetic's shared `~/.eidetic/memory` surface — and are
+vendored **directly from eidetic-cli** (added in learn-cli 0.4.0), not through
+guildmaster.
+
 Every vendored `SKILL.md` carries `type: command`. learn-cli
 declares a culture agent (`culture.yaml`, `backend: colleague`), and
 `core.skill_loader` silently skips any `SKILL.md` lacking `type:` — so the field
@@ -34,6 +40,8 @@ is load-bearing, even where guildmaster's upstream copy omits it.
 | `spec-to-plan` | `../guildmaster/.claude/skills/spec-to-plan/` | **devague** (re-broadcast via guildmaster) | spec→plan leg of the devague workflow chain. Verbatim (already carried `type: command`). | 2026-05-26 (guildmaster 0.6.0) |
 | `assign-to-workforce` | `../guildmaster/.claude/skills/assign-to-workforce/` | **devague** (re-broadcast via guildmaster) | plan→parallel-implementation leg of the devague workflow chain. Verbatim (already carried `type: command`). | 2026-05-26 (guildmaster 0.6.0) |
 | `ask-colleague` | `../colleague/.claude/skills/ask-colleague/` | **colleague** (renamed from convertible; vendored directly — guildmaster re-broadcast pending) | The first-party front door to the `colleague` CLI: hand a scoped task to a *different* engine/mind via `explore` / `review` / `write`, grade a finished work item via `feedback` (the ROI loop), and reap stale/corrupt `colleague/*` branches a crashed run left behind via `clean`. Every verb takes `--json` (result JSON on stdout, diagnostics on stderr). `explore`/`review` run isolated in a throwaway `git worktree`; `write` **previews by default** (throwaway worktree, no side effects) and refuses a dirty tree only when applying (`--apply` / `--pr`). Verbatim except one consumer-identifying clause in the Provenance paragraph (`colleague vendors from guildmaster` → `learn-cli vendors from guildmaster`); already carried `type: command`. Optional runtime dep: **`colleague`** on PATH. | 2026-06-12 (colleague 1.7.0, direct) |
+| `remember` | `../eidetic-cli/.claude/skills/remember/` | **eidetic-cli** (first-party; vendored directly) | Write half of the shared `~/.eidetic/memory` surface. Drives `eidetic remember` — idempotent upsert of one JSON record (or an NDJSON batch on stdin), dedup by id + content hash. The `.sh` wrapper is byte-verbatim from eidetic-cli; `SKILL.md` localized only in the illustrative `--scope <nick>` examples (Provenance keeps "First-party to eidetic-cli"). Defaults to this agent's PRIVATE scope, suffix read from `culture.yaml`. Runtime dep: the `eidetic` CLI on PATH. Propagated by rollout-cli's `eidetic-memory` recipe. | 2026-06-23 (eidetic-cli, direct) |
+| `recall` | `../eidetic-cli/.claude/skills/recall/` | **eidetic-cli** (first-party; vendored directly) | Read half of the same surface. Drives `eidetic recall` with four search modes — exact / approximate / keyword / hybrid — each hit carrying text, full provenance metadata, a relevance score, and a freshness signal. Same vendoring, PRIVATE-scope default, and `eidetic`-on-PATH runtime dep as `remember`. | 2026-06-23 (eidetic-cli, direct) |
 
 ## Re-sync procedure
 
@@ -120,3 +128,8 @@ devex / agtag READMEs).
   reachable backend — a local vLLM by default, overridable via `--engine` /
   `--model` / `--base-url` or `COLLEAGUE_*` env (the legacy `CONVERTIBLE_*` names
   still work as a deprecated fallback).
+
+- **`eidetic`** on PATH — *optional*; only the `remember` / `recall` skills need
+  it, and only when invoked (`uv tool install eidetic-cli`, or a local
+  eidetic-cli checkout run via `uv`). Both wrappers exit with a clear install
+  hint if it is absent, so a clone that never uses memory is unaffected.

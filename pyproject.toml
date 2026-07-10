@@ -1,6 +1,6 @@
 [project]
 name = "learn-cli"
-version = "0.4.0"
+version = "0.4.1"
 description = "A CLI, MCP server, and web front for learning — a hosted site where humans and agents learn a subject step by step. Fronts the french-cli and spanish-cli language tutors, and generalizes to other learnable domains such as leading teams of agents. The learn command is the local operator surface and how agents drive it."
 readme = "README.md"
 license = "Apache-2.0"
