@@ -9,7 +9,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- Expanded the `CLAUDE.md` bootstrap seed into a full runtime prompt (`/init`) tailored to learn-cli's role as the mesh **learning front** — the CLI/MCP/web portal that fronts french-cli, spanish-cli, and culture-guide. Captures the issue #1 build brief, the scaffold-vs-product distinction, the agent-first CLI architecture, and the web face target (`agentculture.org/learn/`, one sub-page per module) published through the sibling `org` repo.
+- Expanded the `CLAUDE.md` bootstrap seed into a full runtime prompt (`/init`) tailored to learn-cli's role as the mesh **learning front** — the CLI/MCP/web portal that fronts french-cli, spanish-cli, and culture-guide. Captures the issue #1 build brief, the scaffold-vs-product distinction, the agent-first CLI architecture, and the web face target (`agentculture.org/learn/`, one sub-page per module — learn-cli owns the surface; the `agentculture.org` domain is managed by the sibling `org` repo, with the serving mechanism left as an open hosting decision).
 - README: corrected the Quickstart invocations from `learn-cli` to the actual `learn` console script (`uv run learn-cli …` fails to spawn), and corrected the vendored-skill count from 11 to the 14 on disk, sourced across guildmaster, devague, colleague, and eidetic-cli.
 
 ### Fixed

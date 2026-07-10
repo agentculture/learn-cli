@@ -157,14 +157,17 @@ the brief — follow them rather than re-deciding:
 - **One learner, many subjects** — a single profile/login spanning subjects, with
   cross-subject progress and "what next" that the per-subject tutors track only
   within themselves.
-- **The web face** targets `agentculture.org/learn/` with **a sub-page per
-  module**, where a learner reads a story, does an exercise, and sees their
-  streak, with the subject CLIs as the engines behind it. **`agentculture.org` is
+- **The web face** — learn-cli **owns** this surface: its lesson/story/exercise
+  content and the subject CLIs as the engines behind it, served at
+  `agentculture.org/learn/` with **a sub-page per module** (a learner reads a
+  story, does an exercise, sees their streak). The *domain* `agentculture.org` is
   managed by the sibling [`org`](https://github.com/agentculture/org) repo
-  (`../org` in this workspace) — a CLI + Astro site (`site-astro/`) in one repo.**
-  So the `/learn/` sub-site is published *through* org (coordinate the route +
-  pages there), not on separate hosting learn-cli stands up itself. Match org's
-  CLI-plus-site-in-one-repo shape when you add learn-cli's own site sources.
+  (`../org` — a CLI + Astro `site-astro/` in one repo), so the `/learn/` route and
+  pages must be **coordinated with org**, and org is the repo shape to match (a
+  CLI plus site in one repo). *How* learn-cli's surface is served behind that
+  route — static pages published through org's Astro build vs. a service
+  learn-cli runs — is part of the **still-open hosting decision** below; per the
+  brief, whichever target is chosen must be recorded with a *cost-when-busy* note.
 - **Don't hand-roll infra a sibling already owns** (all flagged as open decisions
   in the brief): model calls go through
   [`cloudai-cli`](https://github.com/agentculture/cloudai-cli) or
