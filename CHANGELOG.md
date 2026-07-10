@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-07-11
+
+### Added
+
+- docs/specs/: converged devague spec for the agentculture.org/learn cross-repo uplift (subject-plugin contract, stories, scores/streaks/adaptive motivation layer, signed-in/out split, org-design web face) — exported via /think from a user-confirmed frame
+- docs/specs/.markdownlint-cli2.yaml: per-directory lint config for generated spec files (MD026/MD033 relaxed)
+- .devague/: committed frame state for the learn-uplift announcement frame
+
+### Changed
+
+- .markdownlint-cli2.yaml: ignore .devague/** (generated, gitignored review artifacts)
+- .gitignore: exclude .devague/reviews/ working state (added by devague)
+
 ## [0.4.1] - 2026-07-10
 
 ### Changed
