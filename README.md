@@ -9,8 +9,9 @@ A CLI, MCP server, and web front for learning — a hosted site where humans and
 - **A mesh identity** — `culture.yaml` (`suffix` + `backend`) and the matching
   resident prompt file (`AGENTS.colleague.md`, since this template runs
   `backend: colleague`).
-- **The canonical guildmaster skill kit** (11 skills) under `.claude/skills/`,
-  vendored cite-don't-import. See [`docs/skill-sources.md`](docs/skill-sources.md).
+- **The vendored skill kit** (14 skills) under `.claude/skills/`, cited
+  cite-don't-import from guildmaster, devague, colleague, and eidetic-cli. See
+  [`docs/skill-sources.md`](docs/skill-sources.md) for per-skill provenance.
 - **A build + deploy baseline** — pytest, lint, the agent-first rubric gate, and
   PyPI Trusted Publishing wired into GitHub Actions.
 
@@ -19,8 +20,8 @@ A CLI, MCP server, and web front for learning — a hosted site where humans and
 ```bash
 uv sync
 uv run pytest -n auto                 # run the test suite
-uv run learn-cli whoami  # identity from culture.yaml
-uv run learn-cli learn   # self-teaching prompt (add --json)
+uv run learn whoami      # identity from culture.yaml (command is `learn`)
+uv run learn learn       # self-teaching prompt (add --json)
 uv run teken cli doctor . --strict    # the agent-first rubric gate CI runs
 ```
 
