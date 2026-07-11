@@ -13,7 +13,10 @@ classifiers = [
     "Topic :: Software Development",
     "Intended Audience :: Developers",
 ]
-dependencies = []
+# The three faces (CLI additions, MCP server, HTTP site + static export) are all
+# derived from one agentfront App (learn/front/). The [mcp] extra pulls the mcp
+# SDK that `learn mcp serve` needs; the CLI/HTTP/export faces work without it.
+dependencies = ["agentfront[mcp]>=0.20"]
 
 [project.urls]
 Homepage = "https://github.com/agentculture/learn-cli"

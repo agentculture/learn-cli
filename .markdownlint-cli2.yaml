@@ -16,6 +16,9 @@ config:
 
 ignores:
   - "node_modules/**"
+  # The uv virtualenv — third-party packages (starlette, uvicorn, httpx, …) ship
+  # their own LICENSE.md / README.md; never lint installed dependencies.
+  - ".venv/**"
   - ".local/**"
   - ".afi/**"
   - ".teken/**"

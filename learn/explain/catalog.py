@@ -172,6 +172,108 @@ for an unknown subject name.
 """
 
 
+_MCP = """\
+# learn mcp
+
+The MCP face of the portal. `mcp serve` runs agentfront's single-dispatch MCP
+server over stdio — one `run` tool whose catalog is every tool in the portal's
+App registry (`learn.front.build_app`), so an agent can drive a full learning
+loop (list subjects, read a story, get a lesson, record a result) over MCP.
+learn-cli writes no MCP-protocol code: the CLI, MCP, and HTTP faces are all
+derived from one registry and cannot drift.
+
+## Verbs
+
+- `learn mcp overview` — describe this noun and its tools.
+- `learn mcp serve` — run the MCP server over stdio.
+
+## Usage
+
+    learn mcp overview
+    learn mcp serve
+
+Needs agentfront's `mcp` extra (a runtime dependency of learn-cli).
+"""
+
+_MCP_SERVE = """\
+# learn mcp serve
+
+Runs the portal's MCP server over stdio. The server exposes a single `run` tool
+whose description embeds the command catalog derived from the App registry; an
+agent calls `run({command:[...], args:{...}})` to invoke a subject verb.
+
+Tools available over MCP: `subjects_list`, `subject_doctor`, `story_list`,
+`story_read`, `progress`, `advice`, `lesson_next`, `practice`, `record` — the
+last closes the learning loop by writing a graded result back to the subject.
+
+Blocking (stdio transport). Wire it into an MCP client's server config. Results
+are the subjects' `--json` payloads; errors carry `{code, message, remediation}`.
+
+## Usage
+
+    learn mcp serve
+"""
+
+_SITE = """\
+# learn site
+
+The HTTP face of the portal plus the static-site export. Both are derived from
+the same App registry the CLI and MCP faces read.
+
+## Verbs
+
+- `learn site overview` — describe this noun, its routes, and the export format.
+- `learn site serve [--host --port]` — serve the docs as an agent-readable
+  markdown site (`/<slug>`, `/sitemap.xml`, `/llms.txt`, `/front`).
+- `learn site export --out <dir>` — write the pinned static content bundle for
+  the Astro site build.
+
+## Usage
+
+    learn site overview
+    learn site serve --host 127.0.0.1 --port 8080
+    learn site export --out ./_export
+"""
+
+_SITE_SERVE = """\
+# learn site serve
+
+Serves the portal's docs as an agent-readable markdown HTTP site (a WSGI app on
+the standard library). Routes: `GET /<slug>` (markdown doc), `GET /sitemap.xml`,
+`GET /llms.txt` (the agent entry point), and `GET /front` (the live-cockpit view
+as markdown). Blocking; stop with Ctrl-C.
+
+## Usage
+
+    learn site serve
+    learn site serve --host 0.0.0.0 --port 8080
+"""
+
+_SITE_EXPORT = """\
+# learn site export
+
+Writes the pinned static content bundle the Astro site build consumes, into
+`--out <dir>`:
+
+- `meta.json` — `{contract_version, schema_version, subjects}`.
+- `subjects.json` — `[{name, display_name, description, repo, available, modules}]`
+  (modules best-effort from each subject's `overview`; `[]` if unavailable).
+- `stories-<subject>.json` — `{subject, stories:[...]}` for each AVAILABLE
+  subject (full story objects from `story list` + `story read`); unavailable
+  subjects are skipped.
+- `docs/<slug>.md` — every doc page registered in the App.
+
+Deterministic (sorted keys, registry/story-list order, no wall clock), so a
+re-run over unchanged inputs yields byte-identical files. It never fails because
+a subject is missing — an uninstalled subject is listed `available: false`.
+
+## Usage
+
+    learn site export --out ./_export
+    learn site export --out ./_export --json
+"""
+
+
 ENTRIES: dict[tuple[str, ...], str] = {
     (): _ROOT,
     ("learn-cli",): _ROOT,
@@ -186,4 +288,11 @@ ENTRIES: dict[tuple[str, ...], str] = {
     ("subject",): _SUBJECT,
     ("subject", "overview"): _SUBJECT,
     ("subject", "doctor"): _SUBJECT_DOCTOR,
+    ("mcp",): _MCP,
+    ("mcp", "overview"): _MCP,
+    ("mcp", "serve"): _MCP_SERVE,
+    ("site",): _SITE,
+    ("site", "overview"): _SITE,
+    ("site", "serve"): _SITE_SERVE,
+    ("site", "export"): _SITE_EXPORT,
 }
