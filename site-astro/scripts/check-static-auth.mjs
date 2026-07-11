@@ -171,8 +171,12 @@ check("the landing page and every subject page render the signed-out invitation 
   // t1's versioned policy pages (src/pages/terms/, src/pages/privacy/) are
   // plain static prose with no learner panel — they carry no
   // signed-in/signed-out split at all, so this check (which is about that
-  // split, not "every top-level page") doesn't apply to them.
-  const NOT_A_LEARNER_PANEL_PAGE = new Set(["_astro", "terms", "privacy"]);
+  // split, not "every top-level page") doesn't apply to them. t10's consent
+  // notice (src/pages/consent/) is the same shape one level further: it has
+  // its OWN pending/expired/already-in/declined/error states (driven by
+  // src/scripts/consent.js, checked separately below), not the site-wide
+  // signed-out/signed-in split this check is about.
+  const NOT_A_LEARNER_PANEL_PAGE = new Set(["_astro", "terms", "privacy", "consent"]);
   for (const entry of readdirSync(distDir, { withFileTypes: true })) {
     if (!entry.isDirectory() || NOT_A_LEARNER_PANEL_PAGE.has(entry.name)) continue;
     const subjectIndex = path.join(distDir, entry.name, "index.html");
@@ -204,6 +208,15 @@ const learnerJsPath = path.join(srcDir, "scripts", "learner.js");
 const learnerJs = readFileSync(learnerJsPath, "utf8");
 
 const ALLOWED_SUFFIX_RE = /^(\/me|\/progress\/|\/record|\/auth\/)/;
+
+// t10's consent.js is a SECOND, separately-loaded script (only on
+// src/pages/consent/index.astro, not via Layout.astro) with its own,
+// narrower fetch surface — enumerated exactly, not merged into the
+// learner.js whitelist above, so a future edit that widens one script can't
+// silently widen the other. Used below for consent.js's own source check,
+// and folded into the built-bundle whitelist further down (that check scans
+// every built .js file regardless of which source script produced it).
+const CONSENT_ALLOWED_SUFFIX_RE = /^(\/me|\/consent$|\/consent\/accept$|\/consent\/decline$)/;
 
 check("learner.js imports the single API_BASE constant (no hardcoded alternate host)", () => {
   assert.match(learnerJs, /import\s*\{\s*API_BASE\s*\}\s*from\s*["']\.\.\/lib\/api\.js["']/);
@@ -315,7 +328,11 @@ check("the two failure branches return before reaching the happy path", () => {
 // identifier(s) the build aliased API_BASE's literal value to, then
 // re-runs the same suffix whitelist against every fetch() call that uses
 // one of those aliases (or the literal value directly, in case a future
-// build inlines it instead of aliasing it).
+// build inlines it instead of aliasing it). This scans EVERY built .js
+// asset regardless of which source script produced it, so it checks the
+// UNION of both per-file whitelists (ALLOWED_SUFFIX_RE for learner.js,
+// CONSENT_ALLOWED_SUFFIX_RE for consent.js) — the two source-level checks
+// above/below are what keep each script's OWN surface precise.
 
 check("the built JS bundle's fetch() calls stay inside the same whitelist", () => {
   const apiSrc = readFileSync(path.join(srcDir, "lib", "api.ts"), "utf8");
@@ -327,16 +344,29 @@ check("the built JS bundle's fetch() calls stay inside the same whitelist", () =
   const jsFiles = listFiles(distDir, ".js");
   assert.ok(jsFiles.length > 0, "expected at least one built .js asset (learner.js's bundle)");
 
-  let sawApiBaseLiteral = false;
+  // Two source files now import API_BASE (learner.js, consent.js), so Vite
+  // code-splits src/lib/api.ts into its OWN shared chunk rather than
+  // inlining the literal into each consumer — the alias assignment
+  // (`var e = \`/learn/api\`;`) lives in that one shared chunk, while the
+  // fetch() calls using it live in the OTHER, importing chunks. A per-file
+  // alias scan (checking each file only against aliases found in that same
+  // file) would therefore find zero aliases in the files that actually call
+  // fetch() and fail every call. Collect aliases GLOBALLY across every
+  // built .js file first, then check every file's fetch() calls against
+  // that global set — correct regardless of how many chunks the bundler
+  // decides to split this into.
+  const aliasRe = new RegExp(`([A-Za-z_$][\\w$]*)\\s*=\\s*[\`"']${escapedValue}[\`"']`, "g");
+  const aliases = new Set();
+  for (const file of jsFiles) {
+    const js = readFileSync(file, "utf8");
+    for (const m of js.matchAll(aliasRe)) aliases.add(m[1]);
+  }
+
   let totalFetchCalls = 0;
   const offenders = [];
 
   for (const file of jsFiles) {
     const js = readFileSync(file, "utf8");
-    const aliasRe = new RegExp(`([A-Za-z_$][\\w$]*)\\s*=\\s*[\`"']${escapedValue}[\`"']`, "g");
-    const aliases = new Set([...js.matchAll(aliasRe)].map((m) => m[1]));
-    if (aliases.size > 0) sawApiBaseLiteral = true;
-
     for (const [, template] of js.matchAll(/fetch\(\s*`([^`]*)`/g)) {
       totalFetchCalls += 1;
       let suffix = null;
@@ -346,13 +376,63 @@ check("the built JS bundle's fetch() calls stay inside the same whitelist", () =
       } else if (template.startsWith(apiBaseValue)) {
         suffix = template.slice(apiBaseValue.length).split("$")[0];
       }
-      if (suffix === null || !ALLOWED_SUFFIX_RE.test(suffix)) offenders.push(template);
+      const inWhitelist =
+        suffix !== null && (ALLOWED_SUFFIX_RE.test(suffix) || CONSENT_ALLOWED_SUFFIX_RE.test(suffix));
+      if (!inWhitelist) offenders.push(template);
     }
   }
 
-  assert.ok(sawApiBaseLiteral, "API_BASE's literal value was not found inlined in any built JS asset");
+  assert.ok(aliases.size > 0, "API_BASE's literal value was not found inlined in any built JS asset");
   assert.ok(totalFetchCalls >= 4, `expected >= 4 fetch() calls across built JS, found ${totalFetchCalls}`);
   assert.deepEqual(offenders, [], `non-whitelisted fetch target(s) in built JS: ${offenders.join(", ")}`);
+});
+
+// --- 4. consent.js: precise fetch whitelist for the pending-consent page (t10) ---
+//
+// consent.js is loaded only on src/pages/consent/index.astro, not through
+// Layout.astro's global learner.js import, so the checks above (which are
+// hardcoded to learner.js's own path) never see it. Same technique, a
+// narrower, precisely-enumerated whitelist (CONSENT_ALLOWED_SUFFIX_RE,
+// defined above): /me, /consent, /consent/accept, /consent/decline — no
+// /progress, /record, or open /auth/ prefix, since consent.js has no
+// business calling those.
+
+const consentJsPath = path.join(srcDir, "scripts", "consent.js");
+
+check("consent.js exists and imports the single API_BASE constant (no hardcoded alternate host)", () => {
+  assert.ok(existsSync(consentJsPath), "expected src/scripts/consent.js to exist");
+  const consentJs = readFileSync(consentJsPath, "utf8");
+  assert.match(consentJs, /import\s*\{\s*API_BASE\s*\}\s*from\s*["']\.\.\/lib\/api\.js["']/);
+});
+
+check("every fetch() call in consent.js targets ${API_BASE} plus a whitelisted consent suffix", () => {
+  const consentJs = readFileSync(consentJsPath, "utf8");
+  const fetchCalls = [...consentJs.matchAll(/fetch\(\s*`([^`]*)`/g)];
+  assert.ok(fetchCalls.length >= 3, `expected >= 3 fetch() calls in consent.js, found ${fetchCalls.length}`);
+  const offenders = [];
+  for (const [, template] of fetchCalls) {
+    if (!template.startsWith("${API_BASE}")) {
+      offenders.push(template);
+      continue;
+    }
+    const suffix = template.slice("${API_BASE}".length).split("$")[0];
+    if (!CONSENT_ALLOWED_SUFFIX_RE.test(suffix)) offenders.push(template);
+  }
+  assert.deepEqual(offenders, [], `non-whitelisted fetch target(s) in consent.js: ${offenders.join(", ")}`);
+});
+
+check("consent.js's bootstrap() redirects out of pending state rather than exposing controls silently", () => {
+  const consentJs = readFileSync(consentJsPath, "utf8");
+  // The five states consent.js is responsible for (see its header comment):
+  // the notice itself (default markup, no JS-only gate needed) plus these
+  // four JS-driven outcomes, each reachable from bootstrap().
+  for (const state of ["expired", "already-in", "declined", "error"]) {
+    assert.match(
+      consentJs,
+      new RegExp(`showState\\("${state}"\\)`),
+      `consent.js must handle the "${state}" state`,
+    );
+  }
 });
 
 if (problems.length > 0) fail();
@@ -360,5 +440,7 @@ if (problems.length > 0) fail();
 console.log(
   `check-static-auth: OK — ${htmlFiles.length} built page(s) verified static/no-JS-safe; ` +
     "learner.js's fetch surface is confined to the /api/me | /api/progress/ | /api/record | " +
-    "/api/auth/* whitelist and gated behind a confirmed session.",
+    "/api/auth/* whitelist and gated behind a confirmed session; consent.js's fetch surface " +
+    "is confined to the /api/me | /api/consent | /api/consent/accept | /api/consent/decline " +
+    "whitelist.",
 );
