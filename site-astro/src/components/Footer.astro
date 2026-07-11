@@ -4,6 +4,12 @@
 // always leaves for the org root, the "Learn" segment and the local nav
 // link stay on this site via the caller-supplied `homeHref` (see
 // Layout.astro and Header.astro for why it's relative, not base-prefixed).
+//
+// t1 adds "Terms" and "Privacy", linking src/pages/terms/ and
+// src/pages/privacy/ the same relative-to-homeHref way "Subjects" already
+// does (`${homeHref}terms/`) — org's own footer has no equivalent, since
+// the policy pages live here, not there (spec decision: "Policy docs live
+// /learn-local").
 import site from "../data/site";
 import Mark from "./Mark.astro";
 
@@ -36,6 +42,12 @@ const year = new Date().getFullYear();
         <ul>
           <li>
             <a href={homeHref}>Subjects</a>
+          </li>
+          <li>
+            <a href={`${homeHref}terms/`}>Terms</a>
+          </li>
+          <li>
+            <a href={`${homeHref}privacy/`}>Privacy</a>
           </li>
           {
             orgLinks.map(({ href, label }) => (

@@ -165,12 +165,16 @@ check("global.css hides .signedin-only by an unconditional display:none", () => 
 });
 
 check("the landing page and every subject page render the signed-out invitation in raw HTML", () => {
-  const mustContain = [distDir /* landing */];
   const missing = [];
   const landing = readFileSync(path.join(distDir, "index.html"), "utf8");
   if (!landing.includes("Sign in to track progress")) missing.push("dist/index.html");
+  // t1's versioned policy pages (src/pages/terms/, src/pages/privacy/) are
+  // plain static prose with no learner panel — they carry no
+  // signed-in/signed-out split at all, so this check (which is about that
+  // split, not "every top-level page") doesn't apply to them.
+  const NOT_A_LEARNER_PANEL_PAGE = new Set(["_astro", "terms", "privacy"]);
   for (const entry of readdirSync(distDir, { withFileTypes: true })) {
-    if (!entry.isDirectory() || entry.name === "_astro") continue;
+    if (!entry.isDirectory() || NOT_A_LEARNER_PANEL_PAGE.has(entry.name)) continue;
     const subjectIndex = path.join(distDir, entry.name, "index.html");
     if (!existsSync(subjectIndex)) continue;
     const html = readFileSync(subjectIndex, "utf8");
