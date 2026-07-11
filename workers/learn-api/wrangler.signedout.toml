@@ -37,6 +37,11 @@ PUBLIC_URL   = "https://agentculture.org"
 APP_URL      = "https://agentculture.org/learn/"
 CORS_ORIGIN  = "https://agentculture.org"
 PAGES_ORIGIN = "https://agentculture-learn.pages.dev"
+# Placeholder (task t8): the admin surface needs D1 (phase 2), so it is
+# unreachable in this signed-out deploy regardless of this value — mirrored
+# here only so this file and wrangler.toml don't structurally drift. See
+# wrangler.toml for the real value and the server-side-only enforcement note.
+ADMIN_GITHUB_IDS = "REPLACE_ME_admin_github_ids"
 
 [observability]
 enabled = true

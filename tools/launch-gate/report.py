@@ -15,7 +15,20 @@ import json
 import sys
 from collections import OrderedDict
 
-AUDIENCE_ORDER = ["preflight", "static", "launch-bar", "web", "cli", "agent"]
+AUDIENCE_ORDER = [
+    "preflight",
+    "static",
+    "launch-bar",
+    "web",
+    "cli",
+    "agent",
+    "consent",
+    "approval",
+    "voice",
+    "policy",
+    "cloze",
+    "uplift-live",
+]
 AUDIENCE_LABEL = {
     "preflight": "Preflight (subject CLIs)",
     "static": "Static / zero-API (site build)",
@@ -23,6 +36,12 @@ AUDIENCE_LABEL = {
     "web": "Web (Playwright signed-in/out)",
     "cli": "CLI (pytest golden --json)",
     "agent": "Agent (MCP harness)",
+    "consent": "Consent gate (t17 walk)",
+    "approval": "Approval gate (t17 walk)",
+    "voice": "Voice gate (t17 walk)",
+    "policy": "Policy pages (t17 walk)",
+    "cloze": "Cloze content (t17 walk)",
+    "uplift-live": "Uplift LIVE probes (post-deploy)",
 }
 
 

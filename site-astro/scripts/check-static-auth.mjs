@@ -165,12 +165,25 @@ check("global.css hides .signedin-only by an unconditional display:none", () => 
 });
 
 check("the landing page and every subject page render the signed-out invitation in raw HTML", () => {
-  const mustContain = [distDir /* landing */];
   const missing = [];
   const landing = readFileSync(path.join(distDir, "index.html"), "utf8");
   if (!landing.includes("Sign in to track progress")) missing.push("dist/index.html");
+  // t1's versioned policy pages (src/pages/terms/, src/pages/privacy/) are
+  // plain static prose with no learner panel — they carry no
+  // signed-in/signed-out split at all, so this check (which is about that
+  // split, not "every top-level page") doesn't apply to them. t10's consent
+  // notice (src/pages/consent/) is the same shape one level further: it has
+  // its OWN pending/expired/already-in/declined/error states (driven by
+  // src/scripts/consent.js, checked separately below), not the site-wide
+  // signed-out/signed-in split this check is about.
+  // t16's voice page (src/pages/voice/) is the same shape as consent: its
+  // OWN gate states (signed-out/consent-needed/not-approved/ready/error,
+  // driven by src/scripts/voice.js and checked separately below), not the
+  // site-wide learner-panel split this check is about — its signed-out state
+  // is a sign-in invitation with its own copy.
+  const NOT_A_LEARNER_PANEL_PAGE = new Set(["_astro", "terms", "privacy", "consent", "voice"]);
   for (const entry of readdirSync(distDir, { withFileTypes: true })) {
-    if (!entry.isDirectory() || entry.name === "_astro") continue;
+    if (!entry.isDirectory() || NOT_A_LEARNER_PANEL_PAGE.has(entry.name)) continue;
     const subjectIndex = path.join(distDir, entry.name, "index.html");
     if (!existsSync(subjectIndex)) continue;
     const html = readFileSync(subjectIndex, "utf8");
@@ -199,7 +212,45 @@ check("story pages keep the signed-out CTA note visible-by-default (no hidden at
 const learnerJsPath = path.join(srcDir, "scripts", "learner.js");
 const learnerJs = readFileSync(learnerJsPath, "utf8");
 
-const ALLOWED_SUFFIX_RE = /^(\/me|\/progress\/|\/record|\/auth\/)/;
+// t8 (roles + visibility) adds /export, /delete (the export/delete web
+// affordance the consent page's own copy promised, deferred from t7), and
+// the admin surface (gated client-side on the `is_admin` field GET /api/me
+// now carries — the server enforces the allow-list independently either
+// way). /me/visibility is already covered by the existing `\/me` prefix
+// (unanchored at the end, by design — see the two call sites below).
+// t9 (approval gate) enumerates the admin routes EXACTLY — /admin/learners,
+// /admin/approve, /admin/revoke, each anchored — replacing t8's open
+// `/admin/` prefix, so a future admin route must be added here consciously
+// rather than riding in under the prefix. learner.js keeps approve/revoke
+// as two static templates (never `/admin/${verb}`) for exactly this reason.
+const ALLOWED_SUFFIX_RE =
+  /^(\/me|\/progress\/|\/record|\/auth\/|\/export|\/delete|\/admin\/(learners|approve|revoke)$)/;
+
+// t10's consent.js is a SECOND, separately-loaded script (only on
+// src/pages/consent/index.astro, not via Layout.astro) with its own,
+// narrower fetch surface — enumerated exactly, not merged into the
+// learner.js whitelist above, so a future edit that widens one script can't
+// silently widen the other. Used below for consent.js's own source check,
+// and folded into the built-bundle whitelist further down (that check scans
+// every built .js file regardless of which source script produced it).
+const CONSENT_ALLOWED_SUFFIX_RE = /^(\/me|\/consent$|\/consent\/accept$|\/consent\/decline$)/;
+
+// t16's voice.js is a THIRD separately-loaded script (only on
+// src/pages/voice/index.astro), with the narrowest fetch surface of all:
+// the /api/me bootstrap plus the voice-token mint, enumerated exactly. The
+// wss:// bridge connection it then opens is a WebSocket, not a fetch() —
+// its own narrow allowance is checked in section 5 below (exactly ONE
+// `new WebSocket(` in the file, reachable only AFTER the mint succeeded).
+const VOICE_ALLOWED_SUFFIX_RE = /^(\/me$|\/voice\/token$)/;
+
+// t15's tutor.js is a FOURTH separately-loaded script (only via
+// TutorPanel.astro's own import, never Layout.astro) with its own exact
+// whitelist: the model-spending broker route (anchored — no sub-routes ride
+// in under it), the per-subject progress read that feeds next-step/cloze
+// personalization, and the existing record route the played story's tally
+// goes to. No /me (learner.js publishes its already-fetched payload — see
+// the learn:me hook in bootstrap()), no /auth, no admin/export/delete.
+const TUTOR_ALLOWED_SUFFIX_RE = /^(\/tutor$|\/progress\/|\/record$)/;
 
 check("learner.js imports the single API_BASE constant (no hardcoded alternate host)", () => {
   assert.match(learnerJs, /import\s*\{\s*API_BASE\s*\}\s*from\s*["']\.\.\/lib\/api\.js["']/);
@@ -220,14 +271,30 @@ check("every fetch() call in learner.js targets ${API_BASE} plus a whitelisted s
   assert.deepEqual(offenders, [], `non-whitelisted fetch target(s): ${offenders.join(", ")}`);
 });
 
-check("no reference to the model-spending /tutor route anywhere in site-astro (src or built)", () => {
-  // Deliberately searches for the bare "/tutor" suffix, not "/api/tutor": in
-  // both source (`${API_BASE}/tutor`) and the minified build (`${e}/tutor`),
-  // the "/api" prefix only ever exists inside the API_BASE variable, never
-  // concatenated into a literal string — so "/tutor" is the substring that
-  // would actually survive minification if this route were ever wired up,
-  // and is specific enough not to false-positive on anything else in this
-  // codebase.
+check("the model-spending /tutor route is referenced ONLY through whitelisted fetch templates", () => {
+  // t15 retires the pre-t15 blanket rule ("referenced nowhere in this
+  // site"): the approved-tier tutor surface (src/scripts/tutor.js) is now
+  // the ONE legitimate caller of POST /api/tutor. This stays precise, not
+  // loosened — strip exactly the three accounted-for forms, then ANY
+  // surviving "/tutor" substring (a hardcoded URL, a second call site, a
+  // string a whitelist check can't see) still fails the build:
+  //   1. fetch() template literals — every one is independently validated
+  //      against the per-script suffix whitelists (tutor.js's own source
+  //      check below; the built-bundle union check further down), so they
+  //      are accounted for, not ignored;
+  //   2. quoted module/asset paths that merely NAME the tutor scripts or
+  //      their built chunk ("../scripts/tutor.js", "./tutor-core.js",
+  //      <script src=".../_astro/tutor.HASH.js">) — paths, not calls;
+  //   3. `//` comment lines (prose about the route is not a call; same
+  //      comment-stripping tests/test_consent_page.py uses).
+  // Searches the bare "/tutor" suffix, not "/api/tutor", for the same
+  // minification reason as before: the "/api" prefix only ever exists
+  // inside the API_BASE variable, never concatenated into a literal.
+  const stripAccounted = (text) =>
+    text
+      .replace(/fetch\(\s*`[^`]*`/g, "fetch(`")
+      .replace(/["'`][^"'`\n]*tutor[^"'`\n]*\.m?js["'`]/g, '""')
+      .replace(/^\s*\/\/[^\n]*$/gm, "");
   const offenders = [];
   const scan = (dir, extRe) => {
     if (!existsSync(dir)) return;
@@ -235,14 +302,21 @@ check("no reference to the model-spending /tutor route anywhere in site-astro (s
       if (entry.name === "node_modules") continue;
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) scan(full, extRe);
-      else if (extRe.test(entry.name) && readFileSync(full, "utf8").includes("/tutor")) {
+      else if (
+        extRe.test(entry.name) &&
+        stripAccounted(readFileSync(full, "utf8")).includes("/tutor")
+      ) {
         offenders.push(path.relative(siteRoot, full));
       }
     }
   };
   scan(srcDir, /\.(js|ts|astro|mjs)$/);
   scan(distDir, /\.(js|html)$/);
-  assert.deepEqual(offenders, [], `/tutor referenced in: ${offenders.join(", ")}`);
+  assert.deepEqual(
+    offenders,
+    [],
+    `/tutor referenced outside whitelisted fetch templates in: ${offenders.join(", ")}`,
+  );
 });
 
 check(
@@ -311,7 +385,12 @@ check("the two failure branches return before reaching the happy path", () => {
 // identifier(s) the build aliased API_BASE's literal value to, then
 // re-runs the same suffix whitelist against every fetch() call that uses
 // one of those aliases (or the literal value directly, in case a future
-// build inlines it instead of aliasing it).
+// build inlines it instead of aliasing it). This scans EVERY built .js
+// asset regardless of which source script produced it, so it checks the
+// UNION of the per-file whitelists (ALLOWED_SUFFIX_RE for learner.js,
+// CONSENT_ALLOWED_SUFFIX_RE for consent.js, TUTOR_ALLOWED_SUFFIX_RE for
+// tutor.js) — the per-script source-level checks above/below are what keep
+// each script's OWN surface precise.
 
 check("the built JS bundle's fetch() calls stay inside the same whitelist", () => {
   const apiSrc = readFileSync(path.join(srcDir, "lib", "api.ts"), "utf8");
@@ -323,16 +402,29 @@ check("the built JS bundle's fetch() calls stay inside the same whitelist", () =
   const jsFiles = listFiles(distDir, ".js");
   assert.ok(jsFiles.length > 0, "expected at least one built .js asset (learner.js's bundle)");
 
-  let sawApiBaseLiteral = false;
+  // Two source files now import API_BASE (learner.js, consent.js), so Vite
+  // code-splits src/lib/api.ts into its OWN shared chunk rather than
+  // inlining the literal into each consumer — the alias assignment
+  // (`var e = \`/learn/api\`;`) lives in that one shared chunk, while the
+  // fetch() calls using it live in the OTHER, importing chunks. A per-file
+  // alias scan (checking each file only against aliases found in that same
+  // file) would therefore find zero aliases in the files that actually call
+  // fetch() and fail every call. Collect aliases GLOBALLY across every
+  // built .js file first, then check every file's fetch() calls against
+  // that global set — correct regardless of how many chunks the bundler
+  // decides to split this into.
+  const aliasRe = new RegExp(`([A-Za-z_$][\\w$]*)\\s*=\\s*[\`"']${escapedValue}[\`"']`, "g");
+  const aliases = new Set();
+  for (const file of jsFiles) {
+    const js = readFileSync(file, "utf8");
+    for (const m of js.matchAll(aliasRe)) aliases.add(m[1]);
+  }
+
   let totalFetchCalls = 0;
   const offenders = [];
 
   for (const file of jsFiles) {
     const js = readFileSync(file, "utf8");
-    const aliasRe = new RegExp(`([A-Za-z_$][\\w$]*)\\s*=\\s*[\`"']${escapedValue}[\`"']`, "g");
-    const aliases = new Set([...js.matchAll(aliasRe)].map((m) => m[1]));
-    if (aliases.size > 0) sawApiBaseLiteral = true;
-
     for (const [, template] of js.matchAll(/fetch\(\s*`([^`]*)`/g)) {
       totalFetchCalls += 1;
       let suffix = null;
@@ -342,13 +434,237 @@ check("the built JS bundle's fetch() calls stay inside the same whitelist", () =
       } else if (template.startsWith(apiBaseValue)) {
         suffix = template.slice(apiBaseValue.length).split("$")[0];
       }
-      if (suffix === null || !ALLOWED_SUFFIX_RE.test(suffix)) offenders.push(template);
+      const inWhitelist =
+        suffix !== null &&
+        (ALLOWED_SUFFIX_RE.test(suffix) ||
+          CONSENT_ALLOWED_SUFFIX_RE.test(suffix) ||
+          VOICE_ALLOWED_SUFFIX_RE.test(suffix) ||
+          TUTOR_ALLOWED_SUFFIX_RE.test(suffix));
+      if (!inWhitelist) offenders.push(template);
     }
   }
 
-  assert.ok(sawApiBaseLiteral, "API_BASE's literal value was not found inlined in any built JS asset");
+  assert.ok(aliases.size > 0, "API_BASE's literal value was not found inlined in any built JS asset");
   assert.ok(totalFetchCalls >= 4, `expected >= 4 fetch() calls across built JS, found ${totalFetchCalls}`);
   assert.deepEqual(offenders, [], `non-whitelisted fetch target(s) in built JS: ${offenders.join(", ")}`);
+});
+
+// --- 4. consent.js: precise fetch whitelist for the pending-consent page (t10) ---
+//
+// consent.js is loaded only on src/pages/consent/index.astro, not through
+// Layout.astro's global learner.js import, so the checks above (which are
+// hardcoded to learner.js's own path) never see it. Same technique, a
+// narrower, precisely-enumerated whitelist (CONSENT_ALLOWED_SUFFIX_RE,
+// defined above): /me, /consent, /consent/accept, /consent/decline — no
+// /progress, /record, or open /auth/ prefix, since consent.js has no
+// business calling those.
+
+const consentJsPath = path.join(srcDir, "scripts", "consent.js");
+
+check("consent.js exists and imports the single API_BASE constant (no hardcoded alternate host)", () => {
+  assert.ok(existsSync(consentJsPath), "expected src/scripts/consent.js to exist");
+  const consentJs = readFileSync(consentJsPath, "utf8");
+  assert.match(consentJs, /import\s*\{\s*API_BASE\s*\}\s*from\s*["']\.\.\/lib\/api\.js["']/);
+});
+
+check("every fetch() call in consent.js targets ${API_BASE} plus a whitelisted consent suffix", () => {
+  const consentJs = readFileSync(consentJsPath, "utf8");
+  const fetchCalls = [...consentJs.matchAll(/fetch\(\s*`([^`]*)`/g)];
+  assert.ok(fetchCalls.length >= 3, `expected >= 3 fetch() calls in consent.js, found ${fetchCalls.length}`);
+  const offenders = [];
+  for (const [, template] of fetchCalls) {
+    if (!template.startsWith("${API_BASE}")) {
+      offenders.push(template);
+      continue;
+    }
+    const suffix = template.slice("${API_BASE}".length).split("$")[0];
+    if (!CONSENT_ALLOWED_SUFFIX_RE.test(suffix)) offenders.push(template);
+  }
+  assert.deepEqual(offenders, [], `non-whitelisted fetch target(s) in consent.js: ${offenders.join(", ")}`);
+});
+
+check("consent.js's bootstrap() redirects out of pending state rather than exposing controls silently", () => {
+  const consentJs = readFileSync(consentJsPath, "utf8");
+  // The five states consent.js is responsible for (see its header comment):
+  // the notice itself (default markup, no JS-only gate needed) plus these
+  // four JS-driven outcomes, each reachable from bootstrap().
+  for (const state of ["expired", "already-in", "declined", "error"]) {
+    assert.match(
+      consentJs,
+      new RegExp(`showState\\("${state}"\\)`),
+      `consent.js must handle the "${state}" state`,
+    );
+  }
+});
+
+// --- 5. voice.js: the voice page's fetch + WebSocket surface (t16) ----------
+//
+// voice.js is loaded only on src/pages/voice/index.astro. Its fetch surface
+// is the narrowest yet (VOICE_ALLOWED_SUFFIX_RE, defined above): /me and
+// /voice/token, nothing else. It ALSO opens a WebSocket — the one transport
+// on this site that is not a fetch() and so invisible to every check above.
+// The narrow, documented allowance (spec h7's client half): exactly ONE
+// `new WebSocket(` may exist in the file, it must live inside the
+// openBridgeSocket() seam, and openBridgeSocket's only call site must sit
+// inside startSession() lexically AFTER the POST /api/voice/token mint and
+// its non-ok early return — no token, no WebSocket.
+
+const voiceJsPath = path.join(srcDir, "scripts", "voice.js");
+
+/** Balanced-brace extraction of `name`'s body (same technique as the
+ * bootstrap() check above — nested blocks defeat a non-greedy regex). */
+function extractFunctionBody(source, name) {
+  const start = source.indexOf(name);
+  assert.ok(start >= 0, `could not find \`${name}\` in voice.js`);
+  const openBrace = source.indexOf("{", start);
+  let depth = 0;
+  for (let i = openBrace; i < source.length; i += 1) {
+    if (source[i] === "{") depth += 1;
+    else if (source[i] === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(openBrace, i + 1);
+    }
+  }
+  assert.fail(`unbalanced braces while extracting ${name}'s body`);
+  return "";
+}
+
+check("voice.js exists and imports the single API_BASE constant (no hardcoded alternate host)", () => {
+  assert.ok(existsSync(voiceJsPath), "expected src/scripts/voice.js to exist");
+  const voiceJs = readFileSync(voiceJsPath, "utf8");
+  assert.match(voiceJs, /import\s*\{\s*API_BASE\s*\}\s*from\s*["']\.\.\/lib\/api\.js["']/);
+});
+
+check("every fetch() call in voice.js targets ${API_BASE} plus a whitelisted voice suffix", () => {
+  const voiceJs = readFileSync(voiceJsPath, "utf8");
+  const fetchCalls = [...voiceJs.matchAll(/fetch\(\s*`([^`]*)`/g)];
+  assert.ok(fetchCalls.length >= 2, `expected >= 2 fetch() calls in voice.js, found ${fetchCalls.length}`);
+  const offenders = [];
+  for (const [, template] of fetchCalls) {
+    if (!template.startsWith("${API_BASE}")) {
+      offenders.push(template);
+      continue;
+    }
+    const suffix = template.slice("${API_BASE}".length).split("$")[0];
+    if (!VOICE_ALLOWED_SUFFIX_RE.test(suffix)) offenders.push(template);
+  }
+  assert.deepEqual(offenders, [], `non-whitelisted fetch target(s) in voice.js: ${offenders.join(", ")}`);
+});
+
+check("voice.js opens exactly ONE WebSocket, inside the openBridgeSocket seam", () => {
+  const voiceJs = readFileSync(voiceJsPath, "utf8");
+  const constructions = [...voiceJs.matchAll(/new WebSocket\(/g)];
+  assert.equal(constructions.length, 1, `expected exactly 1 \`new WebSocket(\`, found ${constructions.length}`);
+  const seamBody = extractFunctionBody(voiceJs, "function openBridgeSocket(");
+  assert.ok(seamBody.includes("new WebSocket("), "the one WebSocket construction must live inside openBridgeSocket()");
+  // And no other site script opens one at all.
+  for (const file of listFiles(path.join(srcDir, "scripts"), ".js")) {
+    if (path.resolve(file) === path.resolve(voiceJsPath)) continue;
+    assert.ok(
+      !readFileSync(file, "utf8").includes("new WebSocket("),
+      `unexpected WebSocket construction in ${path.relative(siteRoot, file)}`,
+    );
+  }
+});
+
+check("voice.js connects ONLY after the token mint succeeded (h7: no token => no WebSocket)", () => {
+  const voiceJs = readFileSync(voiceJsPath, "utf8");
+  const body = extractFunctionBody(voiceJs, "async function startSession(");
+  const callSites = [...voiceJs.matchAll(/openBridgeSocket\(/g)].filter((m) => {
+    // Exclude the function's own definition line.
+    const lineStart = voiceJs.lastIndexOf("\n", m.index) + 1;
+    return !voiceJs.slice(lineStart, m.index).includes("function ");
+  });
+  assert.equal(callSites.length, 1, `expected exactly 1 openBridgeSocket() call site, found ${callSites.length}`);
+  const mintIdx = body.indexOf("fetch(`${API_BASE}/voice/token`");
+  const connectIdx = body.indexOf("openBridgeSocket(");
+  assert.ok(mintIdx >= 0, "startSession() must mint via POST ${API_BASE}/voice/token");
+  assert.ok(connectIdx > mintIdx, "the WebSocket connect must come lexically after the mint");
+  const between = body.slice(mintIdx, connectIdx);
+  assert.match(
+    between,
+    /if\s*\(!res\.ok[\s\S]*?return;/,
+    "a non-ok mint must return before the connect line is reachable",
+  );
+});
+
+check("voice.js drives all five gate states", () => {
+  const voiceJs = readFileSync(voiceJsPath, "utf8");
+  for (const state of ["signed-out", "consent-needed", "not-approved", "ready", "error"]) {
+    assert.match(
+      voiceJs,
+      new RegExp(`showState\\("${state}"\\)`),
+      `voice.js must handle the "${state}" state`,
+    );
+  }
+});
+
+// --- 6. tutor.js: the approved-tier surface's precise whitelist (t15) ------
+//
+// tutor.js is loaded only via TutorPanel.astro's own import (subject pages),
+// never through Layout.astro. Same technique as consent.js's checks: its own
+// exact whitelist (TUTOR_ALLOWED_SUFFIX_RE, defined above), plus the gate
+// discipline check — the file wires nothing and fetches nothing unless the
+// published /api/me payload says the learner is admin-approved.
+
+const tutorJsPath = path.join(srcDir, "scripts", "tutor.js");
+
+check("tutor.js exists and imports the single API_BASE constant (no hardcoded alternate host)", () => {
+  assert.ok(existsSync(tutorJsPath), "expected src/scripts/tutor.js to exist");
+  const tutorJs = readFileSync(tutorJsPath, "utf8");
+  assert.match(tutorJs, /import\s*\{\s*API_BASE\s*\}\s*from\s*["']\.\.\/lib\/api\.js["']/);
+});
+
+check("every fetch() call in tutor.js targets ${API_BASE} plus a whitelisted tutor suffix", () => {
+  const tutorJs = readFileSync(tutorJsPath, "utf8");
+  const fetchCalls = [...tutorJs.matchAll(/fetch\(\s*`([^`]*)`/g)];
+  assert.ok(fetchCalls.length >= 3, `expected >= 3 fetch() calls in tutor.js, found ${fetchCalls.length}`);
+  const offenders = [];
+  for (const [, template] of fetchCalls) {
+    if (!template.startsWith("${API_BASE}")) {
+      offenders.push(template);
+      continue;
+    }
+    const suffix = template.slice("${API_BASE}".length).split("$")[0];
+    if (!TUTOR_ALLOWED_SUFFIX_RE.test(suffix)) offenders.push(template);
+  }
+  assert.deepEqual(offenders, [], `non-whitelisted fetch target(s) in tutor.js: ${offenders.join(", ")}`);
+});
+
+check("tutor.js's hydrateTutorPanel() bails out before ANY wiring unless the learner is approved", () => {
+  const tutorJs = readFileSync(tutorJsPath, "utf8");
+  const start = tutorJs.indexOf("function hydrateTutorPanel");
+  assert.ok(start >= 0, "could not find `function hydrateTutorPanel` in tutor.js");
+  // Balanced-brace extraction, same as bootstrap()'s check above.
+  const openBrace = tutorJs.indexOf("{", start);
+  let depth = 0;
+  let end = -1;
+  for (let i = openBrace; i < tutorJs.length; i += 1) {
+    if (tutorJs[i] === "{") depth += 1;
+    else if (tutorJs[i] === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        end = i;
+        break;
+      }
+    }
+  }
+  assert.ok(end > openBrace, "unbalanced braces while extracting hydrateTutorPanel()'s body");
+  const body = tutorJs.slice(openBrace, end + 1);
+
+  assert.match(body, /me\.learner\.approved/, "the gate must read me.learner.approved");
+  const bailIdx = body.indexOf("if (!approved)");
+  assert.ok(bailIdx >= 0, "expected an `if (!approved)` early return");
+  assert.match(
+    body.slice(bailIdx, bailIdx + 300),
+    /return;/,
+    "the unapproved branch must return before wiring",
+  );
+  for (const fn of ["wireGrade(", "wireNextStep(", "wireClozeGen("]) {
+    const idx = body.indexOf(fn);
+    assert.ok(idx >= 0, `hydrateTutorPanel() must call ${fn}`);
+    assert.ok(idx > bailIdx, `${fn} must come after the approved gate`);
+  }
 });
 
 if (problems.length > 0) fail();
@@ -356,5 +672,10 @@ if (problems.length > 0) fail();
 console.log(
   `check-static-auth: OK — ${htmlFiles.length} built page(s) verified static/no-JS-safe; ` +
     "learner.js's fetch surface is confined to the /api/me | /api/progress/ | /api/record | " +
-    "/api/auth/* whitelist and gated behind a confirmed session.",
+    "/api/auth/* whitelist and gated behind a confirmed session; consent.js's fetch surface " +
+    "is confined to the /api/me | /api/consent | /api/consent/accept | /api/consent/decline " +
+    "whitelist; voice.js's fetch surface is confined to /api/me | /api/voice/token, and its " +
+    "single WebSocket is reachable only after a successful token mint; tutor.js's fetch " +
+    "surface is confined to the /api/tutor | /api/progress/ | /api/record whitelist and " +
+    "gated behind the admin-approved flag.",
 );

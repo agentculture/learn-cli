@@ -67,6 +67,59 @@
             "agent-fleet"
           ],
           "type": "multiple_choice"
+        },
+        {
+          "blanks": [
+            {
+              "answer": "system prompt",
+              "id": "leak_source",
+              "options": [
+                "system prompt",
+                "secret manager",
+                "changelog"
+              ]
+            },
+            {
+              "answer": "secret manager",
+              "id": "fix",
+              "options": [
+                "secret manager",
+                "public door",
+                "debug log"
+              ]
+            }
+          ],
+          "id": "cg.story.cg-scenario-before-the-public-door.6",
+          "item_id": "secrets",
+          "prompt": "Fill in each blank with the term that best completes the postmortem.",
+          "related_concepts": [
+            "one-or-many",
+            "public-access"
+          ],
+          "text": "The billing key had been pasted straight into the agent's {{leak_source}}; federation carried that context onto a machine with a debug log that captured it in cleartext. The team's fix was to pull every credential out of prompts and repos and place it behind a {{fix}}, so each agent held only a scoped, rotatable secret.",
+          "type": "cloze"
+        },
+        {
+          "blanks": [
+            {
+              "answer": "Level 3 agent-management tier",
+              "id": "tier",
+              "options": [
+                "Level 3 agent-management tier",
+                "Level 1 project agent",
+                "Level 4 orchestrator"
+              ]
+            }
+          ],
+          "id": "cg.story.cg-scenario-before-the-public-door.7",
+          "item_id": "agent-levels",
+          "prompt": "Fill in the blank with the term that best completes the sentence.",
+          "related_concepts": [
+            "agent-fleet",
+            "company-scale"
+          ],
+          "text": "Six agents and no one whose job was to manage agents — the fleet was missing its {{tier}}, the tier that becomes worth adding once a fleet passes roughly three-to-five agents, owning onboarding, skills, and credential rotation across the fleet.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -169,6 +222,50 @@
           ],
           "rubric": "Passes if the learner names a concrete question, a specific grounding source the agent can actually reach, and an explicit 'say you do not know / cite the source' boundary. Partial if any of the three is missing or left vague.",
           "type": "open"
+        },
+        {
+          "blanks": [
+            {
+              "answer": "hallucination",
+              "id": "term",
+              "options": [
+                "hallucination",
+                "deception",
+                "refusal"
+              ]
+            }
+          ],
+          "id": "cg.story.cg-scenario-the-confident-intern.5",
+          "item_id": "hallucinations",
+          "prompt": "Fill in the blank with the term that best completes the sentence.",
+          "related_concepts": [
+            "prediction",
+            "prompt-engineering"
+          ],
+          "text": "With nothing in its context grounding the real client flags, the model produced a fluent, confident-sounding answer that simply wasn't true — not a lie, but a {{term}}: the default failure mode whenever an answer is ungrounded.",
+          "type": "cloze"
+        },
+        {
+          "blanks": [
+            {
+              "answer": "system prompt",
+              "id": "term",
+              "options": [
+                "system prompt",
+                "changelog",
+                "error log"
+              ]
+            }
+          ],
+          "id": "cg.story.cg-scenario-the-confident-intern.6",
+          "item_id": "system-prompt",
+          "prompt": "Fill in the blank with the term that best completes the sentence.",
+          "related_concepts": [
+            "prompt-engineering",
+            "hallucinations"
+          ],
+          "text": "Ravi stopped treating the {{term}} as a place to scold the model and started treating it as a program — its phrasing and examples were what actually steered which answers became likely.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -261,6 +358,50 @@
           ],
           "rubric": "Passes if the learner sees that 'forgetting under overload' looks human but the mechanism is finite context and attention dilution (not tiredness), notes that the agent will not push back or flag its own confusion, and ties the fix to context engineering rather than persuasion. Partial if it labels the behaviours without connecting them to the fix.",
           "type": "discussion"
+        },
+        {
+          "blanks": [
+            {
+              "answer": "definitions",
+              "id": "term",
+              "options": [
+                "definitions",
+                "credentials",
+                "transcripts"
+              ]
+            }
+          ],
+          "id": "cg.story.cg-scenario-the-over-tooled-agent.5",
+          "item_id": "mcps",
+          "prompt": "Fill in the blank with the term that best completes the sentence.",
+          "related_concepts": [
+            "tool-use",
+            "limitations"
+          ],
+          "text": "Every MCP the agent connected to injected its tool {{term}} — names, descriptions, parameter schemas — into the context before the agent did anything at all; five broad servers filled a large fraction of the window with these alone.",
+          "type": "cloze"
+        },
+        {
+          "blanks": [
+            {
+              "answer": "context engineering",
+              "id": "term",
+              "options": [
+                "context engineering",
+                "prompt engineering",
+                "fine-tuning"
+              ]
+            }
+          ],
+          "id": "cg.story.cg-scenario-the-over-tooled-agent.6",
+          "item_id": "context-engineering",
+          "prompt": "Fill in the blank with the term that best completes the sentence.",
+          "related_concepts": [
+            "mcps",
+            "agent-definition"
+          ],
+          "text": "The fix was not a bigger model or a longer prompt — it was {{term}}: deciding what belongs in the context window for this specific job, then cutting the agent's default MCPs down to two, tightly scoped.",
+          "type": "cloze"
         }
       ],
       "glossary": [

@@ -8,7 +8,9 @@
 // by test (worker.test.js: "signed-out /api/tutor never calls inference").
 
 import { HttpError, parseCookies } from "./util.js";
-import { verifySession } from "./session.js";
+import { verifySession, isPendingConsent } from "./session.js";
+import { getConsent } from "./db.js";
+import { consentSatisfiesCurrentTerms, consentRequirement } from "./consent.js";
 
 /** Extract a session token from a Bearer header (CLI/MCP) or cookie (web). */
 export function extractToken(request) {
@@ -45,6 +47,87 @@ export async function requireAuth(request, env) {
         "Sign in again to obtain a fresh session.",
       );
     }
+  }
+  // Per-uid revocation (Qodo review finding, BUG 1): a per-sid tombstone
+  // alone only kills the ONE token that called logout/delete. Sessions are
+  // stateless signed tokens and /api/me's sliding refresh mints a new token
+  // WITHOUT revoking the old one, so a learner can hold several valid
+  // sessions at once (web + CLI + another browser tab). POST /api/delete
+  // (src/index.js#handleDelete) stamps `revoked_uid:<uid>` with the epoch
+  // SECOND deletion ran, so this check rejects EVERY session for that uid
+  // issued before it — "delete logs me out everywhere" — not just the sid
+  // that called delete.
+  //
+  // Strict `<`, not `<=`: a token whose `iat` lands in the exact same
+  // epoch-second as the marker must NOT be rejected. That boundary matters
+  // in practice — signing back in immediately after a self-delete (the
+  // documented delete -> pending-consent -> re-accept flow) mints a brand
+  // new session whose `iat` can legitimately equal the delete second at
+  // this granularity; only tokens issued strictly BEFORE the marker are the
+  // ones delete needs to invalidate.
+  if (env.SESSIONS && payload.uid && typeof payload.iat === "number") {
+    const revokedAt = await env.SESSIONS.get(`revoked_uid:${payload.uid}`);
+    if (revokedAt !== null && payload.iat < Number(revokedAt)) {
+      throw new HttpError(
+        401,
+        "session_revoked",
+        "This session was signed out (account data was deleted).",
+        "Sign in again to obtain a fresh session.",
+      );
+    }
+  }
+  return payload;
+}
+
+/**
+ * Require a valid, CONSENTED session — requireAuth plus the pending-consent
+ * gate (spec decision c19) plus the re-consent gate (spec c10/h2, task t6).
+ * A pending-consent token authenticates the learner but grants nothing
+ * beyond /api/me, the consent endpoints, and logout; every learner-scoped
+ * route (progress, record, tutor, ...) passes through here and rejects it
+ * with a structured 403 BEFORE touching D1 or inference.
+ *
+ * t5 gated on the token's own marker only: "a full session was necessarily
+ * issued via consent accept (or a consented sign-in), so no D1 read is
+ * needed here." That assumption only holds AT ISSUE TIME — it says nothing
+ * about whether the published terms have moved on since. t6 closes that gap:
+ * a full session additionally gets its STORED consent re-checked against the
+ * currently published version on every protected request, so a
+ * TERMS_VERSION bump walls off even a live, unexpired full-session token
+ * immediately (no waiting for it to expire or refresh).
+ *
+ * Design/cost tradeoff (see README "Storage" for the write-up): this is one
+ * extra D1 read (`getConsent`) per requireConsented-gated request. The
+ * alternative — stamp the consented version into the session token's signed
+ * claims at issue time and compare claim-to-current with zero D1 reads — was
+ * rejected for v1: it would require every session-issuing call site
+ * (callback, device poll, consent accept, AND the sliding-refresh re-issue in
+ * handleMe) to correctly propagate the claim, and a bug in any one of them
+ * would silently under- or over-grant access. A D1 read is the simple,
+ * obviously-correct baseline; revisit only if this route's read volume
+ * becomes a measured hot spot.
+ * @returns {object} the verified, consented session payload.
+ */
+export async function requireConsented(request, env) {
+  const payload = await requireAuth(request, env);
+  if (isPendingConsent(payload)) {
+    throw new HttpError(
+      403,
+      "consent_required",
+      "Consent to the current Terms of Use and Privacy Policy is required first.",
+      "Review GET /api/consent, then POST /api/consent/accept — or /api/consent/decline to leave with nothing stored.",
+      { reason: "pending", consent_required: consentRequirement(env) },
+    );
+  }
+  const consent = await getConsent(env, payload.uid);
+  if (!consentSatisfiesCurrentTerms(consent, env)) {
+    throw new HttpError(
+      403,
+      "consent_required",
+      "The Terms of Use / Privacy Policy have changed since you last consented — please review and re-accept.",
+      "Review GET /api/consent, then POST /api/consent/accept to restore access.",
+      { reason: "stale_version", consent_required: consentRequirement(env) },
+    );
   }
   return payload;
 }

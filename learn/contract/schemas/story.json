@@ -124,6 +124,39 @@
         "rubric": {
           "type": "string",
           "description": "Grading guidance for open-ended exercises: what passes, what is partial."
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "For the pick-the-right-word cloze variant ONLY: the passage with each blank marked as a `{{blank_id}}` placeholder, one per entry in `blanks`. Omit for a single-blank free-text cloze exercise (use `prompt` with the blank written as `___`, plus a top-level `answer`, exactly as contract 1.0 always allowed) and for every non-cloze type."
+        },
+        "blanks": {
+          "type": "array",
+          "minItems": 1,
+          "description": "For the pick-the-right-word cloze variant ONLY: one entry per `{{blank_id}}` placeholder in `text`, always present together with `text`. Absent for a single-blank free-text cloze exercise and for every non-cloze type.",
+          "items": { "$ref": "#/$defs/cloze_blank" }
+        }
+      }
+    },
+    "cloze_blank": {
+      "type": "object",
+      "required": ["id", "options", "answer"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "description": "Matches one `{{id}}` placeholder in the exercise's `text`; unique within the exercise."
+        },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "The words the reader picks from for this blank: the correct word plus one or more distractors. Must include `answer`."
+        },
+        "answer": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The correct option for this blank; must be one of `options`."
         }
       }
     }

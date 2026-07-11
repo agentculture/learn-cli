@@ -1,0 +1,405 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  learn-cli voice bridge — the serverless Nova Sonic 2 relay (spec c15/h7
+  groundwork, hosting decision c27). An API Gateway WebSocket API fronting ONE
+  arm64 Lambda that (a) gates every connection on a short-lived voice token
+  minted by learn-api and (b) holds Bedrock's InvokeModelWithBidirectionalStream
+  for the session, relaying learner audio up and model speech back. A DynamoDB
+  session/frame table and an AWS Budgets alarm pinned to a 20 USD/month ceiling
+  complete the stack. Mirrors league-of-agents-platform/infra/template.yaml's
+  conventions on purpose: every sizing choice below is commented against that
+  20 USD ceiling (never generic best practice), and intrinsic functions are
+  written long-form (Fn::Sub/Ref/Fn::GetAtt, no shorthand tags) so this file
+  parses as plain YAML with any loader (see tests/test_voice_bridge_template.py).
+  Zero idle cost by construction: no provisioned concurrency, nothing always-on
+  — an idle month is 0 USD, per the serverless-only user decision (no EC2).
+  The live feasibility proof for this design is infra/SPIKE.md.
+
+# --- parameters --------------------------------------------------------------
+# The capacity caps default to voice_bridge/config.py's constants —
+# tests/test_voice_bridge_template.py cross-checks them against the Python
+# source directly (league's anti-drift guard), so the two cannot silently
+# diverge.
+#
+# The price frame every number below is tuned against (spike-measured +
+# published on-demand rates, order of magnitude): Nova Sonic 2 speech tokens
+# are the dominant cost line at ~0.0034 USD/1k in and ~0.0136 USD/1k out, and
+# the spike measured ~43 speech tokens per second of audio — call it 1-2 cents
+# per conversation-minute combined. Everything else in this stack (Lambda,
+# API Gateway messages, DynamoDB frames) totals ~2 cents per max-length
+# session, roughly a fifth of that session's model spend. The 20 USD ceiling
+# therefore buys on the order of 1,000-2,000 voice-minutes a month, and the
+# caps below exist to keep the *rate* of spend inside what the Budgets alarm
+# can catch — the per-learner gate is approval itself (only admin-approved
+# learners ever get a voice token; t16 adds a per-learner budget on top).
+
+Parameters:
+  StageName:
+    Type: String
+    Default: prod
+    Description: >-
+      API Gateway stage / resource-name namespace. Keep it short — it
+      prefixes every named resource below.
+  MonthlyBudgetUsd:
+    Type: Number
+    Default: 20
+    Description: >-
+      Hard monthly cost ceiling in USD (see the MonthlyBudget resource).
+      Default matches voice_bridge.config.DEFAULT_MONTHLY_BUDGET_USD.
+  BudgetAlertEmail:
+    Type: String
+    Description: >-
+      Email address that receives AWS Budgets threshold notifications. No
+      default on purpose — the operator must supply a real address at deploy
+      time (league's posture).
+  VoiceTokenSecretValue:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: >-
+      HMAC shared secret for voice tokens (voice_bridge.tokens; learn-api
+      mints the counterpart in t16). Empty by default, which keeps the bridge
+      SHUT — verify_voice_token never accepts anything under an empty secret,
+      so a deployed-but-unwired stack refuses every connection and can spend
+      nothing on Bedrock. NoEcho so CloudFormation never surfaces the value.
+      Rotating this parameter is also the kill switch: one stack update
+      invalidates every outstanding token instantly.
+  MaxSessionSeconds:
+    Type: Number
+    Default: 300
+    Description: >-
+      Per-session hard cap, enforced by the session holder's pump deadline
+      (relay.pump) with the Lambda timeout as backstop. 300 s of conversation
+      is ~0.10 USD of Nova Sonic 2 tokens — the ceiling affords ~200
+      max-length sessions/month. Also comfortably inside every API Gateway
+      WebSocket limit that shapes this design (10 min idle timeout, 2 h
+      connection cap — see infra/SPIKE.md).
+  MaxConcurrentVoiceSessions:
+    Type: Number
+    Default: 2
+    Description: >-
+      Hard cap on simultaneous voice sessions — over-cap connects are REFUSED
+      (429), never degraded (league's capacity posture). 2 concurrent
+      sessions bound the worst-case burn rate to ~2.4 USD/hour of saturated
+      abuse, so the FORECASTED Budgets alarm below fires the same day and the
+      operator's response (rotate VoiceTokenSecretValue) shuts the bridge —
+      the cap bounds the rate, the alarm bounds the duration.
+  NovaSonicModelId:
+    Type: String
+    Default: amazon.nova-2-sonic-v1:0
+    Description: >-
+      The Bedrock model the bridge relays to. Default confirmed live in
+      us-east-1 by the spike (SPEECH+TEXT modalities); matches
+      voice_bridge.config.NOVA_SONIC_MODEL_ID.
+
+# --- globals -----------------------------------------------------------------
+# Applied to every AWS::Serverless::Function here (there is exactly one).
+
+Globals:
+  Function:
+    # python3.12, matching league: the spike proved the experimental
+    # aws_sdk_bedrock_runtime SDK holds the bidirectional stream from plain
+    # Python — no Node runtime needed (see infra/SPIKE.md, "runtime choice").
+    Runtime: python3.12
+    # arm64 (Graviton): ~20% cheaper per GB-second than x86_64, and the one
+    # native dependency (awscrt) ships manylinux aarch64 wheels — free money
+    # against the ceiling, no downside.
+    Architectures:
+      - arm64
+    # 512 MB: the session holder is I/O-bound (HTTP/2 event pump + base64) —
+    # no subprocess spawning like league's 1024 MB case. A full 300 s session
+    # at 512 MB is 150 GB-s ≈ 0.2 cents, ~1/50th of that session's Bedrock
+    # spend; router invocations are milliseconds. 1024 MB would double a
+    # rounding error for latency this workload cannot feel.
+    MemorySize: 512
+    # 360 s = MaxSessionSeconds' default (300) + 60 s of stream-teardown
+    # grace. The pump self-terminates at the deadline; this timeout is the
+    # backstop circuit breaker so a hung holder is killed at ~0.5 cents of
+    # compute instead of running to Lambda's 900 s maximum.
+    # tests/test_voice_bridge_template.py asserts Timeout > MaxSessionSeconds.
+    Timeout: 360
+    # X-Ray would bill per trace with nothing to fan out to — same reasoning
+    # as league: an unbounded-by-traffic cost line for no operational payoff.
+    Tracing: Disabled
+
+# --- resources ---------------------------------------------------------------
+# Exactly eleven: the WebSocket API, its stage, three routes, the shared
+# Lambda integration, the invoke permission, the bridge function and its log
+# group, the sessions table, and the Budget alarm. (SAM adds the function's
+# IAM execution role implicitly.)
+
+Resources:
+  # API Gateway WEBSOCKET API (the only API Gateway flavor with server-push,
+  # which the audio return path needs). Pricing is per message
+  # (~1.00 USD/million) plus connection-minutes (~0.25 USD/million): a
+  # max-length session moves ~2,400 frames up and ~2,400 down ≈ 0.5 cents —
+  # noise against the session's ~10 cents of model tokens. Constraints that
+  # shaped the design (verified against AWS quotas, see infra/SPIKE.md):
+  # 32 KB max frame (audio chunks are ~5.5 KB base64), 10 min idle timeout
+  # and 2 h connection cap (both far above MaxSessionSeconds=300).
+  WebSocketApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name:
+        Fn::Sub: "learn-voice-${StageName}"
+      ProtocolType: WEBSOCKET
+      # Inbound frames are opaque JSON audio chunks, not action-routed
+      # commands — everything lands on $default; this expression is required
+      # boilerplate for WEBSOCKET APIs and deliberately never matches.
+      RouteSelectionExpression: "$request.body.action"
+
+  WebSocketStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId:
+        Ref: WebSocketApi
+      StageName:
+        Ref: StageName
+      AutoDeploy: true
+      # Throttling is the cost circuit breaker for the *plumbing* (league's
+      # HttpApi posture): it bounds how many router-Lambda invocations and
+      # DynamoDB frame writes a runaway client can generate. Steady state is
+      # ~8 frames/s per session × 2 sessions ≈ 16 msg/s; rate 50 leaves
+      # headroom for reconnect bursts while capping a hostile client at ~3x
+      # the legitimate peak. (Bedrock spend is bounded separately, by the
+      # session caps above — throttling here cannot reach it.)
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 100
+        ThrottlingRateLimit: 50
+
+  # All three routes share the one integration below — the routing happens
+  # inside the handler (routeKey), keeping this a one-Lambda stack.
+  # AuthorizationType NONE is deliberate and safe: $connect itself IS the
+  # auth gate (voice_bridge.handler._connect verifies the learn-api-minted
+  # token before anything else happens — h7's groundwork), and a REQUEST
+  # authorizer would be a second Lambda for the same check.
+  ConnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: WebSocketApi
+      RouteKey: $connect
+      AuthorizationType: NONE
+      Target:
+        Fn::Sub: "integrations/${BridgeIntegration}"
+
+  DisconnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: WebSocketApi
+      RouteKey: $disconnect
+      AuthorizationType: NONE
+      Target:
+        Fn::Sub: "integrations/${BridgeIntegration}"
+
+  DefaultRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: WebSocketApi
+      RouteKey: $default
+      AuthorizationType: NONE
+      Target:
+        Fn::Sub: "integrations/${BridgeIntegration}"
+
+  BridgeIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: WebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: >-
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${BridgeFunction.Arn}/invocations
+
+  WebSocketInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Ref: BridgeFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub: "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/*"
+
+  # The ONE Lambda, in two modes (see voice_bridge/handler.py's module
+  # docstring): API Gateway WebSocket integrations are per-message
+  # invocations, so the $connect router cannot itself hold the Bedrock
+  # stream — after the token verifies, it async-self-invokes this same
+  # function in session-holder mode, which opens the bidirectional stream
+  # and pumps until MaxSessionSeconds. One function, one runtime, one
+  # codebase — the "one arm64 Lambda" the task mandates, with no second
+  # resource to keep in sync.
+  BridgeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      # Explicit name so the self-invoke IAM statement below can reference
+      # it as a plain string — referencing the function's own attribute from
+      # its own policy would be a circular dependency.
+      FunctionName:
+        Fn::Sub: "learn-voice-${StageName}-bridge"
+      # CodeUri is this infra/ directory (not voice_bridge/) because SAM's
+      # default python build wants requirements.txt at the CodeUri root and
+      # the handler uses package imports; the few extra files bundled
+      # (template.yaml, SPIKE.md) are kilobytes. No Makefile build needed —
+      # unlike league, this package is self-contained by design.
+      CodeUri: ./
+      Handler: voice_bridge.handler.lambda_handler
+      Environment:
+        Variables:
+          # Names come from voice_bridge/config.py; the template test
+          # cross-checks them so handler and template cannot drift.
+          VOICE_TOKEN_SECRET:
+            Ref: VoiceTokenSecretValue
+          SESSIONS_TABLE_NAME:
+            Ref: VoiceSessionsTable
+          MAX_SESSION_SECONDS:
+            Ref: MaxSessionSeconds
+          MAX_CONCURRENT_VOICE_SESSIONS:
+            Ref: MaxConcurrentVoiceSessions
+          NOVA_SONIC_MODEL_ID:
+            Ref: NovaSonicModelId
+          SELF_FUNCTION_NAME:
+            Fn::Sub: "learn-voice-${StageName}-bridge"
+          WEBSOCKET_CALLBACK_URL:
+            Fn::Sub: "https://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}"
+      # Least privilege, every grant named: exactly what the two modes use,
+      # nothing wildcard. (SAM's DynamoDBCrudPolicy scopes to the one table.)
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName:
+              Ref: VoiceSessionsTable
+        - Version: "2012-10-17"
+          Statement:
+            # The session holder's upstream connection — the ONLY Bedrock
+            # action this stack can perform, on the one model it relays to.
+            # SigV4 via this execution role is the proven auth path; the
+            # spike showed Bedrock API keys are rejected by this operation
+            # ("This operation does not support API Keys" — infra/SPIKE.md).
+            - Sid: OpenNovaSonicBidirectionalStream
+              Effect: Allow
+              Action:
+                - bedrock:InvokeModelWithBidirectionalStream
+              Resource:
+                Fn::Sub: "arn:aws:bedrock:${AWS::Region}::foundation-model/${NovaSonicModelId}"
+            # The audio return path: PostToConnection (and the teardown
+            # DeleteConnection) on this API's connections only.
+            - Sid: PushAudioBackOverTheWebSocket
+              Effect: Allow
+              Action:
+                - execute-api:ManageConnections
+              Resource:
+                Fn::Sub: "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/${StageName}/POST/@connections/*"
+            # The router's async hand-off to session-holder mode (same
+            # function; see FunctionName comment above).
+            - Sid: SelfInvokeSessionHolder
+              Effect: Allow
+              Action:
+                - lambda:InvokeFunction
+              Resource:
+                Fn::Sub: "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:learn-voice-${StageName}-bridge"
+
+  # CloudWatch Logs cost is retention x volume; explicit group + short
+  # retention instead of the auto-created "Never expire" default (league's
+  # reasoning verbatim — a hosted side project, not compliance retention).
+  BridgeFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: "/aws/lambda/${BridgeFunction}"
+      RetentionInDays: 14
+
+  # Session registry + inbound frame buffer in one table, league's PK/SK
+  # single-table convention (see voice_bridge/handler.py's DynamoSessionStore
+  # for the item shapes). On-demand billing: voice traffic is bursty and
+  # capacity-capped, so there is no idle floor to pay — an idle month is
+  # 0 USD. Frames are the hot path: ~2,400 writes of ~6 WRU per max-length
+  # session ≈ 1.8 cents, the largest plumbing line and still ~1/5th of the
+  # session's model tokens. TTL (expires_at) garbage-collects sessions and
+  # frames for free, so a crashed holder cannot pin the concurrency cap
+  # (rows expire ~1 h past deadline) or accumulate storage cost.
+  #
+  # Session-metadata items live under the constant partition key PK=ACTIVE
+  # (frames keep their own PK=SESSION#<connection> partition) precisely so
+  # the $connect concurrency gate (DynamoSessionStore.count_active) can
+  # Query that one partition instead of Scan-ing the whole table — a Scan
+  # would read every frame row too, so its cost/latency would grow with
+  # frame volume even though the gate only ever needs the session count.
+  # The base table's PK/SK schema already covers this Query; no GSI needed.
+  VoiceSessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName:
+        Fn::Sub: "learn-voice-${StageName}-sessions"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+
+  # The hard 20 USD/month ceiling, enforced as notification (AWS Budgets
+  # cannot halt spend itself). Same two thresholds as league: 80% of actual
+  # as the early warning, 100% forecast so the operator hears BEFORE the
+  # ceiling is crossed. Budgets evaluates on billing-data granularity
+  # (hours, not minutes) — which is exactly why MaxConcurrentVoiceSessions
+  # bounds the burn RATE above: at ~2.4 USD/hour worst case, the forecast
+  # alarm fires the same day and rotating VoiceTokenSecretValue stops the
+  # spend instantly.
+  MonthlyBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName:
+          Fn::Sub: "learn-voice-${StageName}-monthly-ceiling"
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit:
+          Amount:
+            Ref: MonthlyBudgetUsd
+          Unit: USD
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address:
+                Ref: BudgetAlertEmail
+        - Notification:
+            NotificationType: FORECASTED
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address:
+                Ref: BudgetAlertEmail
+
+Outputs:
+  WebSocketUrl:
+    Description: >-
+      wss:// endpoint the /learn voice UI (t16) connects to, with
+      ?token=<voice token> on the upgrade request.
+    Value:
+      Fn::Sub: "wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}"
+  VoiceSessionsTableName:
+    Description: Name of the deployed voice sessions/frames table.
+    Value:
+      Ref: VoiceSessionsTable
+  BridgeFunctionName:
+    Description: Name of the bridge Lambda (router + session holder).
+    Value:
+      Ref: BridgeFunction

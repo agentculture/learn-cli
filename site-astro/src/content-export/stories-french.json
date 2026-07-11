@@ -41,6 +41,25 @@
           "prompt": "Pourquoi Nina a-t-elle un peu peur le matin de la rentrée ?",
           "rubric": "Passes if the answer mentions the new teacher or general first-day nerves; partial if it just says 'she is scared' with no reason.",
           "type": "open"
+        },
+        {
+          "answer": "maîtresse",
+          "blanks": [
+            {
+              "answer": "maîtresse",
+              "id": "enseignante",
+              "options": [
+                "maîtresse",
+                "maître",
+                "professeur"
+              ]
+            }
+          ],
+          "id": "fr-a1-la-rentree-q5",
+          "item_id": "fr.story.fr-a1-la-rentree.2",
+          "prompt": "Fill in each blank with the right word.",
+          "text": "« Il y a une nouvelle {{enseignante}} cette année, » dit Nina.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -130,6 +149,25 @@
           "prompt": "Pourquoi Léo est-il fier à la fin de l'histoire ?",
           "rubric": "Passes if the answer names that he spoke French with the vendors by himself/alone; partial if it only says he went to the market.",
           "type": "open"
+        },
+        {
+          "answer": "kilo",
+          "blanks": [
+            {
+              "answer": "kilo",
+              "id": "unit",
+              "options": [
+                "kilo",
+                "litre",
+                "mètre"
+              ]
+            }
+          ],
+          "id": "fr-a1-le-marche-q5",
+          "item_id": "fr.story.fr-a1-le-marche.3",
+          "prompt": "Fill in each blank with the right word.",
+          "text": "Léo dit au vendeur : « Bonjour, monsieur. Je voudrais un {{unit}} de carottes, s'il vous plaît. »",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -221,6 +259,25 @@
           "prompt": "Amina dit que retrouver une vieille amie lui a fait du bien. Raconte une fois où tu as retrouvé un ami après une longue absence.",
           "rubric": "Passes if the learner produces a coherent short personal narrative in French connected to the theme of reunion; partial if the answer is a single word or off-topic.",
           "type": "discussion"
+        },
+        {
+          "answer": "menthe",
+          "blanks": [
+            {
+              "answer": "menthe",
+              "id": "gout",
+              "options": [
+                "menthe",
+                "citron",
+                "vanille"
+              ]
+            }
+          ],
+          "id": "fr-a2-le-cafe-du-coin-q5",
+          "item_id": "fr.story.fr-a2-le-cafe-du-coin.2",
+          "prompt": "Fill in each blank with the right word.",
+          "text": "Chloé choisit un thé à la {{gout}}.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -313,6 +370,25 @@
           "prompt": "Décris ce que la famille fait le soir dans le chalet.",
           "rubric": "Passes if the answer mentions warming up by the fireplace, the father telling stories, and the mother making hot chocolate; partial if only one detail is given.",
           "type": "open"
+        },
+        {
+          "answer": "bonhomme",
+          "blanks": [
+            {
+              "answer": "bonhomme",
+              "id": "construction",
+              "options": [
+                "bonhomme",
+                "château",
+                "bateau"
+              ]
+            }
+          ],
+          "id": "fr-a2-le-weekend-a-la-montagne-q5",
+          "item_id": "fr.story.fr-a2-le-weekend-a-la-montagne.1",
+          "prompt": "Fill in each blank with the right word.",
+          "text": "Ils sortent et construisent un grand {{construction}} de neige avec une carotte pour le nez.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -405,6 +481,33 @@
           "prompt": "Que ferais-tu si on te posait une question à laquelle tu ne t'attends pas pendant un entretien ?",
           "rubric": "Passes if the learner gives a coherent personal strategy in French (e.g. pausing to think, asking for clarification, giving a concrete example); partial if the answer is a single word.",
           "type": "open"
+        },
+        {
+          "blanks": [
+            {
+              "answer": "retenus",
+              "id": "participe",
+              "options": [
+                "retenus",
+                "retenues",
+                "retenu"
+              ]
+            },
+            {
+              "answer": "peine",
+              "id": "mot",
+              "options": [
+                "peine",
+                "douleur",
+                "peur"
+              ]
+            }
+          ],
+          "id": "fr-b1-entretien-embauche-q5",
+          "item_id": "fr.story.fr-b1-entretien-embauche.3",
+          "prompt": "Fill in each blank with the right word.",
+          "text": "L'entreprise contactera les candidats {{participe}} dans les deux semaines. Toute cette nervosité, finalement, en valait la {{mot}}.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -505,6 +608,33 @@
           "prompt": "Selon le texte, pourquoi la fête des voisins est-elle importante pour une communauté ? Ton quartier organise-t-il un événement similaire ?",
           "rubric": "Passes if the response connects the event to building community between strangers and offers at least a brief reflection on the learner's own context; partial if it only summarizes the story.",
           "type": "discussion"
+        },
+        {
+          "blanks": [
+            {
+              "answer": "détend",
+              "id": "verbe",
+              "options": [
+                "détend",
+                "détendent",
+                "détends"
+              ]
+            },
+            {
+              "answer": "à peine",
+              "id": "adverbe",
+              "options": [
+                "à peine",
+                "déjà",
+                "toujours"
+              ]
+            }
+          ],
+          "id": "fr-b1-la-fete-des-voisins-q5",
+          "item_id": "fr.story.fr-b1-la-fete-des-voisins.4",
+          "prompt": "Fill in each blank with the right word.",
+          "text": "Après quelques verres de vin et beaucoup de rires, l'ambiance se {{verbe}}. Avant cette soirée, elle connaissait {{adverbe}} le nom de ses voisins.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -606,6 +736,33 @@
           "prompt": "Camille hésite entre l'espace et la proximité du travail. Si tu devais choisir, que privilégierais-tu, et pourquoi ?",
           "rubric": "Passes if the learner gives a reasoned personal preference in French that engages with the space-vs-commute trade-off; partial if it only picks one side without a reason.",
           "type": "discussion"
+        },
+        {
+          "blanks": [
+            {
+              "answer": "charges",
+              "id": "mot",
+              "options": [
+                "charges",
+                "frais",
+                "taxes"
+              ]
+            },
+            {
+              "answer": "spacieux",
+              "id": "adj",
+              "options": [
+                "spacieux",
+                "spacieuse",
+                "spacieuses"
+              ]
+            }
+          ],
+          "id": "fr-b1-la-recherche-appartement-q5",
+          "item_id": "fr.story.fr-b1-la-recherche-appartement.2",
+          "prompt": "Fill in each blank with the right word.",
+          "text": "Le propriétaire explique que le loyer comprend les {{mot}}, mais pas internet. Bien qu'il soit {{adj}} et lumineux, le trajet jusqu'au travail prendrait presque quarante minutes.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -706,6 +863,33 @@
           "prompt": "Selon Julien, qu'est-ce que le covoiturage lui a apporté en plus des économies d'essence ?",
           "rubric": "Passes if the answer names new friendships / social connection with the other passengers; partial if it only restates the fuel savings.",
           "type": "open"
+        },
+        {
+          "blanks": [
+            {
+              "answer": "panne",
+              "id": "mot",
+              "options": [
+                "panne",
+                "accident",
+                "retard"
+              ]
+            },
+            {
+              "answer": "dépanneuse",
+              "id": "mot2",
+              "options": [
+                "dépanneuse",
+                "ambulance",
+                "police"
+              ]
+            }
+          ],
+          "id": "fr-b1-le-covoiturage-q5",
+          "item_id": "fr.story.fr-b1-le-covoiturage.2",
+          "prompt": "Fill in each blank with the right word.",
+          "text": "Un matin, la voiture tombe en {{mot}} sur l'autoroute. Ines appelle une {{mot2}} pendant que Marc plaisante pour détendre l'atmosphère.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -806,6 +990,33 @@
           "prompt": "L'article insiste sur l'absence de « discours idéologique » dans la démarche du village. Penses-tu que ce soit une force ou une limite pour la transition écologique en général ?",
           "rubric": "Passes if the learner engages with the tension between pragmatic local action and broader ideological/political framing, and takes a defensible position; partial if it only summarizes the village's approach without answering the question.",
           "type": "discussion"
+        },
+        {
+          "blanks": [
+            {
+              "answer": "sceptique",
+              "id": "attitude",
+              "options": [
+                "sceptique",
+                "optimiste",
+                "confiant"
+              ]
+            },
+            {
+              "answer": "dépassé",
+              "id": "verbe",
+              "options": [
+                "dépassé",
+                "respecté",
+                "déçu"
+              ]
+            }
+          ],
+          "id": "fr-b2-la-transition-ecologique-q5",
+          "item_id": "fr.story.fr-b2-la-transition-ecologique.2",
+          "prompt": "Fill in each blank with the right word.",
+          "text": "Le maire, initialement {{attitude}} quant à la rentabilité du projet, admet aujourd'hui que les économies réalisées sur la facture d'électricité ont {{verbe}} ses attentes les plus optimistes.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -910,6 +1121,33 @@
           "prompt": "L'auteur termine par une question sur une remise en cause plus vaste de l'organisation du travail salarié. Qu'en penses-tu : le télétravail est-il une simple adaptation, ou le début d'un changement plus profond ?",
           "rubric": "Passes if the learner takes and defends a position with at least one supporting reason, engaging with the article's closing question; partial if it restates the question without taking a position.",
           "type": "discussion"
+        },
+        {
+          "blanks": [
+            {
+              "answer": "affaiblisse",
+              "id": "verbe",
+              "options": [
+                "affaiblisse",
+                "affaiblit",
+                "affaiblira"
+              ]
+            },
+            {
+              "answer": "s'efface",
+              "id": "verbe2",
+              "options": [
+                "s'efface",
+                "s'effacent",
+                "s'effaçait"
+              ]
+            }
+          ],
+          "id": "fr-b2-le-teletravail-q5",
+          "item_id": "fr.story.fr-b2-le-teletravail.2",
+          "prompt": "Fill in each blank with the right word.",
+          "text": "Plusieurs managers s'inquiètent que le télétravail n'{{verbe}} la cohésion des équipes, et que la frontière entre vie privée et vie professionnelle ne {{verbe2}} complètement.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -1014,6 +1252,33 @@
           "prompt": "Le texte ne révèle jamais ce que contenait le livre offert par Monsieur Aubert. Pourquoi, selon toi, l'auteur fait-il ce choix ? Qu'est-ce que cela ajoute à l'histoire ?",
           "rubric": "Passes if the learner reflects on the literary effect of withholding the title (mystery, focus on the human moment rather than the object, room for the reader's imagination) rather than simply guessing a specific title; partial if the answer only guesses a title without reflecting on the choice.",
           "type": "discussion"
+        },
+        {
+          "blanks": [
+            {
+              "answer": "deviner",
+              "id": "verbe",
+              "options": [
+                "deviner",
+                "décider",
+                "devenir"
+              ]
+            },
+            {
+              "answer": "cherchait",
+              "id": "verbe2",
+              "options": [
+                "cherchait",
+                "demandait",
+                "voulait"
+              ]
+            }
+          ],
+          "id": "fr-c1-le-vieux-libraire-q5",
+          "item_id": "fr.story.fr-c1-le-vieux-libraire.2",
+          "prompt": "Fill in each blank with the right word.",
+          "text": "Il avait ce don, rare, de {{verbe}} en quelques mots à peine échangés ce qu'une personne {{verbe2}} vraiment à lire.",
+          "type": "cloze"
         }
       ],
       "glossary": [

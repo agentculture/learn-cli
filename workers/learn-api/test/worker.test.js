@@ -3,12 +3,14 @@ import assert from "node:assert/strict";
 
 import worker from "../src/index.js";
 import { GH } from "../src/github.js";
+import { TERMS_VERSION } from "../src/terms.js";
 import {
   makeEnv,
   makeFetchStub,
   mintToken,
   authedRequest,
   jsonResp,
+  seedConsent,
 } from "./helpers.js";
 
 const BASE = "https://learn-api.example";
@@ -30,6 +32,13 @@ test("GET /api/health is public and healthy", async () => {
 });
 
 // --- THE resource-gate invariant -------------------------------------------
+//
+// Ordering: signed-out < signed-in < consented < approved. This file proves
+// the base level (signed-out spends zero inference); consent.test.js /
+// reconsent.test.js prove the pending/stale levels; approval.test.js (t9)
+// extends the same proof one level further — consented-but-unapproved also
+// spends zero inference. The happy-path broker tests below therefore seed a
+// learner row with `state.approved: true` (the t9 gate reads it per request).
 
 test("signed-out POST /api/tutor -> 401 and inference is NEVER called", async () => {
   const fetchStub = makeFetchStub({ [INFERENCE_URL]: () => jsonResp({ reply: "should not happen" }) });
@@ -71,6 +80,13 @@ test("signed-in POST /api/tutor brokers to INFERENCE_URL exactly once", async ()
     [INFERENCE_URL]: () => jsonResp({ reply: "Bonjour !", tokens: 12 }),
   });
   const env = makeEnv({ INFERENCE_URL, INFERENCE_TOKEN: "infer-token", FETCH: fetchStub });
+  seedConsent(env, "42", TERMS_VERSION); // a returning, currently-consented learner (t6)
+  // ...who is also admin-approved for the tutoring tier (t9).
+  env.DB.learners.set("42", {
+    github_user_id: "42",
+    display_name: "Ada",
+    state: JSON.stringify({ approved: true }),
+  });
   const { token } = await mintToken(env, { uid: "42", name: "Ada" });
 
   const res = await call(
@@ -97,6 +113,14 @@ test("signed-in POST /api/tutor brokers to INFERENCE_URL exactly once", async ()
 
 test("broker returns 503 when INFERENCE_URL is unset (still auth-gated first)", async () => {
   const env = makeEnv(); // no INFERENCE_URL
+  seedConsent(env, "42", TERMS_VERSION); // default mintToken() learner (t6)
+  // Approved (t9): the 503 is only reachable ABOVE the approval gate — an
+  // unapproved learner gets 403 instead (proven in approval.test.js).
+  env.DB.learners.set("42", {
+    github_user_id: "42",
+    display_name: "Ada",
+    state: JSON.stringify({ approved: true }),
+  });
   const { token } = await mintToken(env);
   const res = await call(
     env,
@@ -113,6 +137,7 @@ test("broker returns 503 when INFERENCE_URL is unset (still auth-gated first)", 
 
 test("record round-trip: POST /api/record then GET /api/progress reflects it", async () => {
   const env = makeEnv();
+  seedConsent(env, "42", TERMS_VERSION); // a returning, currently-consented learner (t6)
   const { token } = await mintToken(env, { uid: "42", name: "Ada" });
 
   const recorded = {
@@ -157,6 +182,8 @@ test("record round-trip: POST /api/record then GET /api/progress reflects it", a
 
 test("ledger is append-only and per-learner isolated", async () => {
   const env = makeEnv();
+  seedConsent(env, "42", TERMS_VERSION); // both are returning, currently-consented learners (t6)
+  seedConsent(env, "99", TERMS_VERSION);
   const { token: adaTok } = await mintToken(env, { uid: "42", name: "Ada" });
   const { token: linusTok } = await mintToken(env, { uid: "99", name: "Linus" });
 
@@ -197,6 +224,7 @@ test("ledger is append-only and per-learner isolated", async () => {
 
 test("POST /api/record rejects a score field with 400", async () => {
   const env = makeEnv();
+  seedConsent(env, "42", TERMS_VERSION); // default mintToken() learner (t6)
   const { token } = await mintToken(env);
   const res = await call(
     env,
@@ -292,12 +320,15 @@ test("login redirect_uri carries the /learn mount prefix (matches the GitHub app
   assert.equal(redirectUri, "https://agentculture.org/learn/api/auth/callback");
 });
 
-test("GET /api/auth/callback exchanges code, upserts learner, sets session", async () => {
+test("GET /api/auth/callback (consented user) exchanges code, upserts learner, sets session", async () => {
   const fetchStub = makeFetchStub({
     [GH.token]: () => jsonResp({ access_token: "gho_web", token_type: "bearer" }),
     [GH.user]: () => jsonResp({ id: 555, login: "trinity", name: "Trinity" }),
   });
   const env = makeEnv({ FETCH: fetchStub, APP_URL: "https://agentculture.org/learn/" });
+  // A returning learner with recorded consent — the unconsented (pending)
+  // first sign-in is covered in consent.test.js.
+  seedConsent(env, "555", TERMS_VERSION);
 
   const req = new Request(`${BASE}/api/auth/callback?code=abc&state=xyz`, {
     headers: { Cookie: "oauth_state=xyz" },
@@ -352,7 +383,7 @@ test("device flow: start returns the user code", async () => {
   assert.equal(body.device_code, "dc_123");
 });
 
-test("device flow: poll pending, then complete issues a Bearer token", async () => {
+test("device flow (consented user): poll pending, then complete issues a Bearer token", async () => {
   let phase = "pending";
   const fetchStub = makeFetchStub({
     [GH.token]: () =>
@@ -362,6 +393,9 @@ test("device flow: poll pending, then complete issues a Bearer token", async () 
     [GH.user]: () => jsonResp({ id: 777, login: "neo", name: "Neo" }),
   });
   const env = makeEnv({ FETCH: fetchStub });
+  // A returning learner with recorded consent — the unconsented poll
+  // (status: consent_required) is covered in consent.test.js.
+  seedConsent(env, "777", TERMS_VERSION);
 
   const poll = () =>
     call(

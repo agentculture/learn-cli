@@ -35,13 +35,19 @@ export class KVStub {
 
 /**
  * Minimal Cloudflare D1 stub. Recognizes exactly the statements db.js issues
- * (matched by keyword), backing them with a Map of learners + an array of
- * append-only records.
+ * (matched by keyword), backing them with a Map of learners, an array of
+ * append-only records, and an array of consent rows.
  */
 export class D1Stub {
   constructor() {
     this.learners = new Map();
     this.records = [];
+    this.consents = [];
+    // Every write statement (insert/delete, any table) appends one entry here,
+    // in execution order. This is what makes "zero D1 writes before consent"
+    // (spec h1) literal: tests assert on `db.writes`, not just on table sizes,
+    // and can also assert ORDER (consent row recorded before the learner row).
+    this.writes = [];
     this._id = 0;
   }
 
@@ -51,6 +57,18 @@ export class D1Stub {
 
   _norm(sql) {
     return sql.replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
+  /** Cloudflare D1's batch API: run already-bound statements in order,
+   * returning their results array. The real D1 wraps this in a transaction;
+   * the stub just runs sequentially, which is enough to test statement order
+   * and aggregate results. */
+  async batch(statements) {
+    const results = [];
+    for (const stmt of statements) {
+      results.push(await stmt.run());
+    }
+    return results;
   }
 }
 
@@ -66,19 +84,56 @@ class D1Prepared {
     return this;
   }
 
+  _logWrite(table, op) {
+    this.db.writes.push({ table, op });
+  }
+
   async run() {
     if (this.sql.includes("insert into learners")) {
-      // args: uid, name, now, now, name(update), now(update)
-      const [uid, name] = this.args;
+      this._logWrite("learners", "insert");
+      // args: uid, name, created_at, updated_at, name(on-conflict update), updated_at(on-conflict update)
+      const [uid, name, createdAt, , , updatedAt] = this.args;
       const existing = this.db.learners.get(String(uid));
       this.db.learners.set(String(uid), {
         github_user_id: String(uid),
         display_name: name,
         state: existing ? existing.state : "{}",
+        created_at: existing ? existing.created_at : createdAt,
+        updated_at: updatedAt || createdAt,
       });
       return { success: true, meta: { changes: 1, last_row_id: 0 } };
     }
+    if (this.sql.includes("update learners")) {
+      this._logWrite("learners", "update");
+      if (this.sql.includes("and updated_at")) {
+        // setLearnerVoiceUsage's compare-and-swap (BUG 3 fix):
+        //   UPDATE learners SET state = ?, updated_at = ?
+        //     WHERE github_user_id = ? AND updated_at = ?
+        // Only writes (and reports changes: 1) when the row's CURRENT
+        // updated_at still matches what the caller read — a stale expected
+        // value (another booking won first) reports changes: 0 and touches
+        // nothing, exactly like real D1's conditional UPDATE would.
+        const [state, updatedAt, uid, expectedUpdatedAt] = this.args;
+        const existing = this.db.learners.get(String(uid));
+        const matches = !!existing && existing.updated_at === expectedUpdatedAt;
+        if (matches) {
+          existing.state = state;
+          existing.updated_at = updatedAt;
+        }
+        return { success: true, meta: { changes: matches ? 1 : 0 } };
+      }
+      // setLearnerVisibility / setLearnerApproved (unconditional):
+      //   UPDATE learners SET state = ?, updated_at = ? WHERE github_user_id = ?
+      const [state, updatedAt, uid] = this.args;
+      const existing = this.db.learners.get(String(uid));
+      if (existing) {
+        existing.state = state;
+        existing.updated_at = updatedAt;
+      }
+      return { success: true, meta: { changes: existing ? 1 : 0 } };
+    }
     if (this.sql.includes("insert into records")) {
+      this._logWrite("records", "insert");
       const [uid, subject, item_id, recorded, mastery_level, activity, result, at] = this.args;
       const id = ++this.db._id;
       this.db.records.push({
@@ -94,6 +149,41 @@ class D1Prepared {
       });
       return { success: true, meta: { changes: 1, last_row_id: id } };
     }
+    if (this.sql.includes("insert into consents")) {
+      this._logWrite("consents", "insert");
+      // args: uid, terms_version, granted_at, granted_at(on-conflict update)
+      const [uid, termsVersion, grantedAt] = this.args;
+      const id = String(uid);
+      const existing = this.db.consents.find(
+        (c) => c.github_user_id === id && c.terms_version === termsVersion,
+      );
+      if (existing) {
+        existing.granted_at = grantedAt;
+      } else {
+        this.db.consents.push({ github_user_id: id, terms_version: termsVersion, granted_at: grantedAt });
+      }
+      return { success: true, meta: { changes: 1 } };
+    }
+    if (this.sql.includes("delete from records")) {
+      this._logWrite("records", "delete");
+      const [uid] = this.args;
+      const before = this.db.records.length;
+      this.db.records = this.db.records.filter((r) => r.github_user_id !== String(uid));
+      return { success: true, meta: { changes: before - this.db.records.length } };
+    }
+    if (this.sql.includes("delete from consents")) {
+      this._logWrite("consents", "delete");
+      const [uid] = this.args;
+      const before = this.db.consents.length;
+      this.db.consents = this.db.consents.filter((c) => c.github_user_id !== String(uid));
+      return { success: true, meta: { changes: before - this.db.consents.length } };
+    }
+    if (this.sql.includes("delete from learners")) {
+      this._logWrite("learners", "delete");
+      const [uid] = this.args;
+      const existed = this.db.learners.delete(String(uid));
+      return { success: true, meta: { changes: existed ? 1 : 0 } };
+    }
     return { success: true, meta: {} };
   }
 
@@ -102,16 +192,71 @@ class D1Prepared {
       const [uid] = this.args;
       return this.db.learners.get(String(uid)) || null;
     }
+    if (this.sql.includes("from consents")) {
+      const [uid] = this.args;
+      // Mirrors the SQL's `ORDER BY granted_at DESC, rowid DESC`: on a
+      // granted_at tie the LATER insertion (higher rowid) wins.
+      const rows = this.db.consents
+        .map((c, i) => [c, i])
+        .filter(([c]) => c.github_user_id === String(uid))
+        .sort(([a, ai], [b, bi]) =>
+          a.granted_at < b.granted_at ? 1 : a.granted_at > b.granted_at ? -1 : bi - ai,
+        )
+        .map(([c]) => c);
+      return rows[0] || null;
+    }
     const { results } = await this.all();
     return results[0] || null;
   }
 
   async all() {
+    if (this.sql.includes("from records") && this.sql.includes("group by")) {
+      // listAllLearners' admin aggregate (t8): per (uid, subject) counts,
+      // no bind — the whole point is it is NOT scoped to one learner.
+      const counts = new Map();
+      for (const r of this.db.records) {
+        const key = `${r.github_user_id} ${r.subject}`;
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+      const results = [...counts.entries()].map(([key, count]) => {
+        const [github_user_id, subject] = key.split(" ");
+        return { github_user_id, subject, count };
+      });
+      return { results };
+    }
     if (this.sql.includes("from records")) {
+      // listRecords binds (uid, subject); listAllRecords (t7) binds uid
+      // only — a missing second bind means "every subject".
       const [uid, subject] = this.args;
-      const results = this.db.records
-        .filter((r) => r.github_user_id === String(uid) && r.subject === subject)
-        .sort((a, b) => a.id - b.id);
+      let results = this.db.records.filter((r) => r.github_user_id === String(uid));
+      if (subject !== undefined) results = results.filter((r) => r.subject === subject);
+      return { results: [...results].sort((a, b) => a.id - b.id) };
+    }
+    if (this.sql.includes("from learners")) {
+      // listAllLearners' admin roster read (t8): no WHERE clause, no bind —
+      // getLearner's single-row lookup goes through first(), never all().
+      const results = [...this.db.learners.values()];
+      return { results };
+    }
+    if (this.sql.includes("from consents")) {
+      if (this.args.length === 0) {
+        // listAllLearners' admin "everyone's most-recent consent" read
+        // (t8): no WHERE clause, ORDER BY user then granted_at DESC — the
+        // caller (db.js) takes the first row per user as "most recent".
+        const results = [...this.db.consents].sort((a, b) => {
+          if (a.github_user_id !== b.github_user_id) {
+            return a.github_user_id < b.github_user_id ? -1 : 1;
+          }
+          return a.granted_at < b.granted_at ? 1 : a.granted_at > b.granted_at ? -1 : 0;
+        });
+        return { results };
+      }
+      // listConsents (t7): every consent row for ONE learner, oldest first —
+      // unlike getConsent's single most-recent-row `first()` query above.
+      const [uid] = this.args;
+      const results = this.db.consents
+        .filter((c) => c.github_user_id === String(uid))
+        .sort((a, b) => (a.granted_at < b.granted_at ? -1 : a.granted_at > b.granted_at ? 1 : 0));
       return { results };
     }
     return { results: [] };
@@ -145,10 +290,22 @@ export function makeEnv(overrides = {}) {
   };
 }
 
-/** Mint a valid (or, with ttl<0, expired) session token for a learner. */
-export async function mintToken(env, learner = { uid: "42", name: "Ada" }, ttl = 3600) {
-  const { token, payload } = await issueSession(env, learner, ttl);
+/** Mint a valid (or, with ttl<0, expired) session token for a learner.
+ * Pass `opts = { pendingConsent: true }` for a pending-consent token. */
+export async function mintToken(env, learner = { uid: "42", name: "Ada" }, ttl = 3600, opts = {}) {
+  const { token, payload } = await issueSession(env, learner, ttl, opts);
   return { token, payload };
+}
+
+/** Seed a consent row directly into the D1 stub (an already-consented
+ * learner), bypassing the write log — tests that assert "zero writes during
+ * the flow under test" must not count their own fixtures. */
+export function seedConsent(env, uid, termsVersion, grantedAt = "2026-07-11T00:00:00Z") {
+  env.DB.consents.push({
+    github_user_id: String(uid),
+    terms_version: termsVersion,
+    granted_at: grantedAt,
+  });
 }
 
 /** JSON Response helper for stubs. */

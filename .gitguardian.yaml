@@ -1,0 +1,20 @@
+# GitGuardian secret-scan configuration.
+#
+# The single ignored path below is a TEST-ONLY fixture, not a leaked
+# credential. It pins the cross-language voice-token contract (task t16): a
+# voice token minted ONCE by workers/learn-api/src/voice.js#mintVoiceToken with
+# a deterministic, fake secret ("cross-language-contract-test-secret") over a
+# public payload, committed so the JS minter (workers/learn-api/test/
+# voice.test.js) and the Python verifier (tests/test_voice_token_cross_language
+# .py against infra/voice_bridge/tokens.py) can each prove they still agree
+# byte-for-byte. The token is an HMAC of non-secret data with a non-secret test
+# key — GitGuardian's JWT detector matches its shape, but there is no real
+# secret here (the fixture's own `note` says as much), and it CANNOT be changed
+# without breaking the contract pin. Scope the ignore to this one file only.
+version: 2
+secret:
+  ignored-paths:
+    - tests/fixtures/voice_token_cross_language.json
+  ignored-matches:
+    - name: voice-token cross-language contract test secret (t16 fixture)
+      match: cross-language-contract-test-secret

@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-07-11
+
+### Added
+
+- Consent-first sign-in: both the web callback and device-flow paths now issue a short-lived pending-consent session and write ZERO to D1 until the learner accepts the published Terms/Privacy — the consent row is recorded before the learner row (consents table, no FK to learners).
+- Versioned re-consent: a TERMS_VERSION bump routes a live full session back to the consent screen (403 consent_required, reason stale_version) until re-acceptance.
+- Self-serve data rights: GET /api/export (whole-learner JSON across every subject + consent history) and POST /api/delete (confirm = own github_user_id) erasing all three tables and revoking the session.
+- Role-aware access: ADMIN_GITHUB_IDS server-side allow-list, GET /api/admin/learners roster, default-private learner visibility with POST /api/me/visibility.
+- Approval-gated Bedrock tutoring tier: POST /api/admin/approve|revoke, a four-level tutor gate (signed-out < consented < approved < configured) where a non-approved /api/tutor call 403s with zero outbound inference; approve is c20-gated on current consent.
+- Nova Pro text tutoring surface (grading, adaptive next-step, personalized cloze-story generation) through the existing broker via Bedrock Converse — config only, no provider SDK added to the Worker.
+- Nova Sonic 2 voice: approval-gated POST /api/voice/token mint with a per-learner monthly budget, the /learn/voice page, and a serverless SAM voice bridge (API Gateway WebSocket + arm64 Lambda + $20 AWS Budgets ceiling) under infra/.
+- Terms of Use + Privacy Policy pages under /learn, versioned from a single shared/terms-version.mjs source, naming GitHub, Cloudflare, and AWS Bedrock as processors; a /learn/consent page with a five-state client flow.
+- Cloze (pick-the-right-word) exercise kind in the subject-plugin contract (contract §3.6.1), shipped by french-cli, spanish-cli, and culture-guide and re-exported to /learn.
+- Extended launch gate: tools/launch-gate/consent_walk.mjs drives the consent/approval/deletion/tutor/voice/cloze success signals end-to-end (LOCAL authed flows + LIVE unauthenticated probes), tests/test_launch_gate_invariants.py locks the boundary invariants (no email/password, no provider SDK, no forked subject prose), with a recorded pre-uplift baseline.
+
+### Changed
+
+- GITHUB_CLIENT_ID is no longer committed in wrangler.toml [vars] — it is set as a secret from .env GITHUB_APP_CLIENT_ID, so a plain wrangler deploy never overwrites it.
+- check-static-auth.mjs now polices four per-script fetch whitelists (learner, consent, voice, tutor); the tutor surface renders only for admin-approved learners.
+
+### Fixed
+
+- Launch-gate api-server.mjs no longer throws ERR_HTTP_HEADERS_SENT on Set-Cookie responses (consent accept / login / logout / delete), so those flows can be exercised end-to-end.
+- getConsent tiebreaks same-millisecond granted_at rows by rowid, removing a flaky re-consent race.
+- Review fix (security): POST /api/delete now revokes EVERY session for the learner, not only the calling token — a per-uid revocation marker (`revoked_uid:<uid>`) that requireAuth checks, so "delete logs me out everywhere."
+- Review fix (reliability): the monthly voice budget is now booked with a compare-and-swap retry on the learner row, so concurrent /api/voice/token mints can no longer both pass the cap check and exceed it.
+- Review fix (performance): the voice-bridge Lambda's $connect concurrency gate queries session metadata under a constant partition key (Query COUNT) instead of a full-table Scan that read every frame item.
+- Review fix (maintainability): the two new cloze conformance validators were refactored below SonarCloud's cognitive-complexity threshold (behavior-preserving helper extraction).
+
 ## [0.5.4] - 2026-07-11
 
 ### Added

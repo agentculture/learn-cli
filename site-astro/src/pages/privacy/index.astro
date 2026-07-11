@@ -1,0 +1,207 @@
+---
+// Privacy Policy — versioned per spec #11 (plan task t1). Same shell as
+// terms/index.astro; see that file's header comment for the shared-version
+// wiring (src/lib/terms.ts -> ../../../shared/terms-version.mjs) and the
+// cross-check test (tests/test_policy_pages.py at the repo root), which
+// asserts this page names all three processors and that its "no email, no
+// password" claim actually matches workers/learn-api/schema.sql.
+import Layout from "../../layouts/Layout.astro";
+import PageHero from "../../components/PageHero.astro";
+import site from "../../data/site";
+import { TERMS_VERSION, TERMS_EFFECTIVE_DATE } from "../../lib/terms";
+
+const description = `The Privacy Policy for ${site.orgTitle} ${site.title} (agentculture.org/learn) — what we collect, who we share it with (GitHub, Cloudflare, AWS Bedrock), and your rights.`;
+---
+
+<Layout
+  title={`Privacy Policy · ${site.title} · ${site.orgTitle}`}
+  description={description}
+  homeHref="../"
+>
+  <PageHero
+    title="Privacy Policy"
+    intro={[
+      "What Learn stores about you, why, who it's shared with, and how to see, export, or delete it — in full, at any time.",
+    ]}
+  />
+
+  <section class="section breadcrumb-section" aria-label="Wayfinding">
+    <div class="container">
+      <a class="breadcrumb" href="../">← Learn</a>
+    </div>
+  </section>
+
+  <section class="section policy-meta-section" aria-label="Document version">
+    <div class="container prose">
+      <p class="policy-meta" data-reveal>
+        Version <strong>{TERMS_VERSION}</strong>
+        <span class="sep" aria-hidden="true">·</span>
+        Effective <strong>{TERMS_EFFECTIVE_DATE}</strong>
+      </p>
+      <p class="muted" data-reveal style="--reveal-delay: 0.05s">
+        Also see the <a href="../terms/">Terms of Use</a>, which covers acceptable use
+        and the tutoring tier's terms.
+      </p>
+    </div>
+  </section>
+
+  <section class="section policy" aria-label="Privacy Policy">
+    <div class="container prose">
+      <h2 data-reveal>What we collect</h2>
+      <p data-reveal>Signing in and using Learn stores exactly:</p>
+      <ul data-reveal>
+        <li>your <strong>GitHub numeric id</strong> and your <strong>public GitHub display
+          name</strong> — the identity GitHub itself hands us during sign-in;</li>
+        <li>an <strong>append-only learning ledger</strong>: the activities you complete,
+          their results, the mastery level they produce, and when each happened, across
+          every subject you use; and</li>
+        <li>a <strong>session cookie</strong> that keeps you signed in between visits.</li>
+      </ul>
+      <p data-reveal>
+        <strong>We do not collect or store your email address.</strong> GitHub sign-in is
+        requested with the minimum scope needed to read your public profile; we never
+        request or read your email. <strong>We do not collect or store a password</strong> —
+        there is no Learn-specific password at all; authentication happens entirely
+        through GitHub's own OAuth flow.
+      </p>
+
+      <h2 data-reveal>Why we collect it</h2>
+      <p data-reveal>We use what's listed above to:</p>
+      <ul data-reveal>
+        <li><strong>authenticate you</strong> — know it's really you signing back in, without
+          a password to manage;</li>
+        <li><strong>track your progress across subjects</strong> — one learner, many
+          subjects, so your French, Spanish, and Culture Guide progress live under one
+          profile; and</li>
+        <li><strong>personalize learning</strong> — recommend a sensible next step, and, if
+          you're approved for the tutoring tier, generate exercises and feedback aimed at
+          what you're actually weak on.</li>
+      </ul>
+
+      <h2 data-reveal>Who we share it with</h2>
+      <p data-reveal>
+        Three outside services process your data on our behalf, and only these three:
+      </p>
+      <ul data-reveal>
+        <li>
+          <strong>GitHub</strong> — the OAuth identity provider. GitHub verifies who you
+          are during sign-in; Learn never sees or stores anything beyond the numeric id
+          and display name GitHub returns.
+        </li>
+        <li>
+          <strong>Cloudflare</strong> — hosting for everything: Workers (the API), KV
+          (session bookkeeping), D1 (the learner ledger database), and Pages (the static
+          site you're reading right now). Cloudflare is where your data physically lives.
+        </li>
+        <li>
+          <strong>AWS Bedrock</strong> — only if an admin has approved you for the
+          tutoring tier. Bedrock runs Nova Sonic 2 (the voice tutor) and Nova Pro (the
+          text tutor). <strong>If you use the approved tutoring tier, your spoken or
+          written practice is sent to AWS Bedrock — the model provider — so it can
+          generate a response.</strong> This only ever happens for the approved tier, and
+          only after you've separately consented to it; if you're not approved, or you
+          haven't consented, nothing you do reaches Bedrock.
+        </li>
+      </ul>
+
+      <h2 data-reveal>Retention</h2>
+      <p data-reveal>
+        Your data is kept for as long as your account exists — there's no separate
+        expiry timer counting down underneath it. The moment you delete your account
+        (equivalently, withdraw your consent), everything tied to it is <strong>hard-deleted,
+        in full</strong>: your profile row, your entire learning ledger, and the consent
+        record itself. This is self-serve — you don't need to ask anyone, and it isn't
+        a soft delete or a grace period; once you confirm it, it's gone.
+      </p>
+
+      <h2 data-reveal>Your rights</h2>
+      <p data-reveal>Whenever you're signed in, you can:</p>
+      <ul data-reveal>
+        <li><strong>access</strong> what's stored about you — your profile and your full
+          ledger, on demand;</li>
+        <li><strong>export</strong> a complete copy of your data as JSON, to keep or take
+          elsewhere;</li>
+        <li><strong>delete</strong> your account and every row tied to it, permanently, in
+          one action; and</li>
+        <li><strong>withdraw consent</strong> to this policy at any time — which, per the
+          Retention section above, means the same thing as deleting your account, since
+          Learn can't keep using data it no longer has your consent to hold.</li>
+      </ul>
+
+      <h2 data-reveal>Changes to this policy</h2>
+      <p data-reveal>
+        When this policy changes in any way that matters, we publish a new version and
+        bump the version number at the top of this page. A version bump forces
+        re-consent: the next time you sign in (or use the API/CLI), you're asked to
+        accept the new version before anything further is saved. Consent recorded
+        against one version never silently carries forward to the next.
+      </p>
+
+      <h2 data-reveal>Contact</h2>
+      <p data-reveal>
+        For questions, requests, or concerns about this policy, open an issue on
+        <a href="https://github.com/agentculture/learn-cli/issues">
+          github.com/agentculture/learn-cli
+        </a>. We don't publish a personal contact email for privacy requests — use the
+        issue tracker, or the in-account export/delete actions described above for
+        anything you can already do yourself.
+      </p>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .breadcrumb-section {
+    padding-block: 0 0.5rem;
+  }
+
+  .breadcrumb {
+    font-size: 0.92rem;
+    font-weight: 500;
+  }
+
+  .policy-meta-section {
+    padding-block: 0 0.5rem;
+  }
+
+  .policy-meta {
+    font-size: 1rem;
+    color: var(--ink);
+  }
+
+  .policy-meta .sep {
+    margin-inline: 0.5rem;
+    color: var(--ink-soft);
+  }
+
+  .policy {
+    padding-top: 0.5rem;
+  }
+
+  .policy h2 {
+    margin-top: 2rem;
+  }
+
+  .policy h2:first-child {
+    margin-top: 0;
+  }
+
+  .policy p {
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  .policy ul {
+    list-style: disc;
+    padding-left: 1.4rem;
+    display: grid;
+    gap: 0.5rem;
+    margin: 0 0 1.1em;
+    font-size: 1rem;
+    line-height: 1.65;
+  }
+
+  .policy ul:last-child {
+    margin-bottom: 0;
+  }
+</style>

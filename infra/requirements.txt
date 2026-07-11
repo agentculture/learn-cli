@@ -1,0 +1,14 @@
+# Installed into the Lambda bundle by SAM's default python3.12 build (this
+# directory is the template's CodeUri, so no repo-root pyproject is involved —
+# unlike league's Makefile build, this package is self-contained on purpose).
+#
+# aws_sdk_bedrock_runtime is AWS's experimental Smithy-based SDK — today the
+# only Python client for InvokeModelWithBidirectionalStream (boto3 cannot open
+# bidirectional streams). Proven live in the spike (see infra/SPIKE.md) on
+# 0.7.0; pinned below 1.0 because the SDK is pre-stable and its Config API
+# already changed shape between sample-code versions. Pulls smithy-aws-core
+# and awscrt (which ships manylinux aarch64 wheels — arm64 Lambda is fine).
+#
+# boto3 is deliberately absent: the Lambda runtime provides it, and bundling
+# our own copy would add ~80 MB of package for zero benefit.
+aws_sdk_bedrock_runtime>=0.7,<1

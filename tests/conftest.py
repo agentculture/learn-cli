@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import stat
+import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -21,9 +22,17 @@ from typing import Any, Callable
 
 import pytest
 
+# The voice-bridge Lambda package lives under infra/ (outside the learn/
+# package on purpose — see infra/template.yaml), so tests import it by path.
+_INFRA_DIR = Path(__file__).resolve().parent.parent / "infra"
+if str(_INFRA_DIR) not in sys.path:
+    sys.path.insert(0, str(_INFRA_DIR))
+
 FIXTURE_SUBJECTS = Path(__file__).parent / "fixtures" / "subjects"
 CONFORMANT_SCRIPT = FIXTURE_SUBJECTS / "conformant_subject.py"
 DRIFTED_SCRIPT = FIXTURE_SUBJECTS / "drifted_subject.py"
+CLOZE_CONFORMANT_SCRIPT = FIXTURE_SUBJECTS / "cloze_conformant_subject.py"
+CLOZE_BROKEN_SCRIPT = FIXTURE_SUBJECTS / "cloze_broken_subject.py"
 
 
 def _make_executable(path: Path) -> str:
@@ -60,6 +69,18 @@ def conformant_prefix() -> list[str]:
 def drifted_prefix() -> list[str]:
     """argv_prefix that runs the drifted fixture as an executable script."""
     return [_make_executable(DRIFTED_SCRIPT)]
+
+
+@pytest.fixture
+def cloze_conformant_prefix() -> list[str]:
+    """argv_prefix for the well-formed pick-the-right-word cloze fixture."""
+    return [_make_executable(CLOZE_CONFORMANT_SCRIPT)]
+
+
+@pytest.fixture
+def cloze_broken_prefix() -> list[str]:
+    """argv_prefix for the malformed-cloze-blank fixture (answer not in options)."""
+    return [_make_executable(CLOZE_BROKEN_SCRIPT)]
 
 
 @pytest.fixture

@@ -1,6 +1,6 @@
 [project]
 name = "learn-cli"
-version = "0.5.4"
+version = "0.6.0"
 description = "A CLI, MCP server, and web front for learning — a hosted site where humans and agents learn a subject step by step. Fronts the french-cli and spanish-cli language tutors, and generalizes to other learnable domains such as leading teams of agents. The learn command is the local operator surface and how agents drive it."
 readme = "README.md"
 license = "Apache-2.0"
@@ -42,6 +42,9 @@ dev = [
     "isort>=5.12.0",
     "black>=23.7.0",
     "teken>=0.8",
+    # tests/test_voice_bridge_template.py parses infra/template.yaml as plain
+    # YAML (the long-form-intrinsics rule) — test-only, not a runtime dep.
+    "pyyaml>=6.0",
 ]
 
 [tool.coverage.run]

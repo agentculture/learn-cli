@@ -40,6 +40,33 @@
           "prompt": "¿Por qué le gustan los plátanos a Ana?",
           "rubric": "Passes if the answer mentions that they are sweet and easy to eat (son dulces y fáciles de comer); naming only one of the two reasons is partial.",
           "type": "short_answer"
+        },
+        {
+          "blanks": [
+            {
+              "answer": "rojas",
+              "id": "adj1",
+              "options": [
+                "rojas",
+                "rojo",
+                "rojos"
+              ]
+            },
+            {
+              "answer": "amarillos",
+              "id": "adj2",
+              "options": [
+                "amarillos",
+                "amarilla",
+                "amarillas"
+              ]
+            }
+          ],
+          "id": "es-a1-el-mercado-de-frutas-q5",
+          "item_id": "es.story.es-a1-el-mercado-de-frutas.1",
+          "prompt": "Completa cada espacio con la palabra correcta (concordancia de género y número).",
+          "text": "En el mercado hay frutas de muchos colores: manzanas {{adj1}} y plátanos {{adj2}}.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -128,6 +155,25 @@
           "prompt": "Describe a Rex, el perro de la familia.",
           "rubric": "Passes if the answer mentions his colors (negro y blanco) and that he likes to run in the garden; naming only the colors is partial.",
           "type": "short_answer"
+        },
+        {
+          "answer": "es",
+          "blanks": [
+            {
+              "answer": "es",
+              "id": "ser_estar",
+              "options": [
+                "es",
+                "está",
+                "son"
+              ]
+            }
+          ],
+          "id": "es-a1-mi-familia-q5",
+          "item_id": "es.story.es-a1-mi-familia.1",
+          "prompt": "Completa el espacio con la palabra correcta (ser vs. estar).",
+          "text": "Mi papá {{ser_estar}} alto y trabaja en un hospital.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -211,6 +257,25 @@
           "prompt": "¿Cuántas personas van a venir a la fiesta y quiénes son?",
           "rubric": "Passes if the answer says twelve people, including classmates and cousins (compañeros de clase y primos); naming only the number is partial.",
           "type": "short_answer"
+        },
+        {
+          "answer": "va",
+          "blanks": [
+            {
+              "answer": "va",
+              "id": "verbo",
+              "options": [
+                "va",
+                "van",
+                "vamos"
+              ]
+            }
+          ],
+          "id": "es-a2-el-cumpleanos-de-lucia-q5",
+          "item_id": "es.story.es-a2-el-cumpleanos-de-lucia.1",
+          "prompt": "Completa el espacio con la forma correcta de 'ir a + infinitivo'.",
+          "text": "Tomás {{verbo}} a decorar el jardín con globos de colores.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -298,6 +363,25 @@
           "prompt": "¿Qué hicieron los amigos que no nadaron?",
           "rubric": "Passes if the answer mentions they played beach volleyball on the sand (jugaron vóley playa en la arena).",
           "type": "short_answer"
+        },
+        {
+          "answer": "fueron",
+          "blanks": [
+            {
+              "answer": "fueron",
+              "id": "verbo",
+              "options": [
+                "fueron",
+                "fue",
+                "van"
+              ]
+            }
+          ],
+          "id": "es-a2-un-dia-en-la-playa-q5",
+          "item_id": "es.story.es-a2-un-dia-en-la-playa.1",
+          "prompt": "Completa el espacio con la forma correcta del pretérito de 'ir'.",
+          "text": "Camila y sus amigos {{verbo}} a la playa por primera vez del verano.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -385,6 +469,25 @@
           "prompt": "¿Qué tres lugares descubrió Diego en el barrio nuevo?",
           "rubric": "Passes if the answer names the bakery, the basketball court, and the library (la panadería, la cancha de básquetbol, la biblioteca); two of three is partial.",
           "type": "short_answer"
+        },
+        {
+          "answer": "para",
+          "blanks": [
+            {
+              "answer": "para",
+              "id": "prep",
+              "options": [
+                "para",
+                "por",
+                "porque"
+              ]
+            }
+          ],
+          "id": "es-b1-el-barrio-nuevo-q5",
+          "item_id": "es.story.es-b1-el-barrio-nuevo.1",
+          "prompt": "Completa el espacio con la preposición correcta (por vs. para).",
+          "text": "Diego decidió aceptar la invitación {{prep}} conocer a los chicos del barrio nuevo.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -487,6 +590,25 @@
           "item_id": "es.story.es-b1-el-tren-perdido.5",
           "prompt": "Traduce al español: \"I realized I only had twenty minutes.\"",
           "type": "translation"
+        },
+        {
+          "answer": "llegó",
+          "blanks": [
+            {
+              "answer": "llegó",
+              "id": "verbo",
+              "options": [
+                "llegó",
+                "llegaba",
+                "llega"
+              ]
+            }
+          ],
+          "id": "es-b1-el-tren-perdido-q6",
+          "item_id": "es.story.es-b1-el-tren-perdido.1",
+          "prompt": "Completa el espacio con la forma correcta (pretérito vs. imperfecto).",
+          "text": "Cuando por fin Martín {{verbo}} al andén, el tren ya estaba cerrando las puertas.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -589,6 +711,25 @@
           "prompt": "¿Qué habrías respondido tú si te hubieran hecho la misma pregunta sobre un proyecto del que te sientas orgulloso/a?",
           "rubric": "Open-ended: passes if the learner describes a concrete project and connects it to a skill, in Spanish, using at least one past tense correctly.",
           "type": "discussion"
+        },
+        {
+          "answer": "estaba",
+          "blanks": [
+            {
+              "answer": "estaba",
+              "id": "verbo",
+              "options": [
+                "estaba",
+                "era",
+                "fue"
+              ]
+            }
+          ],
+          "id": "es-b1-la-entrevista-de-trabajo-q6",
+          "item_id": "es.story.es-b1-la-entrevista-de-trabajo.1",
+          "prompt": "Completa el espacio con la forma correcta (ser vs. estar).",
+          "text": "Antes de la entrevista, Valentina {{verbo}} un poco nerviosa en la sala de espera.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -684,6 +825,25 @@
           "prompt": "¿Qué noticia sobre la salud de la abuela le contó su hermano?",
           "rubric": "Passes if the answer mentions the grandmother went to the doctor and everything was fine (fue al médico y todo salió bien).",
           "type": "short_answer"
+        },
+        {
+          "answer": "me",
+          "blanks": [
+            {
+              "answer": "me",
+              "id": "pron",
+              "options": [
+                "me",
+                "te",
+                "le"
+              ]
+            }
+          ],
+          "id": "es-b1-una-carta-a-mi-abuela-q5",
+          "item_id": "es.story.es-b1-una-carta-a-mi-abuela.1",
+          "prompt": "Completa el espacio con el pronombre de objeto indirecto correcto.",
+          "text": "Olvido las cosas simples que tú siempre {{pron}} enseñaste, abuela.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -786,6 +946,25 @@
           "prompt": "¿Estás de acuerdo con Beatriz en que es difícil construir relaciones profesionales sin verse en persona? Explica tu opinión usando el subjuntivo al menos una vez (por ejemplo, con \"dudo que\" o \"no creo que\").",
           "rubric": "Open-ended: passes if the learner states a clear opinion and correctly uses a subjunctive trigger phrase; a plausible opinion without the subjunctive is partial.",
           "type": "discussion"
+        },
+        {
+          "answer": "sea",
+          "blanks": [
+            {
+              "answer": "sea",
+              "id": "verbo",
+              "options": [
+                "sea",
+                "es",
+                "será"
+              ]
+            }
+          ],
+          "id": "es-b2-el-dilema-del-teletrabajo-q6",
+          "item_id": "es.story.es-b2-el-dilema-del-teletrabajo.3",
+          "prompt": "Completa el espacio con la forma correcta del subjuntivo (no creo que + subjuntivo).",
+          "text": "No creo que la oficina {{verbo}} la única solución al problema de Renata.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -897,6 +1076,25 @@
           "prompt": "El texto usa vocabulario y platos regionales de México (las posadas, los romeritos, la cuadra). ¿Qué tradición navideña de tu propia cultura podrías comparar con las posadas?",
           "rubric": "Open-ended: passes if the learner names a comparable tradition and draws at least one concrete point of comparison, in Spanish.",
           "type": "discussion"
+        },
+        {
+          "answer": "recorría",
+          "blanks": [
+            {
+              "answer": "recorría",
+              "id": "verbo",
+              "options": [
+                "recorría",
+                "recorrió",
+                "recorre"
+              ]
+            }
+          ],
+          "id": "es-b2-las-fiestas-de-mi-pueblo-q6",
+          "item_id": "es.story.es-b2-las-fiestas-de-mi-pueblo.1",
+          "prompt": "Completa el espacio con la forma correcta (pretérito vs. imperfecto para acciones habituales).",
+          "text": "Cada noche, un grupo de vecinos {{verbo}} las calles cantando villancicos.",
+          "type": "cloze"
         }
       ],
       "glossary": [
@@ -1014,6 +1212,25 @@
           "prompt": "El cuento usa voseo rioplatense (\"vos sos\", \"encontrás\", \"dejate\") en vez de \"tú eres\", \"encuentras\", \"déjate\". Reescribe la frase de Renata \"Dejate sorprender por la que encontrás ahora\" usando la forma de tú.",
           "rubric": "Passes if the learner correctly converts both verbs: 'Déjate sorprender por la que encuentras ahora.'",
           "type": "discussion"
+        },
+        {
+          "answer": "sos",
+          "blanks": [
+            {
+              "answer": "sos",
+              "id": "verbo",
+              "options": [
+                "sos",
+                "eres",
+                "sois"
+              ]
+            }
+          ],
+          "id": "es-c1-el-ultimo-tren-a-buenos-aires-q6",
+          "item_id": "es.story.es-c1-el-ultimo-tren-a-buenos-aires.5",
+          "prompt": "Completa el espacio con la forma correcta de 'ser' en voseo rioplatense.",
+          "text": "—¿Vos {{verbo}} de acá? —le preguntó la mujer a Julián.",
+          "type": "cloze"
         }
       ],
       "glossary": [
