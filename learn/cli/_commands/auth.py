@@ -48,6 +48,9 @@ _DEFAULT_INTERVAL = 5
 #: default interval, matching GitHub's own device-code default lifetime.
 _DEFAULT_EXPIRES_IN = _DEFAULT_INTERVAL * 180
 
+#: Shared ``--json`` help text (repeated per subparser below).
+_JSON_HELP = "Emit structured JSON."
+
 
 def _login_sections() -> list[dict[str, object]]:
     return [
@@ -76,8 +79,8 @@ def cmd_auth_overview(args: argparse.Namespace) -> int:
     return EXIT_SUCCESS
 
 
-def cmd_auth_login(args: argparse.Namespace) -> int:
-    json_mode = bool(getattr(args, "json", False))
+def _start_device_flow() -> dict[str, object]:
+    """Start the device flow and validate the response has what login needs."""
     try:
         start = device_start()
     except ApiError as err:
@@ -86,60 +89,46 @@ def cmd_auth_login(args: argparse.Namespace) -> int:
             message=f"could not start device sign-in: {err}",
             remediation="check network connectivity and LEARN_API_URL, then retry",
         ) from err
-
-    device_code = start.get("device_code")
-    user_code = start.get("user_code")
-    verification_uri = start.get("verification_uri")
-    if not device_code or not user_code or not verification_uri:
+    if (
+        not start.get("device_code")
+        or not start.get("user_code")
+        or not start.get("verification_uri")
+    ):
         raise CliError(
             code=EXIT_ENV_ERROR,
             message="learn API returned an incomplete device-start response",
             remediation="retry `learn auth login`; if this persists the learn API is misconfigured",
         )
-    interval = int(start.get("interval") or _DEFAULT_INTERVAL)
-    expires_in = int(start.get("expires_in") or _DEFAULT_EXPIRES_IN)
+    return start
 
-    emit_diagnostic(f"To sign in, open {verification_uri} and enter code: {user_code}")
 
+def _poll_once(device_code: str) -> dict[str, object]:
+    """One device-flow poll call, translating a network failure to a CliError."""
+    try:
+        return device_poll(device_code)
+    except ApiError as err:
+        raise CliError(
+            code=EXIT_ENV_ERROR,
+            message=f"device sign-in poll failed: {err}",
+            remediation="check network connectivity and retry `learn auth login`",
+        ) from err
+
+
+def _await_device_confirmation(
+    device_code: str, interval: int, expires_in: int
+) -> dict[str, object]:
+    """Poll until the learner confirms; return the 'complete' response.
+
+    Raises :class:`CliError` on an unexpected status or on timeout.
+    """
     elapsed = 0
     while elapsed <= expires_in:
         time.sleep(interval)
         elapsed += interval
-        try:
-            resp = device_poll(device_code)
-        except ApiError as err:
-            raise CliError(
-                code=EXIT_ENV_ERROR,
-                message=f"device sign-in poll failed: {err}",
-                remediation="check network connectivity and retry `learn auth login`",
-            ) from err
+        resp = _poll_once(device_code)
         status = resp.get("status")
         if status == "complete":
-            learner = resp.get("learner") or {}
-            state = AuthState(
-                token=resp["token"],
-                token_type=resp.get("token_type", "Bearer"),
-                expires_at=resp.get("expires_at"),
-                github_user_id=str(learner.get("github_user_id", "")),
-                display_name=str(learner.get("display_name", "")),
-            )
-            save_auth(state)
-            payload = {
-                "signed_in": True,
-                "learner": {
-                    "github_user_id": state.github_user_id,
-                    "display_name": state.display_name,
-                },
-                "expires_at": state.expires_at,
-            }
-            if json_mode:
-                emit_result(payload, json_mode=True)
-            else:
-                emit_result(
-                    f"Signed in as {state.display_name} — linked to the web learner account.",
-                    json_mode=False,
-                )
-            return EXIT_SUCCESS
+            return resp
         if status == "pending":
             if resp.get("slow_down"):
                 interval += 5
@@ -149,12 +138,54 @@ def cmd_auth_login(args: argparse.Namespace) -> int:
             message=f"unexpected device sign-in status: {status!r}",
             remediation="retry `learn auth login`",
         )
-
     raise CliError(
         code=EXIT_ENV_ERROR,
         message="device sign-in timed out waiting for confirmation",
         remediation="retry `learn auth login` and confirm before the code expires",
     )
+
+
+def _emit_login_success(resp: dict[str, object], json_mode: bool) -> None:
+    """Persist the signed-in session and print/emit the success payload."""
+    learner = resp.get("learner") or {}
+    state = AuthState(
+        token=resp["token"],
+        token_type=resp.get("token_type", "Bearer"),
+        expires_at=resp.get("expires_at"),
+        github_user_id=str(learner.get("github_user_id", "")),
+        display_name=str(learner.get("display_name", "")),
+    )
+    save_auth(state)
+    payload = {
+        "signed_in": True,
+        "learner": {
+            "github_user_id": state.github_user_id,
+            "display_name": state.display_name,
+        },
+        "expires_at": state.expires_at,
+    }
+    if json_mode:
+        emit_result(payload, json_mode=True)
+    else:
+        emit_result(
+            f"Signed in as {state.display_name} — linked to the web learner account.",
+            json_mode=False,
+        )
+
+
+def cmd_auth_login(args: argparse.Namespace) -> int:
+    json_mode = bool(getattr(args, "json", False))
+    start = _start_device_flow()
+    user_code = start["user_code"]
+    verification_uri = start["verification_uri"]
+    interval = int(start.get("interval") or _DEFAULT_INTERVAL)
+    expires_in = int(start.get("expires_in") or _DEFAULT_EXPIRES_IN)
+
+    emit_diagnostic(f"To sign in, open {verification_uri} and enter code: {user_code}")
+
+    resp = _await_device_confirmation(start["device_code"], interval, expires_in)
+    _emit_login_success(resp, json_mode)
+    return EXIT_SUCCESS
 
 
 def cmd_auth_logout(args: argparse.Namespace) -> int:
@@ -223,26 +254,26 @@ def register(sub: argparse._SubParsersAction) -> None:
         "auth",
         help="Sign in/out and check the linked web learner account (see 'learn auth overview').",
     )
-    p.add_argument("--json", action="store_true", help="Emit structured JSON.")
+    p.add_argument("--json", action="store_true", help=_JSON_HELP)
     p.set_defaults(func=_no_verb, json=False)
     # Propagate the structured-error parser class so sub-verb parse errors route
     # through the error contract (error:/hint: + exit 1), not argparse's default.
     noun_sub = p.add_subparsers(dest="auth_command", parser_class=type(p))
 
     ov = noun_sub.add_parser("overview", help="Describe the auth noun and its verbs.")
-    ov.add_argument("--json", action="store_true", help="Emit structured JSON.")
+    ov.add_argument("--json", action="store_true", help=_JSON_HELP)
     ov.set_defaults(func=cmd_auth_overview)
 
     login = noun_sub.add_parser(
         "login", help="Device-flow sign-in linking this CLI to the web learner account."
     )
-    login.add_argument("--json", action="store_true", help="Emit structured JSON.")
+    login.add_argument("--json", action="store_true", help=_JSON_HELP)
     login.set_defaults(func=cmd_auth_login)
 
     logout = noun_sub.add_parser("logout", help="Sign out and clear the local session.")
-    logout.add_argument("--json", action="store_true", help="Emit structured JSON.")
+    logout.add_argument("--json", action="store_true", help=_JSON_HELP)
     logout.set_defaults(func=cmd_auth_logout)
 
     status = noun_sub.add_parser("status", help="Show local sign-in and sync status.")
-    status.add_argument("--json", action="store_true", help="Emit structured JSON.")
+    status.add_argument("--json", action="store_true", help=_JSON_HELP)
     status.set_defaults(func=cmd_auth_status)

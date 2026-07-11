@@ -28,6 +28,9 @@ from learn.contract._validate import validate as _validate_instance
 #: Minor bumps (1.x) are additive-only; a major bump is a breaking change.
 CONTRACT_VERSION = "1.0"
 
+#: File suffix every shipped schema (and its ``$ref``-resolved siblings) carries.
+_SUFFIX = ".json"
+
 #: Ordered mastery ladder every subject reports per item (culture-guide's
 #: proven shape, generalized). Index = how well-understood.
 MASTERY_LEVELS: tuple[str, ...] = ("unknown", "introduced", "practiced", "mastered")
@@ -66,7 +69,7 @@ def list_schemas() -> tuple[str, ...]:
     root = _schemas_root()
     return tuple(
         sorted(
-            entry.name[: -len(".json")] for entry in root.iterdir() if entry.name.endswith(".json")
+            entry.name[: -len(_SUFFIX)] for entry in root.iterdir() if entry.name.endswith(_SUFFIX)
         )
     )
 
@@ -79,13 +82,13 @@ def load_schema(name: str) -> dict[str, Any]:
     """
     if name not in SCHEMA_NAMES:
         raise KeyError(f"unknown contract schema '{name}' (valid: {', '.join(SCHEMA_NAMES)})")
-    text = _schemas_root().joinpath(f"{name}.json").read_text(encoding="utf-8")
+    text = _schemas_root().joinpath(f"{name}{_SUFFIX}").read_text(encoding="utf-8")
     return json.loads(text)
 
 
 def _loader(ref: str) -> dict[str, Any] | None:
     """Resolve a sibling-file ``$ref`` (``story.json``) to its schema."""
-    stem = ref[: -len(".json")] if ref.endswith(".json") else ref
+    stem = ref[: -len(_SUFFIX)] if ref.endswith(_SUFFIX) else ref
     if stem in SCHEMA_NAMES:
         return load_schema(stem)
     return None

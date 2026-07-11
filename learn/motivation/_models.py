@@ -50,7 +50,7 @@ def parse_timestamp(raw: str) -> datetime:
     rather than silently sorting to the epoch.
     """
     text = raw.strip()
-    if text.endswith("Z") or text.endswith("z"):
+    if text.endswith(("Z", "z")):
         text = text[:-1] + "+00:00"
     return ensure_utc(datetime.fromisoformat(text))
 

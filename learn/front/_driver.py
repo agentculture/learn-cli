@@ -39,7 +39,7 @@ def _structured_stderr_error(
     stripped = stderr.strip()
     try:
         payload = json.loads(stripped)
-    except (json.JSONDecodeError, ValueError):
+    except ValueError:  # json.JSONDecodeError is a ValueError subclass
         detail = stripped.splitlines()[0] if stripped else "no stderr"
         return CliError(
             code=EXIT_ENV_ERROR,

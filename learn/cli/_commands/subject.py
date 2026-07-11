@@ -25,6 +25,9 @@ from learn.cli._output import emit_result
 from learn.subjects import get_subject, is_available, load_registry
 from learn.subjects.conformance import run_conformance
 
+#: Shared ``--json`` help text (repeated per subparser below).
+_JSON_HELP = "Emit structured JSON."
+
 
 def _subject_sections() -> list[dict[str, object]]:
     entries = load_registry()
@@ -90,14 +93,14 @@ def register(sub: argparse._SubParsersAction) -> None:
         "subject",
         help="Host and check per-subject tutor CLIs (see 'learn subject overview').",
     )
-    p.add_argument("--json", action="store_true", help="Emit structured JSON.")
+    p.add_argument("--json", action="store_true", help=_JSON_HELP)
     p.set_defaults(func=_no_verb, json=False)
     # Propagate the structured-error parser class so sub-verb parse errors route
     # through the error contract (error:/hint: + exit 1), not argparse's default.
     noun_sub = p.add_subparsers(dest="subject_command", parser_class=type(p))
 
     ov = noun_sub.add_parser("overview", help="Describe the subject noun and registered subjects.")
-    ov.add_argument("--json", action="store_true", help="Emit structured JSON.")
+    ov.add_argument("--json", action="store_true", help=_JSON_HELP)
     ov.set_defaults(func=cmd_subject_overview)
 
     doc = noun_sub.add_parser(
@@ -105,5 +108,5 @@ def register(sub: argparse._SubParsersAction) -> None:
         help="Check a subject CLI's contract conformance (verbs, payloads, exit codes).",
     )
     doc.add_argument("name", help="Registered subject id (see 'learn subjects').")
-    doc.add_argument("--json", action="store_true", help="Emit structured JSON.")
+    doc.add_argument("--json", action="store_true", help=_JSON_HELP)
     doc.set_defaults(func=cmd_subject_doctor)
