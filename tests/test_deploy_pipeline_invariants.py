@@ -276,6 +276,23 @@ def test_all_five_worker_secrets_are_synced_on_the_preview_path() -> None:
     assert not missing, f"preview secret sync (--env preview) is missing: {missing}"
 
 
+def test_secret_sync_skips_unset_values_to_avoid_clobbering_deployed_secrets() -> None:
+    # Each `secret put` must be guarded by a non-empty check on the same
+    # Actions secret, so an unset secret is SKIPPED (leaving the deployed
+    # value unchanged) rather than overwriting a live prod secret with "".
+    # Without this, the first merge would clobber pre-existing prod secrets
+    # and the always-unset optional secrets (INFERENCE_TOKEN, VOICE_TOKEN_SECRET)
+    # would wipe or fail on every run.
+    text = _read(WORKFLOW_YML)
+    for name in _SECRET_NAMES:
+        guard = '-n "${{ secrets.' + name + ' }}"'
+        assert guard in text, (
+            f"{name} secret-put must be guarded by an emptiness check "
+            f"({guard!r}); an unset Actions secret must be skipped, never piped "
+            "as an empty value that clobbers the deployed secret"
+        )
+
+
 # --- 5. schema.sql is idempotent -----------------------------------------------
 
 _CREATE_ANY_RE = re.compile(r"\bcreate\s+(?:unique\s+)?(?:table|index)\b", re.I)
