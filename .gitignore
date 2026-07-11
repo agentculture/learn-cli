@@ -231,3 +231,4 @@ skills.local.yaml
 
 # devague working state (not committed by default)
 .devague/reviews/
+.claude/settings.json
