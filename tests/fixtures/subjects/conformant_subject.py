@@ -130,6 +130,158 @@ def _story_list() -> dict[str, Any]:
     }
 
 
+#: The one full story the fixture serves, keyed by id (for `story read <id>`).
+_STORIES: dict[str, dict[str, Any]] = {
+    "s1": {
+        "schema_version": SCHEMA_VERSION,
+        "kind": "story",
+        "id": "s1",
+        "subject": SUBJECT,
+        "title": "The First Story",
+        "level": "beginner",
+        "level_detail": "A1",
+        "summary": "A tiny graded reader for the fourth language.",
+        "body": "The learner meets the fourth language and says hello.",
+        "glossary": [{"term": "hello", "definition": "a greeting"}],
+        "exercises": [
+            {
+                "id": "s1-q1",
+                "type": "multiple_choice",
+                "item_id": "greetings",
+                "prompt": "What does the character say first?",
+                "choices": ["Hello", "Goodbye"],
+                "answer": "Hello",
+            }
+        ],
+        "audio": None,
+    }
+}
+
+
+def _story_read(learner: str, story_id: str) -> dict[str, Any] | None:
+    story = _STORIES.get(story_id)
+    if story is None:
+        return None
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "kind": "story_read",
+        "subject": SUBJECT,
+        "learner": learner,
+        "story": story,
+        "directive": {
+            "instructions": [
+                "Present the story one paragraph at a time.",
+                "Run each comprehension exercise and record every result.",
+            ],
+            "record_with": [
+                "fourthlang record --item greetings --exercise s1-q1 "
+                "--activity story --result pass --json"
+            ],
+        },
+    }
+
+
+def _lesson(learner: str, mode: str) -> dict[str, Any]:
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "kind": "lesson_directive",
+        "subject": SUBJECT,
+        "learner": learner,
+        "mode": mode,
+        "lesson": {
+            "id": "l1",
+            "module_id": "m1",
+            "title": "First Lesson",
+            "level": "beginner",
+            "difficulty": 1,
+            "objectives": ["Greet someone in the fourth language."],
+            "items": [
+                {"id": "greetings", "label": "Greetings", "points": ["Say hello and goodbye."]}
+            ],
+        },
+        "directive": {
+            "instructions": ["Teach one point at a time.", "Record each check."],
+            "record_with": [
+                "fourthlang record --item greetings --activity lesson --result pass --json"
+            ],
+        },
+    }
+
+
+def _practice(learner: str, scope: str) -> dict[str, Any]:
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "kind": "practice_directive",
+        "subject": SUBJECT,
+        "learner": learner,
+        "scope": scope or "review",
+        "exercises": [
+            {
+                "id": "p1",
+                "type": "translation",
+                "item_id": "greetings",
+                "prompt": "Say hello in the fourth language.",
+                "answer": "hello",
+            }
+        ],
+        "directive": {
+            "instructions": ["Run each exercise conversationally.", "Record each result."],
+            "record_with": [
+                "fourthlang record --item greetings --exercise p1 "
+                "--activity practice --result pass --json"
+            ],
+        },
+    }
+
+
+#: Result → mastery inference (never regresses on inference; culture-guide's mapping).
+_MASTERY_OF = {"fail": "introduced", "partial": "practiced", "pass": "mastered"}
+
+
+def _opt(tokens: list[str], flag: str) -> str | None:
+    if flag in tokens:
+        i = tokens.index(flag)
+        if i + 1 < len(tokens):
+            return tokens[i + 1]
+    return None
+
+
+def _record(learner: str, rest: list[str]) -> dict[str, Any] | None:
+    item = _opt(rest, "--item")
+    result = _opt(rest, "--result")
+    if not item or result not in _MASTERY_OF:
+        return None
+    recorded: dict[str, Any] = {
+        "item_id": item,
+        "activity": _opt(rest, "--activity") or "practice",
+        "result": result,
+        "at": "2026-07-11T00:00:00+00:00",
+    }
+    exercise = _opt(rest, "--exercise")
+    if exercise:
+        recorded["exercise_id"] = exercise
+    correct = _opt(rest, "--correct")
+    total = _opt(rest, "--total")
+    if correct is not None:
+        recorded["correct"] = int(correct)
+    if total is not None:
+        recorded["total"] = int(total)
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "kind": "record_ack",
+        "subject": SUBJECT,
+        "learner": learner,
+        "recorded": recorded,
+        "mastery": {"item_id": item, "level": _MASTERY_OF[result]},
+        "next": {
+            "done": False,
+            "item_id": item,
+            "text": "keep going",
+            "command": "fourthlang lesson next --json",
+        },
+    }
+
+
 def main(argv: list[str]) -> int:
     tokens = [t for t in argv if t != "--json"]
     learner = "anonymous"
@@ -153,6 +305,26 @@ def main(argv: list[str]) -> int:
         return _emit(_advice(learner))
     if verb == "story" and rest[:1] == ["list"]:
         return _emit(_story_list())
+    if verb == "story" and rest[:1] == ["read"]:
+        payload = _story_read(learner, rest[1] if len(rest) > 1 else "")
+        if payload is None:
+            return _fail(
+                f"unknown story: {rest[1] if len(rest) > 1 else '<none>'}",
+                "run 'fourthlang story list --json' to see valid story ids",
+            )
+        return _emit(payload)
+    if verb == "lesson" and rest[:1] in (["start"], ["next"], ["repeat"]):
+        return _emit(_lesson(learner, rest[0]))
+    if verb == "practice":
+        return _emit(_practice(learner, rest[0] if rest else ""))
+    if verb == "record":
+        payload = _record(learner, rest)
+        if payload is None:
+            return _fail(
+                "record requires --item <id> and --result pass|partial|fail",
+                "e.g. fourthlang record --item greetings --result pass --json",
+            )
+        return _emit(payload)
     return _fail(
         f"unknown verb: {' '.join(tokens) or '<none>'}",
         "run 'fourthlang overview --json' to see valid verbs",
