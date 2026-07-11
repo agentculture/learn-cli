@@ -1,0 +1,15 @@
+# markdownlint-cli2 config for docs/specs/ — devague-exported specs.
+# Spec files are generated verbatim from the converged frame (claims are
+# quoted exactly), so rules that would force rewording generated text are
+# relaxed here:
+#   MD026: the H1 is the announcement sentence and ends with punctuation.
+#   MD033: claim/instruction text may contain <placeholder> tokens
+#          (e.g. "learn subject doctor <subject>") that read as inline HTML.
+config:
+  default: true
+  MD013: false
+  MD060: false
+  MD024:
+    siblings_only: true
+  MD026: false
+  MD033: false

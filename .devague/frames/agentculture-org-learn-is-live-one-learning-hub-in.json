@@ -1,0 +1,563 @@
+{
+  "slug": "agentculture-org-learn-is-live-one-learning-hub-in",
+  "title": "agentculture.org/learn is live: one learning hub in org's design where humans and agents learn French, Spanish, and agent-team leadership through stories, scored exercises, and adaptive never-ending lessons \u2014 signed-in learners see their cross-subject journey (progress, scores, streaks, what-next); visitors get an elegant tour \u2014 and the same experience is served coherently over the learn CLI, MCP server, and web site, with french-cli, spanish-cli, and culture-guide uplifted to that bar.",
+  "schema_version": 2,
+  "status": "exported",
+  "created": "2026-07-10T23:34:50Z",
+  "updated": "2026-07-10T23:49:23Z",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "announcement",
+      "text": "agentculture.org/learn is live: one learning hub in org's design where humans and agents learn French, Spanish, and agent-team leadership through stories, scored exercises, and adaptive never-ending lessons \u2014 signed-in learners see their cross-subject journey (progress, scores, streaks, what-next); visitors get an elegant tour \u2014 and the same experience is served coherently over the learn CLI, MCP server, and web site, with french-cli, spanish-cli, and culture-guide uplifted to that bar.",
+      "origin": "user",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h10",
+          "text": "The announced walk actually works on the live site: a fresh visitor tours a module and reads a sample story; a signed-in learner runs a scored lesson and sees progress move \u2014 on phone and desktop.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "Verify at launch by walking both journeys \u2014 signed-out tour, signed-in scored lesson \u2014 on agentculture.org/learn, from a phone and a desktop."
+    },
+    {
+      "id": "c2",
+      "kind": "audience",
+      "text": "Human learners (web/phone and CLI) and AI agents (over MCP) learning subjects step by step; plus the AgentCulture operator who maintains the subject repos and the org site.",
+      "origin": "user",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h11",
+          "text": "Each audience has a first-class path (web human, CLI human, MCP agent) with an acceptance test per path \u2014 none is a degraded afterthought.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "One acceptance test per audience: web (Playwright, signed-in and signed-out), CLI (pytest golden --json transcripts), agent (agentfront.testing call_mcp)."
+    },
+    {
+      "id": "c3",
+      "kind": "before_state",
+      "text": "learn-cli is a template scaffold (identity verbs only); french-cli/spanish-cli/culture-guide are standalone tutors with uneven UX and no shared profile; agentculture.org (owned by ../org) has no /learn section; no stories/scores/adaptive loop exists anywhere.",
+      "origin": "user",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h12",
+          "text": "Repo-state facts re-verified at build kickoff (siblings move); the spec's before-state matches HEAD of all five repos on the day building starts.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "Re-verify sibling repo state at build kickoff (french/spanish/culture-guide/org/agentfront HEAD); amend the spec if any moved."
+    },
+    {
+      "id": "c4",
+      "kind": "after_state",
+      "text": "learn-cli is the learner platform: a subject registry fronting french-cli, spanish-cli, and culture-guide, where every subject offers stories, progress tracking, scores, repeatable lessons, and adaptive never-ending progression, behind one cross-subject learner profile.",
+      "origin": "user",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h13",
+          "text": "'learn subjects' lists all three subjects passing the conformance gate, and a learner can start, score, repeat, and resume a lesson in each of french, spanish, and culture-guide.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "Build order: subject registry + 'learn subject doctor' conformance gate in learn-cli; implement the contract verbs in french-cli and spanish-cli from one shared spec; adapt culture-guide's teach noun; 'learn subjects --json' must list all three as conformant."
+    },
+    {
+      "id": "c5",
+      "kind": "after_state",
+      "text": "agentculture.org/learn serves the hub in org's existing design language \u2014 one sub-page per module \u2014 built so org can load it into the site easily and the whole site stays coherent.",
+      "origin": "user",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h14",
+          "text": "org maintainers can preview /learn as a normal Cloudflare Pages preview and sign off that it reads as one site (same tokens, fonts, nav, motion rules); the /learn nav link and directory entry land as an org PR they approve.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "File a coordination issue on org (communicate skill) proposing: /learn nav link (Header+Footer, a two-file edit), the site.ts learn-cli entry pointing at /learn/, and the Cloudflare route for agentculture.org/learn \u2192 learn-cli's Pages project; land as org-reviewed PRs."
+    },
+    {
+      "id": "c6",
+      "kind": "after_state",
+      "text": "The /learn site looks different signed-in vs signed-out: signed-out visitors get the elegant public tour (subject catalog, sample stories, module pages); signed-in learners get the resource-backed personal experience (their progress, scores, streaks, adaptive next lesson).",
+      "origin": "user",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h15",
+          "text": "Signed-out pages are fully static and make zero API or model calls (verifiable in the network log); every learner-specific element has a designed signed-out state (invitation, sample, or lock) \u2014 no broken half-empty panels.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "Signed-out pages are pure static Astro output; signed-in panels hydrate client-side after a session check against the learn API; add a test that the signed-out network log contains zero API/model calls."
+    },
+    {
+      "id": "c7",
+      "kind": "why_it_matters",
+      "text": "Learners get one professional door to every subject with durable motivation loops (stories, streaks, scores, what-next), and the mesh proves the subject interface generalizes beyond languages instead of every tutor reinventing its own experience.",
+      "origin": "user",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h16",
+          "text": "Adding a hypothetical 4th subject requires only: a registry entry, a conformant subject CLI, and content \u2014 zero new platform code in learn-cli; the claim is tested by keeping the registry data-driven.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "Keep the registry data-driven (a subjects registry file, not code per subject); prove generalization with a dummy fourth-subject fixture in learn-cli's test suite."
+    },
+    {
+      "id": "c8",
+      "kind": "requirement",
+      "text": "Stories are first-class learning content: the language modules (french, spanish) teach through stories, and culture-guide gains narrative/story-based learning as part of its experience uplift.",
+      "origin": "user",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h1",
+          "text": "Stories are a contract surface, not prose: each language module ships a level-tagged story library (text + glossary + comprehension exercises) reachable via a registry verb, and culture-guide ships narrative scenarios in the same shape \u2014 verified by the same conformance check for all three subjects.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "Define the story schema in the subject contract; pre-generate starter graded ladders via cloudai-cli in batch; human-review; commit as content files in french-cli and spanish-cli; author 3+ narrative scenarios for culture-guide."
+    },
+    {
+      "id": "c9",
+      "kind": "requirement",
+      "text": "Progress tracking, scores, repeatable lessons, adaptive difficulty, and never-ending progression are expressed in the subject-plugin contract so every subject exposes them uniformly (adding subject #4 is a registration, not a fork).",
+      "origin": "user",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h2",
+          "text": "The subject-plugin contract exists as a written spec plus an executable conformance gate (e.g. 'learn subject doctor <subject>'), and french, spanish, AND culture-guide all pass it \u2014 progress/scores/next-lesson/stories return machine-readable JSON that the web, CLI, and MCP faces all consume unchanged.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "Write the subject-plugin contract spec FIRST (learn-cli docs/specs/): verbs, JSON schemas, exit codes, state division; ship 'learn subject doctor <subject>' as the executable conformance gate and wire it into each subject repo's CI."
+    },
+    {
+      "id": "c10",
+      "kind": "requirement",
+      "text": "The uplift is multi-repo by design: coordinated changes land in learn-cli, french-cli, spanish-cli, culture-guide, and org \u2014 every surface is touched to make the experience work end to end.",
+      "origin": "user",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h3",
+          "text": "The uplift lands as tracked, cross-linked issues and PRs in learn-cli, french-cli, spanish-cli, culture-guide, and org \u2014 and the shipped /learn pages render content actually produced by the subject repos (not copies hand-pasted into org).",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "Open cross-linked tracked issues on french-cli, spanish-cli, culture-guide, and org from the exported spec (communicate skill); sequence: contract spec \u2192 subject implementations \u2192 learn faces \u2192 site + org integration \u2192 sign-in layer."
+    },
+    {
+      "id": "c11",
+      "kind": "boundary",
+      "text": "learn-cli hosts and unifies; it does not reimplement tutor logic \u2014 progression, lesson content, and subject expertise stay in each subject repo, driven as external runtimes.",
+      "origin": "user",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h17",
+          "text": "learn-cli's repo contains no subject-domain content or progression logic; deleting a subject's registry entry cleanly removes it from all three faces.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "Enforce in review: learn-cli never gains subject content or progression logic; subjects are driven only through the subprocess --json contract; deleting a registry entry removes a subject from all faces."
+    },
+    {
+      "id": "c12",
+      "kind": "boundary",
+      "text": "org's existing elegant design is kept, not redesigned: /learn adopts org's layout, typography, and theme; any new components extend that system rather than fork it.",
+      "origin": "user",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h18",
+          "text": "No new fonts, palette tokens, or layout primitives are introduced on /learn beyond org's global.css system; any genuinely new component (progress ring, streak flame, story reader) is built from existing tokens and offered back to org.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "Copy org's global.css, Layout, and components verbatim into learn-cli/site-astro; extend only with existing tokens; new learning components (progress ring, streak, story reader) reuse the token system and get offered upstream to org; visual QA in both themes."
+    },
+    {
+      "id": "c13",
+      "kind": "decision",
+      "text": "Per the brief, the three faces (CLI 'learn', MCP server, web) derive from one agentfront registry rather than three hand-rolled renderers, so the human page, the agent tool, and the --json answer cannot drift.",
+      "origin": "user",
+      "status": "confirmed",
+      "honesty_conditions": [],
+      "hard_questions": [],
+      "links": [],
+      "instruction": ""
+    },
+    {
+      "id": "c14",
+      "kind": "success_signal",
+      "text": "A signed-out visitor reads a sample story and the module tour on agentculture.org/learn; a signed-in learner completes a scored lesson in each of the three subjects from the web, sees their streak/score/what-next update, and the identical progress is readable via 'learn' --json and the MCP tools.",
+      "origin": "llm",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h23",
+          "text": "The success walk is scripted and repeatable: an end-to-end check (or documented manual QA script) covers signed-out story reading, one scored lesson per subject signed-in, and progress parity across web, 'learn' --json, and MCP \u2014 run before declaring launch.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "Script the success walk as the launch gate: signed-out story read; one scored lesson per subject signed-in; assert progress parity across web, 'learn' --json, and MCP. Run it before announcing."
+    },
+    {
+      "id": "c15",
+      "kind": "assumption",
+      "text": "culture-guide's 'teach' directive pattern (the subject CLI stores curriculum + per-learner mastery state and emits a structured teaching directive; the driving agent/LLM does the conversational tutoring and records results back) is a viable spine for the subject-plugin contract \u2014 subjects stay LLM-free engines, tutoring intelligence lives in the driver.",
+      "origin": "llm",
+      "status": "confirmed",
+      "honesty_conditions": [],
+      "hard_questions": [],
+      "links": [],
+      "instruction": ""
+    },
+    {
+      "id": "c16",
+      "kind": "before_state",
+      "text": "Verified by reading the repos: french-cli and spanish-cli are unmodified template scaffolds (6 introspection verbs, --json contract, zero tutor domain \u2014 no lesson/story/practice verbs, no content, no learner state, no LLM path). culture-guide's teach noun (5-part/35-concept curriculum, mastery ladder, per-learner JSON state, agent-drives-the-teaching directive pattern) is the mesh's only working tutor engine.",
+      "origin": "user",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h19",
+          "text": "The subject contract spec is written once and lands in french-cli and spanish-cli as the same implementation (kept consistent the way the template siblings are), and culture-guide's teach verbs map onto it without breaking its existing users.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "Implement the contract as one shared spec applied identically to french-cli and spanish-cli (byte-consistent modulo language token, like the template siblings); write a culture-guide adapter mapping teach subverbs to contract verbs without breaking existing teach users."
+    },
+    {
+      "id": "c17",
+      "kind": "decision",
+      "text": "Because french/spanish are empty, the tutor verb surface is DESIGNED FRESH in the subject-plugin contract \u2014 canonical verbs: overview, progress, advice, story (list/read), lesson (start/next/repeat), practice, record, doctor \u2014 and implemented from one shared spec in french-cli and spanish-cli (kept byte-consistent like siblings), while culture-guide maps its existing teach subverbs onto the same contract.",
+      "origin": "llm",
+      "status": "confirmed",
+      "honesty_conditions": [],
+      "hard_questions": [],
+      "links": [],
+      "instruction": ""
+    },
+    {
+      "id": "c18",
+      "kind": "requirement",
+      "text": "Every subject verb the portal consumes emits stable --json (the contract IS the JSON schemas + exit codes, versioned), so learn-cli can drive subjects as external runtimes without importing their code.",
+      "origin": "llm",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h4",
+          "text": "Contract payloads are versioned schemas checked by an executable conformance gate that runs in each subject repo's CI \u2014 a subject that drifts fails its own build, not learn-cli's runtime.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "Version the contract schemas (schema_version field); implement 'learn subject doctor' validation against them; subjects pin the contract version they satisfy."
+    },
+    {
+      "id": "c19",
+      "kind": "before_state",
+      "text": "Verified by reading ../org: the site is Astro output:'static' (no adapter, no auth, no SSR), design system self-contained (global.css tokens + 5 components + Fraunces/Albert Sans fonts, auto dark mode, dawn-mesh motif), content is typed src/data/*.ts + hand-written .astro pages (no markdown/collections), deployed to Cloudflare Pages project 'agentculture-org' via wrangler; no cross-repo content federation exists \u2014 sibling coordination is GitHub issues; no /learn route, and org's Agents directory links learn-cli to GitHub.",
+      "origin": "user",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h20",
+          "text": "Nothing in the /learn integration forces org to adopt SSR, an adapter, or a build-time dependency on learn-cli \u2014 org's static-only house style is preserved; coordination lands as reviewable org PRs + issues.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "org's repo changes stay minimal and static: site.ts entry + Header/Footer nav arrays; the /learn route lands as Cloudflare config through the operator-owned cultureflare path \u2014 org never gains a build-time dependency on learn-cli."
+    },
+    {
+      "id": "c20",
+      "kind": "decision",
+      "text": "Web face shape: learn-cli gets its own site-astro/ (the org/culture-tools house repo shape), copying org's design system verbatim (global.css tokens, Layout, Header/Footer/PageHero/Mark components, both fonts) so /learn is visually indistinguishable from the rest of agentculture.org; it deploys as learn-cli's own Cloudflare Pages project, and is mounted at agentculture.org/learn via Cloudflare routing \u2014 coordinated with org (nav link + directory entry pointing to /learn/) and the cultureflare-owned zone, negotiated through GitHub issues.",
+      "origin": "llm",
+      "status": "confirmed",
+      "honesty_conditions": [],
+      "hard_questions": [],
+      "links": [],
+      "instruction": ""
+    },
+    {
+      "id": "c21",
+      "kind": "decision",
+      "text": "Sign-in is the resource gate (the 'since this requires resources' rationale made explicit): signed-out visitors get only pre-built static content \u2014 subject catalog, module sub-pages, sample stories, the tour \u2014 which costs nothing to serve; LLM-backed live tutoring, progress/score writes, streaks, and adaptive what-next require a signed-in session backed by the learn API.",
+      "origin": "llm",
+      "status": "confirmed",
+      "honesty_conditions": [],
+      "hard_questions": [],
+      "links": [],
+      "instruction": ""
+    },
+    {
+      "id": "c22",
+      "kind": "decision",
+      "text": "The dynamic layer stays thin and Cloudflare-native: a small learn API (Cloudflare Pages Functions/Worker + KV/D1 for learner state) handles auth sessions, progress reads/writes, and brokers lesson/story generation to the model-access sibling; the static shell stays org-house-style, with signed-in panels hydrating client-side.",
+      "origin": "llm",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h8",
+          "text": "The hosting choice is recorded with a cost-when-busy note before build: Cloudflare Pages static = free; Workers/Functions paid plan ~$5/mo + per-request beyond free tier; KV/D1 usage-priced; live tutoring tokens per-use via cloudai/ec2bedrock \u2014 and signed-out traffic can never trigger a model call.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": ""
+    },
+    {
+      "id": "c23",
+      "kind": "before_state",
+      "text": "Verified by reading ../agentfront: agentfront 0.20.0 is an importable runtime library \u2014 one App registry of docs+tools emits the CLI, a stdio MCP server (single 'run' tool), an HTTP face, and a TAUI, with surfaces_agree() proving they enumerate identically. Its HTTP face serves raw markdown + sitemap.xml + llms.txt from a live WSGI app \u2014 no HTML, no theming, no static export \u2014 and it has zero auth/user-state primitives.",
+      "origin": "user",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h21",
+          "text": "agentfront is consumed as a versioned dependency (>=0.20) \u2014 gaps learn-cli hits (HTTP-face auth hooks, remote MCP transport, static export) are filed as upstream agentfront issues, never forked or monkey-patched.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "Depend on agentfront>=0.20 in learn-cli's pyproject (with the [mcp] extra); file upstream agentfront issues for any gap hit (remote MCP transport, HTTP-face hooks, static export) instead of forking."
+    },
+    {
+      "id": "c24",
+      "kind": "decision",
+      "text": "The web face splits by consumer, both fed from one registry: agentfront's HTTP face is the agent-readable web (markdown, sitemap, llms.txt); the human web is the Astro static site rendering the SAME registry-sourced content through org's design. A build step ('learn site export' \u2192 typed content JSON/markdown consumed by site-astro) plus an extended surfaces-agreement test keep the human pages from drifting \u2014 honoring the brief's one-registry rule without asking agentfront to render HTML.",
+      "origin": "llm",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h9",
+          "text": "The Astro pages are generated from the same registry/content files the CLI and MCP serve, and a CI check fails when a module exists in the registry without a site page (or vice versa) \u2014 coherence is enforced, not hoped for.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": ""
+    },
+    {
+      "id": "c25",
+      "kind": "decision",
+      "text": "Model access and cost shape: story/lesson content is pre-generated in batch through cloudai-cli (or ec2bedrock-cli), human-reviewed, and COMMITTED to each subject repo as content files \u2014 so the static site and signed-out visitors cost ~zero to serve; only signed-in interactive tutoring (live conversation, grading, generation of fresh personal content) makes live model calls, brokered by the learn API through the same siblings. No bespoke provider client anywhere.",
+      "origin": "llm",
+      "status": "confirmed",
+      "honesty_conditions": [],
+      "hard_questions": [],
+      "links": [],
+      "instruction": ""
+    },
+    {
+      "id": "c26",
+      "kind": "decision",
+      "text": "Learner identity across faces: 'learn auth login' (device-code flow) links the CLI and MCP to the same learner account the web uses; local XDG state acts as an offline cache that syncs through the learn API. Anonymous CLI/MCP use stays local-only and fully functional \u2014 sign-in adds cross-device sync, streak continuity, and the web dashboard.",
+      "origin": "llm",
+      "status": "confirmed",
+      "honesty_conditions": [],
+      "hard_questions": [],
+      "links": [],
+      "instruction": ""
+    },
+    {
+      "id": "c27",
+      "kind": "requirement",
+      "text": "Division of intelligence: subject CLIs own content + per-learner mastery (culture-guide's directive pattern); learn-cli owns the uniform motivation layer \u2014 numeric scores per exercise, per-subject and cross-subject streaks, review queues, and adaptive what-next computed deterministically from the contract's recorded results \u2014 so every subject gets scores/streaks/adaptivity without reimplementing them.",
+      "origin": "llm",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h5",
+          "text": "Scores, streaks, and what-next are deterministic, unit-tested functions of recorded history \u2014 the same history yields the same numbers on web, CLI, and MCP; no LLM in the scoring path.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "Implement scoring/streak/what-next as a pure module in learn-cli (deterministic functions over recorded history), unit-tested with golden histories; subjects only report raw results via 'record'."
+    },
+    {
+      "id": "c28",
+      "kind": "requirement",
+      "text": "Never-ending learning: completing a track flips the learner into maintenance+depth mode, never a dead end \u2014 review queues driven by time-decayed mastery, repeatable lessons at higher difficulty, and fresh stories rotated in (pre-generated batches) \u2014 so there is always a meaningful next action.",
+      "origin": "llm",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h6",
+          "text": "A learner who has completed every authored item still receives a concrete next action (review of decayed mastery, a harder repeat, or a fresh story) \u2014 proven by a test that simulates a fully-completed track.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "Implement time-decayed mastery + review-queue computation in learn-cli's motivation layer; add the completed-track simulation test proving a next action always exists; wire fresh-story rotation to the batch generation pipeline."
+    },
+    {
+      "id": "c29",
+      "kind": "requirement",
+      "text": "A story is a shared content schema across subjects: id, difficulty level, title, body, glossary/annotations, comprehension exercises (and an audio slot reserved for later). Language stories form a graded-reader ladder (beginner \u2192 advanced); culture-guide stories are narrative scenarios (e.g. an agent-team incident the learner reasons through). Stories live as committed content files in each subject repo.",
+      "origin": "llm",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h7",
+          "text": "One story schema validates for all three subjects, and each language module ships at least a starter graded ladder (e.g. ~10 stories across 3+ levels) while culture-guide ships at least 3 narrative scenarios at launch.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "Ship the story JSON schema in the contract; starter content: >=10 stories across >=3 levels per language module, >=3 culture-guide scenarios; validate all content files against the schema in each subject's CI."
+    },
+    {
+      "id": "c30",
+      "kind": "decision",
+      "text": "Identity provider recommendation: GitHub OAuth as the v1 sign-in (the audience is developers and agents; the mesh is GitHub-native; no passwords/PII stored \u2014 only the GitHub id, display name, and learner state), implemented in the learn API worker with short-lived session cookies. Email magic-link can be added later; mesh-identity federation is a follow-up.",
+      "origin": "llm",
+      "status": "confirmed",
+      "honesty_conditions": [],
+      "hard_questions": [],
+      "links": [],
+      "instruction": ""
+    },
+    {
+      "id": "c31",
+      "kind": "requirement",
+      "text": "The /learn surface is served same-origin at agentculture.org/learn (never a separate subdomain or visibly separate site), sharing org's design tokens AND its cross-document view-transition navigation, so moving between org pages and learn pages never reloads the 'whole site' feel \u2014 one continuous site to the visitor.",
+      "origin": "user",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h22",
+          "text": "Navigating agentculture.org \u2192 /learn and back is same-origin, keeps the shared header/nav, and uses the same @view-transition cross-document fade org uses \u2014 verified by a navigation test and manual QA in both themes.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "Mount learn-cli's Pages output under the agentculture.org zone via Cloudflare routing (coordinated through org/cultureflare); copy org's @view-transition CSS and Layout so cross-document navigation transitions smoothly; never link /learn as an external-feeling site."
+    },
+    {
+      "id": "c32",
+      "kind": "success_signal",
+      "text": "Measurable launch bar (quantifying the confirmed walk): all 3 subjects pass 'learn subject doctor'; >=10 stories x >=3 levels per language module and >=3 culture-guide scenarios ship; the signed-out /learn pages make exactly 0 API/model calls; the E2E success walk passes with progress parity across all 3 faces; /learn page styling introduces 0 new design tokens beyond org's system.",
+      "origin": "llm",
+      "status": "confirmed",
+      "honesty_conditions": [
+        {
+          "id": "h24",
+          "text": "Every number in the launch bar is checked by CI or the scripted launch gate \u2014 none is asserted by hand.",
+          "status": "confirmed",
+          "instruction": ""
+        }
+      ],
+      "hard_questions": [],
+      "links": [],
+      "instruction": "Wire each measurable into automation: conformance in subject CIs; content counts via schema validation; zero-API static check via network-log test; the E2E walk as the launch gate script; token audit via CSS diff against org's global.css."
+    }
+  ],
+  "open_vagueness": [
+    {
+      "id": "v3",
+      "text": "Exact adaptivity algorithm (SM-2-style spaced repetition vs LLM-judged mastery vs hybrid) \u2014 can be chosen during build once the contract exposes scores + history; does not gate the contract design.",
+      "kind": "unknown_nonblocking",
+      "claim_id": null
+    },
+    {
+      "id": "v4",
+      "text": "Spoken practice (TTS/STT) \u2014 french/spanish's 'written and spoken' promise needs an audio pipeline and per-minute cost; defer to a follow-up phase, with the story schema's audio slot reserved.",
+      "kind": "follow_up",
+      "claim_id": null
+    },
+    {
+      "id": "v5",
+      "text": "Remote (HTTP) MCP transport \u2014 agentfront's MCP face is stdio-only today; a hosted 'agents learn over the network' endpoint would need transport work in agentfront or a shim. stdio covers local agents for v1.",
+      "kind": "unknown_nonblocking",
+      "claim_id": null
+    },
+    {
+      "id": "v6",
+      "text": "culture.dev cross-link via katvan once /learn is live (the brief's offer) \u2014 file the cross-link issue at launch.",
+      "kind": "follow_up",
+      "claim_id": null
+    },
+    {
+      "id": "v7",
+      "text": "Whether agent learners get their own profiles or act on behalf of a human learner's profile (MCP identity semantics) \u2014 v1 treats any authenticated account as a learner regardless of species; refine if agent-specific needs emerge.",
+      "kind": "unknown_nonblocking",
+      "claim_id": null
+    }
+  ],
+  "scope_entries": []
+}
