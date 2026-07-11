@@ -1,0 +1,251 @@
+---
+// Adapted from org/site-astro's Header.astro — same markup shape, same
+// classes, same tokens. Three differences from the org header:
+//   1. The org wordmark ("AgentCulture") always points at the org root,
+//      even from here — clicking the brand name leaves this sub-site.
+//   2. A second, local wordmark segment ("Learn") plus a "Subjects" nav
+//      item both point back at *this* site's own landing page, via
+//      `homeHref` — a relative path computed by the calling page (see
+//      Layout.astro), since the base-path/domain mapping between the
+//      Pages preview and agentculture.org/learn isn't settled yet (README).
+//   3. An auth slot (t14): a quiet "Sign in" link, real and functional
+//      with zero JS (a plain anchor to `${API_BASE}/auth/login`), and a
+//      signed-in variant (display name + "Sign out") that only appears
+//      once src/scripts/learner.js confirms a session and stamps
+//      data-auth="in" on <html> — see global.css's "auth-state visibility"
+//      block for the show/hide mechanics and README.md's "Auth" section.
+import site from "../data/site";
+import Mark from "./Mark.astro";
+import { API_BASE } from "../lib/api";
+
+interface Props {
+  homeHref: string;
+}
+const { homeHref } = Astro.props;
+
+// The org-owned destinations always live at the domain root, regardless of
+// where this sub-site itself is mounted.
+const orgLinks = [
+  { href: "https://agentculture.org/framework/", label: "Framework" },
+  { href: "https://agentculture.org/agents/", label: "Agents" },
+  { href: "https://agentculture.org/engage/", label: "Engage" },
+];
+
+// `homeHref === "./"` only on the landing page itself (see Layout.astro).
+const onLanding = homeHref === "./";
+---
+
+<header class="site-header">
+  <div class="container bar">
+    <div class="wordmark-group">
+      <a class="wordmark" href="https://agentculture.org/">
+        <Mark />
+        <span>{site.orgTitle}</span>
+      </a>
+      <span class="wordmark-sep" aria-hidden="true">/</span>
+      <a class="wordmark-sub" href={homeHref} aria-current={onLanding ? "page" : undefined}>
+        {site.title}
+      </a>
+    </div>
+    <div class="bar-end">
+      <nav aria-label="Primary">
+        <ul>
+          <li>
+            <a href={homeHref} aria-current={onLanding ? "page" : undefined}>Subjects</a>
+          </li>
+          {
+            orgLinks.map(({ href, label }) => (
+              <li>
+                <a href={href}>{label}</a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+      <div class="auth-slot" aria-live="polite">
+        <a class="auth-signin signedout-only" href={`${API_BASE}/auth/login`}>
+          Sign in
+        </a>
+        <div class="auth-signedin signedin-only">
+          <span class="auth-name" data-auth-name>your account</span>
+          <button type="button" class="auth-signout" data-sign-out>
+            Sign out
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    padding-block: 1.4rem;
+  }
+
+  .bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.5rem;
+  }
+
+  .wordmark-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .wordmark {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    text-decoration: none;
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-variation-settings: "SOFT" 75, "WONK" 0;
+    font-weight: 520;
+    font-size: 1.22rem;
+    letter-spacing: -0.01em;
+  }
+
+  .wordmark-sep {
+    color: var(--ink-soft);
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    opacity: 0.6;
+  }
+
+  .wordmark-sub {
+    text-decoration: none;
+    color: var(--ink-soft);
+    font-family: var(--font-display);
+    font-variation-settings: "SOFT" 75, "WONK" 0;
+    font-weight: 520;
+    font-size: 1.22rem;
+    letter-spacing: -0.01em;
+  }
+
+  .wordmark-sub:hover,
+  .wordmark-sub[aria-current="page"] {
+    color: var(--ink);
+  }
+
+  .bar-end {
+    display: flex;
+    align-items: center;
+    gap: clamp(1.1rem, 3vw, 1.8rem);
+    flex-wrap: wrap;
+  }
+
+  nav ul {
+    display: flex;
+    align-items: center;
+    gap: clamp(1.1rem, 3vw, 2.2rem);
+    list-style: none;
+  }
+
+  nav a {
+    position: relative;
+    display: inline-block;
+    padding-block: 0.35rem;
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+  }
+
+  nav a:hover {
+    color: var(--ink);
+  }
+
+  /* the current page carries its own small node on the thread */
+  nav a::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -0.2rem;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    transform: translateX(-50%) scale(0);
+  }
+
+  nav a[aria-current="page"] {
+    color: var(--ink);
+  }
+
+  nav a[aria-current="page"]::after {
+    transform: translateX(-50%) scale(1);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    nav a::after {
+      transition: transform 0.35s var(--ease-out);
+    }
+  }
+
+  /* ---------- auth slot ----------
+     Base state (also the no-JS state): the quiet "Sign in" link is a real,
+     working anchor with no JS dependency. `.auth-signedin` is hidden by the
+     shared `.signedin-only` rule in global.css until learner.js stamps
+     data-auth="in" on <html> — see that file's "auth-state visibility"
+     comment for why the show/hide split lives partly there, partly here. */
+
+  .auth-slot {
+    display: flex;
+    align-items: center;
+  }
+
+  .auth-signin {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--ink-soft);
+    text-decoration: none;
+  }
+
+  .auth-signin:hover {
+    color: var(--ink);
+  }
+
+  .auth-signedin {
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  :global(html[data-auth="in"]) .auth-signedin {
+    display: inline-flex;
+  }
+
+  :global(html[data-auth="in"]) .auth-signin {
+    display: none;
+  }
+
+  .auth-name {
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: var(--ink);
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .auth-signout {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--ink-soft);
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.3rem 0.8rem;
+    cursor: pointer;
+  }
+
+  .auth-signout:hover {
+    color: var(--ink);
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  }
+</style>

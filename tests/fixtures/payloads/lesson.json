@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "kind": "lesson_directive",
+  "subject": "french",
+  "learner": "ori",
+  "mode": "start",
+  "lesson": {
+    "id": "numbers-money-1",
+    "module_id": "premiers-pas",
+    "title": "Numbers and money",
+    "level": "beginner",
+    "difficulty": 1,
+    "objectives": [
+      "Count from 1 to 100.",
+      "Ask for and understand prices in euros."
+    ],
+    "items": [
+      {
+        "id": "numbers-money",
+        "label": "Numbers and money",
+        "points": [
+          "Numbers 1-20 are irregular and must be memorized; 20-100 compose regularly.",
+          "Prices read as 'X euros Y' — quatre euros cinquante — not 'euros et'.",
+          "« Ça fait combien ? » and « C'est combien ? » both ask the price."
+        ]
+      }
+    ]
+  },
+  "directive": {
+    "persona": "You are a patient, practical French tutor. Teach in short exchanges, mixing French and the learner's language less and less.",
+    "instructions": [
+      "Teach one point at a time with a micro-dialogue the learner completes.",
+      "Ask a short comprehension check after each point; adapt pace to the answers.",
+      "Finish with a two-line market role-play using real prices.",
+      "Grade each check pass|partial|fail and record every result before ending the session."
+    ],
+    "record_with": [
+      "french record --learner ori --item numbers-money --activity lesson --result partial --json",
+      "french progress --learner ori --json"
+    ]
+  }
+}

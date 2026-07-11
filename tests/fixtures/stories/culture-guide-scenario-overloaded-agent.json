@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0",
+  "kind": "story",
+  "id": "cg-scn-the-overloaded-agent",
+  "subject": "culture-guide",
+  "title": "The overloaded agent",
+  "level": "intermediate",
+  "level_detail": "scenario",
+  "language": "en",
+  "summary": "A team lead keeps piling responsibilities onto one project agent until quality slips; the learner reasons through tiers, scope, and recovery.",
+  "body": "Dana runs a three-person data team and one mesh agent, `pipeline-cli`, which owns the ingestion repo.\n\nIt started well: the agent maintained the pipeline, kept CI green, and answered questions about the schema. So Dana kept delegating. Soon `pipeline-cli` was also rotating dashboards, triaging the on-call inbox, drafting the weekly report, and reviewing another team's PRs.\n\nBy the third week the cracks showed. A schema migration shipped with a silent column rename because the agent cut a corner while juggling the inbox. The weekly report cited a dashboard that no longer existed. When Dana asked the agent why, it confidently described a rollout process the team had never used.\n\nDana's first instinct was to write a longer system prompt: more rules, more reminders, more context. The agent got slower and made a different class of mistake.\n\nThe fix came from the team retro. They split the work by tier: `pipeline-cli` went back to owning exactly one repo and its CI. A new personal agent took the inbox and the weekly report. The dashboards went to the team that owned them, agent and all. Dana wrote down the rule they had violated: an agent with overloaded responsibility performs worse, exactly like a person — but unlike a person, it will never push back or get tired; it just quietly degrades.",
+  "glossary": [
+    {
+      "term": "agent tiers",
+      "definition": "Levels of agent responsibility: project/service agent, personal/work-function agent, agent-management agent, listener/orchestrator.",
+      "note": "The scenario's failure is a Level 1 agent absorbing Level 2 work."
+    },
+    {
+      "term": "overloaded responsibility",
+      "definition": "Giving one agent too many unrelated duties, which degrades performance on all of them."
+    },
+    {
+      "term": "confident wrongness",
+      "definition": "An agent inventing a plausible answer (here, a rollout process) instead of admitting it does not know — the default failure mode, not an anomaly."
+    },
+    {
+      "term": "context overload",
+      "definition": "Adding ever more rules and reminders to a prompt until attention dilutes and new mistakes appear."
+    },
+    {
+      "term": "single ownership",
+      "definition": "Only the owning agent writes code in its repo; other agents point, open issues, review, or request."
+    }
+  ],
+  "exercises": [
+    {
+      "id": "overloaded-q1",
+      "type": "multiple_choice",
+      "item_id": "agent-tiers",
+      "prompt": "Which rule did Dana's team break first?",
+      "choices": [
+        "Do not give unrelated skills and duties to a project agent",
+        "Always run agents on separate machines",
+        "Never let an agent answer schema questions"
+      ],
+      "answer": "Do not give unrelated skills and duties to a project agent"
+    },
+    {
+      "id": "overloaded-q2",
+      "type": "open",
+      "item_id": "cognitive-dissonance",
+      "prompt": "The agent described a rollout process that never existed. Why is 'it lied' the wrong diagnosis, and what is the right one?",
+      "rubric": "Passes if the answer frames it as confident plausible continuation under missing grounding (hallucination as default failure mode) rather than intent; partial if it only says 'hallucination' without the why."
+    },
+    {
+      "id": "overloaded-q3",
+      "type": "discussion",
+      "item_id": "company-scale",
+      "prompt": "Redesign Dana's setup using agent tiers: which duties stay with pipeline-cli, which move to a new Level 2 agent, and which leave the team entirely? Apply it to your own team's workload.",
+      "rubric": "Passes if the split keeps pipeline-cli at exactly one repo, assigns cross-project personal duties to a Level 2 agent, returns the dashboards to their owning team, and the learner maps at least one duty from their own context."
+    },
+    {
+      "id": "overloaded-q4",
+      "type": "true_false",
+      "item_id": "context-engineering",
+      "prompt": "Dana's longer system prompt failed because more context always means more focus.",
+      "answer": "false"
+    }
+  ],
+  "audio": null,
+  "source": {
+    "generator": "hand-authored",
+    "reviewed_by": "learn-cli t2",
+    "generated_at": "2026-07-11"
+  }
+}

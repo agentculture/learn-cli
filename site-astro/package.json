@@ -1,0 +1,23 @@
+{
+  "name": "learn-cli-site",
+  "type": "module",
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "check": "npm run check:pages && npm run check:static-auth",
+    "check:pages": "node scripts/check-export-pages.mjs",
+    "check:static-auth": "node scripts/check-static-auth.mjs",
+    "test:static": "node scripts/check-static-auth.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/albert-sans": "^5.2.8",
+    "@fontsource-variable/fraunces": "^5.2.9",
+    "astro": "7.0.7"
+  }
+}

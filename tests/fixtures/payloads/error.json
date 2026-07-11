@@ -1,0 +1,5 @@
+{
+  "code": 1,
+  "message": "no story matches 'fr-beg-bogus'",
+  "remediation": "run 'french story list --json' to see valid story ids"
+}

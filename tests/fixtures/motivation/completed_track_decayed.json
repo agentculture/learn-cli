@@ -1,0 +1,137 @@
+{
+  "description": "A learner who has mastered every item of both tracks (both subjects report done). now is 25 days after the last activity, so every mastered item has decayed below the urgent threshold. done is not a dead end: what-next returns an urgent review batch \u2014 the never-ending mode via the review path.",
+  "now": "2026-08-01T12:00:00+00:00",
+  "subjects": [
+    {
+      "subject": "french",
+      "items_total": 3,
+      "items_mastered": 3,
+      "done": true
+    },
+    {
+      "subject": "spanish",
+      "items_total": 2,
+      "items_mastered": 2,
+      "done": true
+    }
+  ],
+  "ledger": [
+    {
+      "subject": "french",
+      "item_id": "greetings",
+      "activity": "lesson",
+      "result": "pass",
+      "at": "2026-07-05T09:00:00+00:00"
+    },
+    {
+      "subject": "french",
+      "item_id": "numbers",
+      "activity": "practice",
+      "result": "pass",
+      "at": "2026-07-06T09:00:00+00:00"
+    },
+    {
+      "subject": "french",
+      "item_id": "food-vocab",
+      "activity": "story",
+      "result": "pass",
+      "at": "2026-07-07T09:00:00+00:00"
+    },
+    {
+      "subject": "spanish",
+      "item_id": "saludos",
+      "activity": "lesson",
+      "result": "pass",
+      "at": "2026-07-06T09:00:00+00:00"
+    },
+    {
+      "subject": "spanish",
+      "item_id": "comida",
+      "activity": "practice",
+      "result": "pass",
+      "at": "2026-07-07T09:00:00+00:00"
+    }
+  ],
+  "expected": {
+    "exercise_scores": [
+      100,
+      100,
+      100,
+      100,
+      100
+    ],
+    "session_score": 100,
+    "streaks": {
+      "overall": {
+        "current_days": 0,
+        "longest_days": 3,
+        "last_active": "2026-07-07",
+        "active_today": false
+      },
+      "by_subject": {
+        "french": {
+          "current_days": 0,
+          "longest_days": 3,
+          "last_active": "2026-07-07",
+          "active_today": false
+        },
+        "spanish": {
+          "current_days": 0,
+          "longest_days": 2,
+          "last_active": "2026-07-07",
+          "active_today": false
+        }
+      }
+    },
+    "review_queue": [
+      [
+        "french",
+        "greetings"
+      ],
+      [
+        "french",
+        "numbers"
+      ],
+      [
+        "spanish",
+        "saludos"
+      ],
+      [
+        "french",
+        "food-vocab"
+      ],
+      [
+        "spanish",
+        "comida"
+      ]
+    ],
+    "what_next": {
+      "action": "review_batch",
+      "mode": "maintenance",
+      "subject": "french",
+      "item_id": "greetings",
+      "items": [
+        [
+          "french",
+          "greetings"
+        ],
+        [
+          "french",
+          "numbers"
+        ],
+        [
+          "spanish",
+          "saludos"
+        ],
+        [
+          "french",
+          "food-vocab"
+        ],
+        [
+          "spanish",
+          "comida"
+        ]
+      ]
+    }
+  }
+}

@@ -62,11 +62,19 @@ def _argv_has_json(argv: list[str] | None) -> bool:
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    from learn.cli._commands import auth as _auth_group
     from learn.cli._commands import cli as _cli_group
     from learn.cli._commands import doctor as _doctor_cmd
     from learn.cli._commands import explain as _explain_cmd
     from learn.cli._commands import learn as _learn_cmd
+    from learn.cli._commands import mcp as _mcp_group
+    from learn.cli._commands import next_cmd as _next_cmd
     from learn.cli._commands import overview as _overview_cmd
+    from learn.cli._commands import progress as _progress_cmd
+    from learn.cli._commands import record as _record_cmd
+    from learn.cli._commands import site as _site_group
+    from learn.cli._commands import subject as _subject_group
+    from learn.cli._commands import subjects as _subjects_cmd
     from learn.cli._commands import whoami as _whoami_cmd
 
     parser = _CliArgumentParser(
@@ -88,6 +96,14 @@ def _build_parser() -> argparse.ArgumentParser:
     _overview_cmd.register(sub)
     _doctor_cmd.register(sub)
     _cli_group.register(sub)
+    _subjects_cmd.register(sub)
+    _subject_group.register(sub)
+    _mcp_group.register(sub)
+    _site_group.register(sub)
+    _auth_group.register(sub)
+    _progress_cmd.register(sub)
+    _next_cmd.register(sub)
+    _record_cmd.register(sub)
     # Register your own noun groups here:
     #   from learn.cli._commands import my_noun as _my_noun_group
     #   _my_noun_group.register(sub)

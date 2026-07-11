@@ -1,0 +1,250 @@
+---
+// A subject's sub-page: description, modules with summaries, and the story
+// ladder (grouped by level). One page per subject in the content-export —
+// scripts/check-export-pages.mjs fails the build if a subject here has no
+// page, or a page here has no subject backing it.
+import Layout from "../../layouts/Layout.astro";
+import PageHero from "../../components/PageHero.astro";
+import LearnerPanelSubject from "../../components/LearnerPanelSubject.astro";
+import site from "../../data/site";
+import { getSubjects, getStories, levelRank, type Subject, type Story } from "../../lib/content";
+
+export function getStaticPaths() {
+  return getSubjects().map((subject) => ({
+    params: { subject: subject.name },
+    props: { subject },
+  }));
+}
+
+interface Props {
+  subject: Subject;
+}
+
+const { subject } = Astro.props;
+const stories = getStories(subject.name)
+  .slice()
+  .sort((a, b) => levelRank(a.level) - levelRank(b.level) || a.title.localeCompare(b.title));
+
+const levelLabel: Record<string, string> = {
+  beginner: "Beginner",
+  intermediate: "Intermediate",
+  advanced: "Advanced",
+};
+
+function ladderLevel(story: Story): string {
+  return levelLabel[story.level] ?? story.level;
+}
+
+const intro = [subject.description];
+if (!subject.available) {
+  intro.push(
+    "The tutor CLI for this subject isn't built yet — no structured modules or graded practice below. The story library is real and live; read straight from it, or follow along as the tutor lands."
+  );
+}
+---
+
+<Layout
+  title={`${subject.display_name} · ${site.title} · ${site.orgTitle}`}
+  description={subject.description}
+  homeHref="../"
+>
+  <PageHero title={subject.display_name} intro={intro} />
+
+  <section class="section breadcrumb-section" aria-label="Wayfinding">
+    <div class="container">
+      <a class="breadcrumb" href="../">← All subjects</a>
+    </div>
+  </section>
+
+  <section class="section learner-section" aria-label="Your progress">
+    <div class="container">
+      <LearnerPanelSubject subject={subject} />
+    </div>
+  </section>
+
+  {
+    subject.modules.length > 0 && (
+      <section class="section modules" aria-label="Modules">
+        <div class="container">
+          <h2 data-reveal>Modules</h2>
+          <ul class="module-list">
+            {subject.modules.map((module, i) => (
+              <li data-reveal style={`--reveal-delay: ${Math.min(i * 0.08, 0.3)}s`}>
+                <div class="card module-card">
+                  <header class="module-head">
+                    <h3>{module.title}</h3>
+                    <span class="muted lessons-count">
+                      {module.lessons} {module.lessons === 1 ? "lesson" : "lessons"}
+                    </span>
+                  </header>
+                  <p class="muted">{module.summary}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+    )
+  }
+
+  {
+    stories.length > 0 && (
+      <section class="section ladder" aria-label="Stories">
+        <div class="container">
+          <h2 data-reveal>Story ladder</h2>
+          <p class="muted" data-reveal>
+            {stories.length} {stories.length === 1 ? "story" : "stories"}, easiest first.
+          </p>
+          <div class="table-wrap" data-reveal>
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Level</th>
+                  <th scope="col">Story</th>
+                  <th scope="col">Summary</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stories.map((story) => (
+                  <tr>
+                    <td>
+                      <span class="level-pill">{ladderLevel(story)}</span>
+                      {story.level_detail && <span class="muted detail"> {story.level_detail}</span>}
+                    </td>
+                    <td>
+                      <a href={`stories/${story.id}/`}>{story.title}</a>
+                    </td>
+                    <td class="muted">{story.summary ?? ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  <section class="section cli-hint" aria-label="Practice with the CLI">
+    <div class="container prose">
+      <h2 data-reveal>Practice with the CLI</h2>
+      <p class="muted" data-reveal>
+        Reading is one half; practice and progress tracking live in the
+        subject's own CLI (or sign in on the web, once that lands).
+      </p>
+      <pre data-reveal><code>uv tool install {subject.repo.split("/")[1]}
+{subject.name} learn</code></pre>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .breadcrumb-section {
+    padding-block: 0 0.5rem;
+  }
+
+  .breadcrumb {
+    font-size: 0.92rem;
+    font-weight: 500;
+  }
+
+  .learner-section {
+    padding-block: 0 1rem;
+  }
+
+  .modules {
+    padding-top: 0.5rem;
+  }
+
+  .module-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15.5rem, 1fr));
+    gap: 1.2rem;
+  }
+
+  .module-card {
+    height: 100%;
+  }
+
+  .module-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .module-head h3 {
+    margin: 0;
+  }
+
+  .lessons-count {
+    flex-shrink: 0;
+    font-size: 0.82rem;
+  }
+
+  .ladder {
+    padding-top: 0.5rem;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    margin-top: 1rem;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 32rem;
+  }
+
+  th,
+  td {
+    text-align: left;
+    padding: 0.65rem 0.9rem;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: top;
+  }
+
+  th {
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 640;
+  }
+
+  td:first-child,
+  th:first-child {
+    white-space: nowrap;
+  }
+
+  .level-pill {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent-strong);
+  }
+
+  .detail {
+    font-size: 0.82rem;
+  }
+
+  .cli-hint pre {
+    background: var(--surface);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.4rem;
+    overflow-x: auto;
+    box-shadow: var(--shadow);
+  }
+
+  .cli-hint code {
+    font-size: 0.88em;
+    line-height: 1.6;
+  }
+</style>

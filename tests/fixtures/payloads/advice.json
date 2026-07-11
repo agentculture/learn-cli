@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "kind": "advice",
+  "subject": "french",
+  "learner": "ori",
+  "advice": [
+    {
+      "focus": "numbers-money",
+      "reason": "Practiced but not mastered; last two results were partial.",
+      "suggestion": "Re-run a short money-dialogue practice before moving on.",
+      "command": "french practice numbers-money --json"
+    },
+    {
+      "focus": "daily-routine",
+      "reason": "Introduced only; the next story leans on routine verbs.",
+      "suggestion": "Read 'La panaderia' counterpart story and do its cloze exercises.",
+      "command": "french story read fr-beg-le-marche-du-samedi --json"
+    }
+  ]
+}

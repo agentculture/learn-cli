@@ -46,8 +46,13 @@ consistent → cross-subject learner state → hosting + model-access wiring.
 
 ## Commands
 
-Python ≥3.12, managed with **uv**. The runtime package has **zero third-party
-dependencies** (`dependencies = []`); all tooling lives in the `dev` group.
+Python ≥3.12, managed with **uv**. The runtime package depends on
+**`agentfront[mcp]>=0.20`** (`dependencies = ["agentfront[mcp]>=0.20"]`) — the
+one library the three faces are derived from: the `mcp` extra powers
+`learn mcp serve`, while the CLI/HTTP/export faces work without it. Everything
+else (test + lint tooling) lives in the `dev` group. (The hand-rolled argparse
+CLI under `learn/cli/` stays; agentfront backs the *parallel* App registry in
+`learn/front/` that the MCP server, HTTP site, and `learn site export` read.)
 
 ```bash
 uv sync                                   # install deps + dev tools into .venv

@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "kind": "practice_directive",
+  "subject": "french",
+  "learner": "ori",
+  "scope": "numbers-money",
+  "exercises": [
+    {
+      "id": "nm-p1",
+      "type": "translation",
+      "item_id": "numbers-money",
+      "prompt": "Say in French: 'That comes to seven euros fifty.'",
+      "answer": "Ça fait sept euros cinquante."
+    },
+    {
+      "id": "nm-p2",
+      "type": "cloze",
+      "item_id": "numbers-money",
+      "prompt": "« C'est ___ ? » — « Deux euros, madame. »",
+      "answer": "combien"
+    },
+    {
+      "id": "nm-p3",
+      "type": "open",
+      "item_id": "numbers-money",
+      "prompt": "Role-play: order two items at a market stall and ask for the total.",
+      "rubric": "Passes with a correct polite request plus a well-formed price question; partial if the price question is malformed."
+    }
+  ],
+  "directive": {
+    "instructions": [
+      "Run the exercises one at a time, conversationally; do not dump them as a list.",
+      "Grade pass|partial|fail against the answer or rubric; explain misses briefly in-context.",
+      "Record each result immediately after grading it."
+    ],
+    "record_with": [
+      "french record --learner ori --item numbers-money --exercise nm-p1 --activity practice --result pass --json"
+    ]
+  }
+}

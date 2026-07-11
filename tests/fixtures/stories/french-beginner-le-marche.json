@@ -1,0 +1,86 @@
+{
+  "schema_version": "1.0",
+  "kind": "story",
+  "id": "fr-beg-le-marche-du-samedi",
+  "subject": "french",
+  "title": "Le marché du samedi",
+  "level": "beginner",
+  "level_detail": "A1",
+  "language": "fr",
+  "summary": "Claire goes to the Saturday market and buys fruit, bread, and cheese.",
+  "body": "Le samedi matin, Claire va au marché.\n\nElle achète des pommes rouges et des poires. « Bonjour, madame ! Deux kilos de pommes, s'il vous plaît. » Le vendeur sourit et dit : « Voilà, ça fait quatre euros. »\n\nEnsuite, Claire achète une baguette et un fromage de chèvre. Elle aime beaucoup le fromage.\n\nÀ midi, elle rentre à la maison. Elle mange du pain, du fromage et une pomme. C'est un bon déjeuner simple.",
+  "glossary": [
+    {
+      "term": "le marché",
+      "definition": "the market",
+      "note": "Un marché en plein air is an open-air market."
+    },
+    {
+      "term": "elle achète",
+      "definition": "she buys",
+      "note": "From acheter; note the è in the conjugated form."
+    },
+    {
+      "term": "s'il vous plaît",
+      "definition": "please (formal)"
+    },
+    {
+      "term": "ça fait quatre euros",
+      "definition": "that comes to four euros"
+    },
+    {
+      "term": "le fromage de chèvre",
+      "definition": "goat cheese"
+    },
+    {
+      "term": "elle rentre à la maison",
+      "definition": "she goes back home"
+    }
+  ],
+  "exercises": [
+    {
+      "id": "marche-q1",
+      "type": "multiple_choice",
+      "item_id": "food-vocab",
+      "prompt": "Quand est-ce que Claire va au marché ?",
+      "choices": [
+        "Le samedi matin",
+        "Le dimanche soir",
+        "Le lundi à midi"
+      ],
+      "answer": "Le samedi matin"
+    },
+    {
+      "id": "marche-q2",
+      "type": "multiple_choice",
+      "item_id": "numbers-money",
+      "prompt": "Combien coûtent les pommes ?",
+      "choices": [
+        "Deux euros",
+        "Quatre euros",
+        "Dix euros"
+      ],
+      "answer": "Quatre euros"
+    },
+    {
+      "id": "marche-q3",
+      "type": "cloze",
+      "item_id": "food-vocab",
+      "prompt": "Claire achète une baguette et un ___ de chèvre.",
+      "answer": "fromage"
+    },
+    {
+      "id": "marche-q4",
+      "type": "short_answer",
+      "item_id": "reading-comprehension",
+      "prompt": "Qu'est-ce que Claire mange à midi ?",
+      "rubric": "Any answer naming bread, cheese, and/or an apple (du pain, du fromage, une pomme) passes; one item is partial."
+    }
+  ],
+  "audio": null,
+  "source": {
+    "generator": "hand-authored",
+    "reviewed_by": "learn-cli t2",
+    "generated_at": "2026-07-11"
+  }
+}

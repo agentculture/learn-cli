@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "kind": "story_read",
+  "subject": "french",
+  "learner": "ori",
+  "story": {
+    "schema_version": "1.0",
+    "kind": "story",
+    "id": "fr-beg-au-cafe",
+    "subject": "french",
+    "title": "Au café",
+    "level": "beginner",
+    "level_detail": "A1",
+    "language": "fr",
+    "body": "Paul entre dans un petit café. « Un café et un croissant, s'il vous plaît. » Il paie trois euros et s'assoit près de la fenêtre.",
+    "glossary": [
+      {
+        "term": "il paie",
+        "definition": "he pays"
+      },
+      {
+        "term": "près de la fenêtre",
+        "definition": "near the window"
+      }
+    ],
+    "exercises": [
+      {
+        "id": "cafe-q1",
+        "type": "multiple_choice",
+        "item_id": "food-vocab",
+        "prompt": "Qu'est-ce que Paul commande ?",
+        "choices": [
+          "Un café et un croissant",
+          "Un thé et une tarte"
+        ],
+        "answer": "Un café et un croissant"
+      }
+    ],
+    "audio": null
+  },
+  "directive": {
+    "instructions": [
+      "Present the story one paragraph at a time; let the learner attempt it before translating.",
+      "Use the glossary entries when the learner is stuck; do not pre-translate.",
+      "Run each comprehension exercise conversationally, grade pass|partial|fail, and record every result."
+    ],
+    "record_with": [
+      "french record --learner ori --item food-vocab --exercise cafe-q1 --activity story --result pass --json"
+    ]
+  }
+}

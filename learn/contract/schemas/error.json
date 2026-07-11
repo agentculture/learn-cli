@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentculture.org/learn/contract/1.0/error.json",
+  "title": "Error payload (stderr)",
+  "description": "The structured error every subject emits to STDERR in --json mode on any failure — the CliError shape {code, message, remediation} already emitted by the template chassis. Text mode renders as 'error: <message>' + 'hint: <remediation>'. This shape predates the contract and carries no schema_version. Exit code equals `code`: 1 user error, 2 environment error.",
+  "type": "object",
+  "required": ["code", "message", "remediation"],
+  "properties": {
+    "code": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The process exit code: 1 user error, 2 environment error, 3+ reserved."
+    },
+    "message": { "type": "string", "minLength": 1 },
+    "remediation": {
+      "type": "string",
+      "description": "Actionable hint for the driving agent; may be empty but must be present."
+    }
+  }
+}

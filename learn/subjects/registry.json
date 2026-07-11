@@ -1,0 +1,29 @@
+{
+  "note": "The data-driven subject registry. Adding a subject is a data edit here (name, argv_prefix, description, repo, contract_version) plus a conformant subject CLI on PATH — zero learn-cli platform code. Deleting an entry removes the subject from every face (CLI, MCP, site). Entries carry subject metadata ONLY: never content, lessons, or progression logic (those live in the subject repo). Override the source with the LEARN_SUBJECTS_REGISTRY env var (a path to an alternate registry.json).",
+  "subjects": [
+    {
+      "name": "french",
+      "display_name": "French",
+      "description": "Written and spoken French through graded stories, from A1 upward.",
+      "repo": "https://github.com/agentculture/french-cli",
+      "argv_prefix": ["french"],
+      "contract_version": "1.0"
+    },
+    {
+      "name": "spanish",
+      "display_name": "Spanish",
+      "description": "Spanish for real conversations through graded stories, from A1 upward.",
+      "repo": "https://github.com/agentculture/spanish-cli",
+      "argv_prefix": ["spanish"],
+      "contract_version": "1.0"
+    },
+    {
+      "name": "culture-guide",
+      "display_name": "Culture Guide",
+      "description": "Learning to build and lead teams of agents — the non-language proof the subject interface generalizes.",
+      "repo": "https://github.com/agentculture/culture-guide",
+      "argv_prefix": ["culture-guide", "subject"],
+      "contract_version": "1.0"
+    }
+  ]
+}

@@ -1,0 +1,1086 @@
+{
+  "stories": [
+    {
+      "audio": null,
+      "body": "Aujourd'hui, c'est la rentrée. Nina a huit ans et elle est un peu nerveuse.\n\nLe matin, elle se réveille tôt. Elle prend son petit-déjeuner : du pain, du beurre et un chocolat chaud. Sa mère prépare son cartable avec des cahiers, des crayons et une nouvelle trousse bleue.\n\n« Tu es prête, Nina ? » demande sa mère. « Oui, mais j'ai un peu peur, » répond Nina. « Il y a une nouvelle maîtresse cette année. »\n\nÀ l'école, Nina retrouve ses amis dans la cour. Ils sont contents de se revoir après les vacances d'été. La maîtresse s'appelle Madame Dubois. Elle sourit et dit : « Bonjour, les enfants ! Bienvenue dans la classe de CE2. »\n\nPendant la journée, les élèves apprennent leurs nouveaux noms, rangent leurs affaires et écoutent une histoire. À midi, Nina mange à la cantine avec sa meilleure amie, Léa.\n\nLe soir, Nina raconte sa journée à ses parents. « La maîtresse est très gentille, » dit-elle. « Et j'ai une nouvelle amie dans ma classe ! »",
+      "exercises": [
+        {
+          "answer": "Huit ans",
+          "choices": [
+            "Six ans",
+            "Huit ans",
+            "Dix ans"
+          ],
+          "id": "fr-a1-la-rentree-q1",
+          "item_id": "fr.story.fr-a1-la-rentree.1",
+          "prompt": "Quel âge a Nina ?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Madame Dubois",
+          "choices": [
+            "Madame Dubois",
+            "Madame Martin",
+            "Madame Petit"
+          ],
+          "id": "fr-a1-la-rentree-q2",
+          "item_id": "fr.story.fr-a1-la-rentree.2",
+          "prompt": "Comment s'appelle la maîtresse de Nina ?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "false",
+          "id": "fr-a1-la-rentree-q3",
+          "item_id": "fr.story.fr-a1-la-rentree.3",
+          "prompt": "Nina n'a pas d'amis à l'école.",
+          "type": "true_false"
+        },
+        {
+          "id": "fr-a1-la-rentree-q4",
+          "item_id": "fr.story.fr-a1-la-rentree.4",
+          "prompt": "Pourquoi Nina a-t-elle un peu peur le matin de la rentrée ?",
+          "rubric": "Passes if the answer mentions the new teacher or general first-day nerves; partial if it just says 'she is scared' with no reason.",
+          "type": "open"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "back-to-school (day), the start of the school year",
+          "term": "la rentrée"
+        },
+        {
+          "definition": "the school bag",
+          "term": "le cartable"
+        },
+        {
+          "definition": "the pencil case",
+          "term": "la trousse"
+        },
+        {
+          "definition": "the (female) teacher",
+          "note": "Used for a primary-school teacher; le maître for a man.",
+          "term": "la maîtresse"
+        },
+        {
+          "definition": "the schoolyard",
+          "term": "la cour"
+        },
+        {
+          "definition": "the school canteen",
+          "term": "la cantine"
+        },
+        {
+          "definition": "to be scared/afraid",
+          "term": "avoir peur"
+        }
+      ],
+      "id": "fr-a1-la-rentree",
+      "kind": "story",
+      "language": "fr",
+      "level": "beginner",
+      "level_detail": "A1",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "learn-cli t7a"
+      },
+      "subject": "french",
+      "summary": "It is Nina's first day back at school, and she is a little nervous about her new teacher.",
+      "title": "La rentrée de Nina"
+    },
+    {
+      "audio": null,
+      "body": "Léo habite à Lyon avec sa famille. Le mercredi, il n'y a pas d'école, alors Léo va au marché avec sa grand-mère.\n\nLe marché est grand et coloré. Il y a des fruits, des légumes, du poisson et des fleurs. « Regarde ces tomates, Léo ! » dit sa grand-mère. « Elles sont rouges et bien mûres. »\n\nLéo aime parler avec les vendeurs. Il dit : « Bonjour, monsieur. Je voudrais un kilo de carottes, s'il vous plaît. » Le vendeur répond : « Voilà, mon garçon. Et avec ça ? » Léo réfléchit un moment. « Aussi des oignons, s'il vous plaît. »\n\nSa grand-mère achète du poulet et des herbes fraîches. Elle va préparer une soupe pour le dîner.\n\nAvant de rentrer, ils s'arrêtent devant un stand de fleurs. La grand-mère de Léo choisit un joli bouquet jaune pour la table de la cuisine.\n\nÀ la maison, Léo aide sa grand-mère à laver les légumes. Il est fier d'avoir parlé français avec les vendeurs, tout seul.",
+      "exercises": [
+        {
+          "answer": "Le mercredi",
+          "choices": [
+            "Le mercredi",
+            "Le dimanche",
+            "Le vendredi"
+          ],
+          "id": "fr-a1-le-marche-q1",
+          "item_id": "fr.story.fr-a1-le-marche.1",
+          "prompt": "Quel jour Léo va-t-il au marché avec sa grand-mère ?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Une soupe",
+          "choices": [
+            "Une salade",
+            "Une soupe",
+            "Un gâteau"
+          ],
+          "id": "fr-a1-le-marche-q2",
+          "item_id": "fr.story.fr-a1-le-marche.2",
+          "prompt": "Qu'est-ce que la grand-mère de Léo va préparer avec le poulet ?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "carottes",
+          "id": "fr-a1-le-marche-q3",
+          "item_id": "fr.story.fr-a1-le-marche.3",
+          "prompt": "Léo dit au vendeur : « Je voudrais un kilo de ___, s'il vous plaît. »",
+          "type": "cloze"
+        },
+        {
+          "id": "fr-a1-le-marche-q4",
+          "item_id": "fr.story.fr-a1-le-marche.4",
+          "prompt": "Pourquoi Léo est-il fier à la fin de l'histoire ?",
+          "rubric": "Passes if the answer names that he spoke French with the vendors by himself/alone; partial if it only says he went to the market.",
+          "type": "open"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "the market",
+          "term": "le marché"
+        },
+        {
+          "definition": "the grandmother",
+          "term": "la grand-mère"
+        },
+        {
+          "definition": "nice and ripe",
+          "note": "mûr(e) = ripe; agrees in gender/number with the noun.",
+          "term": "bien mûres"
+        },
+        {
+          "definition": "I would like",
+          "note": "The polite conditional of vouloir, used for requests.",
+          "term": "je voudrais"
+        },
+        {
+          "definition": "please (formal)",
+          "term": "s'il vous plaît"
+        },
+        {
+          "definition": "fresh herbs",
+          "term": "les herbes fraîches"
+        },
+        {
+          "definition": "proud",
+          "note": "fier de + infinitive = proud to have done something.",
+          "term": "fier / fière"
+        }
+      ],
+      "id": "fr-a1-le-marche",
+      "kind": "story",
+      "language": "fr",
+      "level": "beginner",
+      "level_detail": "A1",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "learn-cli t7a"
+      },
+      "subject": "french",
+      "summary": "Léo goes to the Wednesday market in Lyon with his grandmother and practices talking to the vendors.",
+      "title": "Le marché du mercredi"
+    },
+    {
+      "audio": null,
+      "body": "Samedi dernier, Amina a retrouvé son amie Chloé dans un petit café du quartier. Elles ne se sont pas vues depuis deux mois, parce que Chloé a déménagé à Marseille pour son nouveau travail.\n\n« Alors, comment s'est passé ton déménagement ? » demande Amina en s'asseyant à la table.\n\n« C'était fatigant, » répond Chloé, « mais je suis contente. Mon appartement est petit, mais il a un beau balcon avec vue sur la mer. »\n\nLe serveur arrive et leur demande ce qu'elles veulent boire. Amina commande un café crème, et Chloé choisit un thé à la menthe. Elles discutent pendant des heures : le nouveau travail de Chloé, les amis communs, et les vacances qu'elles veulent prendre ensemble cet été.\n\n« Tu te souviens de notre voyage en Espagne ? » dit Chloé en riant. « On a raté le train et on a dû dormir à la gare ! »\n\n« Comment oublier ça ? » répond Amina. « On devrait recommencer, mais sans rater le train cette fois. »\n\nAvant de partir, elles échangent leurs nouvelles adresses et promettent de s'écrire plus souvent. Amina rentre chez elle avec le sourire ; retrouver une vieille amie, même après une longue absence, lui a fait beaucoup de bien.",
+      "exercises": [
+        {
+          "answer": "Chloé a déménagé à Marseille",
+          "choices": [
+            "Chloé a déménagé à Marseille",
+            "Amina était malade",
+            "Chloé était en vacances"
+          ],
+          "id": "fr-a2-le-cafe-du-coin-q1",
+          "item_id": "fr.story.fr-a2-le-cafe-du-coin.1",
+          "prompt": "Pourquoi Amina et Chloé ne se sont-elles pas vues depuis deux mois ?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Un thé à la menthe",
+          "choices": [
+            "Un café crème",
+            "Un thé à la menthe",
+            "Un chocolat chaud"
+          ],
+          "id": "fr-a2-le-cafe-du-coin-q2",
+          "item_id": "fr.story.fr-a2-le-cafe-du-coin.2",
+          "prompt": "Qu'est-ce que Chloé commande à boire ?",
+          "type": "multiple_choice"
+        },
+        {
+          "id": "fr-a2-le-cafe-du-coin-q3",
+          "item_id": "fr.story.fr-a2-le-cafe-du-coin.3",
+          "prompt": "Que s'est-il passé pendant leur voyage en Espagne ?",
+          "rubric": "Passes if the answer mentions missing the train and having to sleep at the station; partial if it only mentions one of the two.",
+          "type": "short_answer"
+        },
+        {
+          "id": "fr-a2-le-cafe-du-coin-q4",
+          "item_id": "fr.story.fr-a2-le-cafe-du-coin.4",
+          "prompt": "Amina dit que retrouver une vieille amie lui a fait du bien. Raconte une fois où tu as retrouvé un ami après une longue absence.",
+          "rubric": "Passes if the learner produces a coherent short personal narrative in French connected to the theme of reunion; partial if the answer is a single word or off-topic.",
+          "type": "discussion"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "to meet up with someone (again)",
+          "term": "retrouver quelqu'un"
+        },
+        {
+          "definition": "to move (house)",
+          "term": "déménager"
+        },
+        {
+          "definition": "tiring",
+          "term": "fatigant(e)"
+        },
+        {
+          "definition": "the balcony",
+          "term": "le balcon"
+        },
+        {
+          "definition": "to order (food/drink)",
+          "term": "commander"
+        },
+        {
+          "definition": "to miss the train",
+          "term": "rater le train"
+        },
+        {
+          "definition": "to remember",
+          "term": "se souvenir de"
+        },
+        {
+          "definition": "to do (someone) good, to feel good",
+          "term": "faire du bien"
+        }
+      ],
+      "id": "fr-a2-le-cafe-du-coin",
+      "kind": "story",
+      "language": "fr",
+      "level": "beginner",
+      "level_detail": "A2",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "learn-cli t7a"
+      },
+      "subject": "french",
+      "summary": "Amina and Chloé catch up over coffee after Chloé's move to Marseille, and remember a past trip gone wrong.",
+      "title": "Un café entre amis"
+    },
+    {
+      "audio": null,
+      "body": "Pour les vacances de février, la famille Bernard part à la montagne. Ils louent un petit chalet en bois près des pistes de ski.\n\nLe premier jour, il neige beaucoup. Les enfants, Tom et Julie, sont très excités. « On peut faire un bonhomme de neige ? » demande Julie. « Bien sûr, » répond leur père, « mais d'abord, il faut s'habiller chaudement ! »\n\nAprès le petit-déjeuner, toute la famille met des bottes, des gants et des bonnets. Ils sortent et construisent un grand bonhomme de neige avec une carotte pour le nez.\n\nLe lendemain, ils vont skier. Tom, qui a seulement six ans, apprend avec un moniteur. Julie, plus âgée, descend déjà les pistes bleues avec sa mère. À midi, ils mangent une fondue savoyarde dans un petit restaurant en bois, en haut de la montagne. C'est délicieux, mais très riche !\n\nLe soir, fatigués mais heureux, ils se réchauffent devant la cheminée du chalet. Le père raconte des histoires, et la mère prépare du chocolat chaud pour tout le monde.\n\nLe dernier jour, avant de rentrer à Paris, ils font une dernière descente en luge. Julie tombe dans la neige et rit aux éclats. « On revient l'année prochaine ? » demande-t-elle dans la voiture. « Promis, » dit sa mère en souriant.",
+      "exercises": [
+        {
+          "answer": "À la montagne",
+          "choices": [
+            "À la mer",
+            "À la montagne",
+            "À la campagne"
+          ],
+          "id": "fr-a2-le-weekend-a-la-montagne-q1",
+          "item_id": "fr.story.fr-a2-le-weekend-a-la-montagne.1",
+          "prompt": "Où part la famille Bernard pendant les vacances de février ?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Tom",
+          "choices": [
+            "Julie",
+            "Tom",
+            "Leur père"
+          ],
+          "id": "fr-a2-le-weekend-a-la-montagne-q2",
+          "item_id": "fr.story.fr-a2-le-weekend-a-la-montagne.2",
+          "prompt": "Qui apprend à skier avec un moniteur ?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "false",
+          "id": "fr-a2-le-weekend-a-la-montagne-q3",
+          "item_id": "fr.story.fr-a2-le-weekend-a-la-montagne.3",
+          "prompt": "La famille mange une pizza en haut de la montagne.",
+          "type": "true_false"
+        },
+        {
+          "id": "fr-a2-le-weekend-a-la-montagne-q4",
+          "item_id": "fr.story.fr-a2-le-weekend-a-la-montagne.4",
+          "prompt": "Décris ce que la famille fait le soir dans le chalet.",
+          "rubric": "Passes if the answer mentions warming up by the fireplace, the father telling stories, and the mother making hot chocolate; partial if only one detail is given.",
+          "type": "open"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "the mountain cabin/chalet",
+          "term": "le chalet"
+        },
+        {
+          "definition": "the ski slopes",
+          "term": "les pistes (de ski)"
+        },
+        {
+          "definition": "a snowman",
+          "term": "un bonhomme de neige"
+        },
+        {
+          "definition": "to dress warmly",
+          "term": "s'habiller chaudement"
+        },
+        {
+          "definition": "the ski instructor",
+          "term": "le moniteur / la monitrice"
+        },
+        {
+          "definition": "cheese fondue (from the Savoie region)",
+          "term": "la fondue savoyarde"
+        },
+        {
+          "definition": "to warm oneself up",
+          "term": "se réchauffer"
+        },
+        {
+          "definition": "the sledge/sled",
+          "term": "la luge"
+        }
+      ],
+      "id": "fr-a2-le-weekend-a-la-montagne",
+      "kind": "story",
+      "language": "fr",
+      "level": "beginner",
+      "level_detail": "A2",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "learn-cli t7a"
+      },
+      "subject": "french",
+      "summary": "The Bernard family spends a snowy February weekend at a mountain chalet, skiing and building a snowman.",
+      "title": "Un week-end à la montagne"
+    },
+    {
+      "audio": null,
+      "body": "Thomas attend depuis dix minutes dans la salle d'accueil de l'entreprise. Il vérifie une dernière fois son CV et relit les questions qu'il a préparées. C'est son premier entretien depuis qu'il a terminé ses études, et il est plutôt nerveux.\n\nUne femme sort d'un bureau et l'appelle : « Monsieur Lefebvre ? Vous pouvez entrer. » Il s'agit de Madame Rousseau, la responsable des ressources humaines.\n\n« Alors, parlez-moi un peu de vous, » commence-t-elle en souriant. Thomas explique son parcours : ses études en marketing, son stage dans une agence de communication, et son intérêt pour les réseaux sociaux.\n\n« Pourquoi voulez-vous travailler chez nous ? » demande Madame Rousseau. Thomas répond qu'il admire les campagnes publicitaires de l'entreprise, et qu'il aimerait contribuer à des projets créatifs tout en apprenant auprès d'une équipe expérimentée.\n\nElle lui pose ensuite une question à laquelle il ne s'attendait pas : « Racontez-moi une situation où vous avez dû résoudre un conflit. » Thomas hésite un instant, puis raconte comment il a réussi à calmer un client mécontent pendant son stage, en l'écoutant attentivement avant de proposer une solution.\n\nL'entretien dure presque quarante-cinq minutes. À la fin, Madame Rousseau explique que l'entreprise contactera les candidats retenus dans les deux semaines. Thomas la remercie chaleureusement et sort du bureau, le cœur battant.\n\nDans la rue, il envoie immédiatement un message à sa mère : « Je crois que ça s'est bien passé ! » Une semaine plus tard, il reçoit un appel : l'entreprise lui propose le poste. Toute cette nervosité, finalement, en valait la peine.",
+      "exercises": [
+        {
+          "answer": "Responsable des ressources humaines",
+          "choices": [
+            "Responsable des ressources humaines",
+            "Directrice marketing",
+            "Avocate"
+          ],
+          "id": "fr-b1-entretien-embauche-q1",
+          "item_id": "fr.story.fr-b1-entretien-embauche.1",
+          "prompt": "Quel est le métier de Madame Rousseau ?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Une question sur la résolution de conflit",
+          "choices": [
+            "Une question sur la résolution de conflit",
+            "Une question sur son salaire souhaité",
+            "Une question sur ses loisirs"
+          ],
+          "id": "fr-b1-entretien-embauche-q2",
+          "item_id": "fr.story.fr-b1-entretien-embauche.2",
+          "prompt": "Quelle question surprend Thomas pendant l'entretien ?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "mécontent",
+          "id": "fr-b1-entretien-embauche-q3",
+          "item_id": "fr.story.fr-b1-entretien-embauche.3",
+          "prompt": "Thomas raconte comment il a calmé un client ___ pendant son stage.",
+          "type": "cloze"
+        },
+        {
+          "id": "fr-b1-entretien-embauche-q4",
+          "item_id": "fr.story.fr-b1-entretien-embauche.4",
+          "prompt": "Que ferais-tu si on te posait une question à laquelle tu ne t'attends pas pendant un entretien ?",
+          "rubric": "Passes if the learner gives a coherent personal strategy in French (e.g. pausing to think, asking for clarification, giving a concrete example); partial if the answer is a single word.",
+          "type": "open"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "a job interview",
+          "term": "un entretien d'embauche"
+        },
+        {
+          "definition": "the reception/waiting area",
+          "term": "la salle d'accueil"
+        },
+        {
+          "definition": "human resources",
+          "term": "les ressources humaines"
+        },
+        {
+          "definition": "one's background, career path",
+          "term": "le parcours"
+        },
+        {
+          "definition": "an internship",
+          "term": "un stage"
+        },
+        {
+          "definition": "an advertising campaign",
+          "term": "une campagne publicitaire"
+        },
+        {
+          "definition": "to resolve a conflict",
+          "term": "résoudre un conflit"
+        },
+        {
+          "definition": "unhappy, displeased",
+          "term": "mécontent(e)"
+        },
+        {
+          "definition": "selected, shortlisted",
+          "term": "retenu(e)"
+        },
+        {
+          "definition": "to be worth it",
+          "term": "en valoir la peine"
+        }
+      ],
+      "id": "fr-b1-entretien-embauche",
+      "kind": "story",
+      "language": "fr",
+      "level": "intermediate",
+      "level_detail": "B1",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "learn-cli t7a"
+      },
+      "subject": "french",
+      "summary": "Thomas navigates his first job interview, including an unexpected question about resolving conflict.",
+      "title": "Un entretien d'embauche"
+    },
+    {
+      "audio": null,
+      "body": "Chaque année, le dernier vendredi de mai, la France célèbre la fête des voisins. Ce jour-là, les habitants d'un même immeuble ou d'une même rue se retrouvent dans la cour ou sur le trottoir pour partager un repas ensemble.\n\nCette année, c'est Farida qui organise l'événement dans son immeuble parisien. Elle affiche une invitation dans le hall : « Venez avec un plat, une boisson, et surtout votre bonne humeur ! »\n\nLe soir venu, les tables se remplissent peu à peu. Monsieur Petit, le voisin du cinquième étage que personne ne connaît vraiment, apporte une tarte aux pommes faite maison. La famille Nguyen, arrivée récemment dans l'immeuble, propose des rouleaux de printemps qui ont beaucoup de succès.\n\nAu début, les conversations restent polies et un peu formelles. Mais après quelques verres de vin et beaucoup de rires, l'ambiance se détend. Farida découvre que Monsieur Petit a été professeur de musique pendant trente ans, et qu'il joue encore du piano tous les dimanches. Les enfants, eux, courent entre les tables et organisent leurs propres jeux dans la cour.\n\nÀ la fin de la soirée, plusieurs voisins échangent leurs numéros de téléphone. « On devrait faire ça plus souvent, » dit Madame Nguyen en aidant à ranger les chaises. Farida est d'accord : avant cette soirée, elle connaissait à peine le nom de ses voisins ; maintenant, elle a l'impression d'avoir une vraie petite communauté autour d'elle.\n\nLa fête des voisins, née d'une initiative simple il y a plus de vingt ans, continue chaque année de rapprocher des gens qui, autrement, ne se seraient peut-être jamais parlé.",
+      "exercises": [
+        {
+          "answer": "Le dernier vendredi de mai",
+          "choices": [
+            "Le dernier vendredi de mai",
+            "Le premier janvier",
+            "Le 14 juillet"
+          ],
+          "id": "fr-b1-la-fete-des-voisins-q1",
+          "item_id": "fr.story.fr-b1-la-fete-des-voisins.1",
+          "prompt": "Quand a lieu la fête des voisins ?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Monsieur Petit",
+          "choices": [
+            "Monsieur Petit",
+            "Farida",
+            "Madame Nguyen"
+          ],
+          "id": "fr-b1-la-fete-des-voisins-q2",
+          "item_id": "fr.story.fr-b1-la-fete-des-voisins.2",
+          "prompt": "Qui apporte une tarte aux pommes faite maison ?",
+          "type": "multiple_choice"
+        },
+        {
+          "id": "fr-b1-la-fete-des-voisins-q3",
+          "item_id": "fr.story.fr-b1-la-fete-des-voisins.3",
+          "prompt": "Qu'est-ce que Farida apprend sur Monsieur Petit pendant la soirée ?",
+          "rubric": "Passes if the answer mentions he was a music teacher for thirty years and still plays piano on Sundays; partial if only one of the two facts is given.",
+          "type": "short_answer"
+        },
+        {
+          "id": "fr-b1-la-fete-des-voisins-q4",
+          "item_id": "fr.story.fr-b1-la-fete-des-voisins.4",
+          "prompt": "Selon le texte, pourquoi la fête des voisins est-elle importante pour une communauté ? Ton quartier organise-t-il un événement similaire ?",
+          "rubric": "Passes if the response connects the event to building community between strangers and offers at least a brief reflection on the learner's own context; partial if it only summarizes the story.",
+          "type": "discussion"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "Neighbours' Day, a French community event held annually",
+          "note": "Held on the last Friday of May since the late 1990s.",
+          "term": "la fête des voisins"
+        },
+        {
+          "definition": "the apartment building",
+          "term": "l'immeuble (m.)"
+        },
+        {
+          "definition": "to post/put up (a notice)",
+          "term": "afficher"
+        },
+        {
+          "definition": "good mood, cheerfulness",
+          "term": "la bonne humeur"
+        },
+        {
+          "definition": "homemade",
+          "term": "fait(e) maison"
+        },
+        {
+          "definition": "spring rolls",
+          "term": "les rouleaux de printemps"
+        },
+        {
+          "definition": "to relax, to loosen up",
+          "term": "se détendre"
+        },
+        {
+          "definition": "barely, hardly",
+          "term": "à peine"
+        },
+        {
+          "definition": "to bring closer together",
+          "term": "rapprocher"
+        },
+        {
+          "definition": "an initiative",
+          "term": "une initiative"
+        }
+      ],
+      "id": "fr-b1-la-fete-des-voisins",
+      "kind": "story",
+      "language": "fr",
+      "level": "intermediate",
+      "level_detail": "B1",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "learn-cli t7a"
+      },
+      "subject": "french",
+      "summary": "Farida organizes her Paris building's annual Neighbours' Day and discovers she barely knew the people living around her.",
+      "title": "La fête des voisins"
+    },
+    {
+      "audio": null,
+      "body": "Depuis qu'elle a trouvé un nouvel emploi à Bordeaux, Camille cherche un appartement. Ce n'est pas facile : les loyers ont beaucoup augmenté ces dernières années, et il faut souvent visiter plusieurs logements avant d'en trouver un qui convienne.\n\nCe matin, elle visite un studio dans le centre-ville. « Il est un peu petit, » pense-t-elle en entrant, « mais la lumière est agréable et il y a une petite terrasse. » Le propriétaire, un homme âgé plutôt sympathique, lui explique que le loyer comprend les charges, mais pas internet.\n\nL'après-midi, Camille visite un deuxième appartement, plus grand, mais situé loin du centre. Bien qu'il soit spacieux et lumineux, le trajet jusqu'au travail prendrait presque quarante minutes en tramway. Camille hésite : faut-il privilégier l'espace ou la proximité ?\n\nSon amie Sarah, qui vit à Bordeaux depuis longtemps, lui conseille de choisir le studio du centre-ville. « Tu passeras moins de temps dans les transports, et le quartier est vivant : il y a des cafés, un marché, et le tramway juste en bas de la rue. »\n\nAprès réflexion, Camille décide de suivre ce conseil. Elle rappelle le propriétaire du studio et lui annonce qu'elle est intéressée. Il lui demande de préparer un dossier avec ses trois derniers bulletins de salaire et une lettre de son employeur.\n\nUne semaine plus tard, Camille reçoit enfin les clés de son nouveau chez-elle. Elle est soulagée : la recherche d'appartement, aussi stressante soit-elle, est enfin terminée.",
+      "exercises": [
+        {
+          "answer": "Elle a trouvé un nouvel emploi à Bordeaux",
+          "choices": [
+            "Elle a trouvé un nouvel emploi à Bordeaux",
+            "Elle veut vivre avec des amis",
+            "Son appartement actuel a brûlé"
+          ],
+          "id": "fr-b1-la-recherche-appartement-q1",
+          "item_id": "fr.story.fr-b1-la-recherche-appartement.1",
+          "prompt": "Pourquoi Camille cherche-t-elle un appartement ?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Le studio du centre-ville",
+          "choices": [
+            "Le studio du centre-ville",
+            "Le grand appartement loin du centre",
+            "Aucun des deux"
+          ],
+          "id": "fr-b1-la-recherche-appartement-q2",
+          "item_id": "fr.story.fr-b1-la-recherche-appartement.2",
+          "prompt": "Quel appartement Camille choisit-elle finalement ?",
+          "type": "multiple_choice"
+        },
+        {
+          "id": "fr-b1-la-recherche-appartement-q3",
+          "item_id": "fr.story.fr-b1-la-recherche-appartement.3",
+          "prompt": "Que doit préparer Camille pour le propriétaire du studio ?",
+          "rubric": "Passes if the answer mentions the last three payslips (bulletins de salaire) and a letter from her employer; partial if only one document is named.",
+          "type": "short_answer"
+        },
+        {
+          "id": "fr-b1-la-recherche-appartement-q4",
+          "item_id": "fr.story.fr-b1-la-recherche-appartement.4",
+          "prompt": "Camille hésite entre l'espace et la proximité du travail. Si tu devais choisir, que privilégierais-tu, et pourquoi ?",
+          "rubric": "Passes if the learner gives a reasoned personal preference in French that engages with the space-vs-commute trade-off; partial if it only picks one side without a reason.",
+          "type": "discussion"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "the rent",
+          "term": "le loyer"
+        },
+        {
+          "definition": "utility/service charges (often included in a French rent)",
+          "term": "les charges"
+        },
+        {
+          "definition": "the landlord",
+          "term": "le propriétaire"
+        },
+        {
+          "definition": "spacious",
+          "term": "spacieux / spacieuse"
+        },
+        {
+          "definition": "the commute, the journey",
+          "term": "le trajet"
+        },
+        {
+          "definition": "to favor, to prioritize",
+          "term": "privilégier"
+        },
+        {
+          "definition": "to advise",
+          "term": "conseiller"
+        },
+        {
+          "definition": "an application file",
+          "term": "un dossier"
+        },
+        {
+          "definition": "the payslip",
+          "term": "le bulletin de salaire"
+        },
+        {
+          "definition": "relieved",
+          "term": "soulagé(e)"
+        }
+      ],
+      "id": "fr-b1-la-recherche-appartement",
+      "kind": "story",
+      "language": "fr",
+      "level": "intermediate",
+      "level_detail": "B1",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "learn-cli t7a"
+      },
+      "subject": "french",
+      "summary": "Camille weighs a small city-centre studio against a bigger, farther apartment before choosing where to live in Bordeaux.",
+      "title": "La recherche d'appartement"
+    },
+    {
+      "audio": null,
+      "body": "Pour économiser de l'argent et réduire son impact sur l'environnement, Julien a décidé d'essayer le covoiturage pour aller travailler. Chaque matin, il prend sa voiture, mais désormais avec trois autres passagers qu'il ne connaissait pas avant de s'inscrire sur une application.\n\nLe premier jour, l'ambiance est un peu timide. Personne ne parle vraiment, et Julien se demande s'il a fait le bon choix. Mais dès la deuxième semaine, les choses changent. Ines, une passagère qui travaille dans le même quartier que lui, propose d'apporter des viennoiseries le vendredi matin. Marc, un autre passager, raconte des histoires drôles sur son travail dans un hôpital.\n\nAu fil des semaines, ce trajet quotidien devient un moment agréable de la journée. Ils discutent de tout : de politique, de leurs enfants, des séries qu'ils regardent le soir. Julien réalise qu'il a fait des économies importantes sur l'essence, mais aussi qu'il a gagné quelque chose d'inattendu : de nouveaux amis.\n\nUn matin, la voiture tombe en panne sur l'autoroute. Au lieu de paniquer, le petit groupe reste calme. Ines appelle une dépanneuse pendant que Marc plaisante pour détendre l'atmosphère. Ils arrivent au travail en retard, mais ensemble, et cette mésaventure devient une histoire qu'ils racontent encore des mois plus tard.\n\nAujourd'hui, Julien encourage tous ses collègues à essayer le covoiturage. « On pense économiser de l'essence, » dit-il, « mais on gagne bien plus que ça. »",
+      "exercises": [
+        {
+          "answer": "Pour économiser de l'argent et réduire son impact environnemental",
+          "choices": [
+            "Pour économiser de l'argent et réduire son impact environnemental",
+            "Parce que sa voiture est en panne",
+            "Parce que son travail est trop loin"
+          ],
+          "id": "fr-b1-le-covoiturage-q1",
+          "item_id": "fr.story.fr-b1-le-covoiturage.1",
+          "prompt": "Pourquoi Julien essaie-t-il le covoiturage ?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "La voiture tombe en panne",
+          "choices": [
+            "La voiture tombe en panne",
+            "Ils ont un accident",
+            "Ils se perdent"
+          ],
+          "id": "fr-b1-le-covoiturage-q2",
+          "item_id": "fr.story.fr-b1-le-covoiturage.2",
+          "prompt": "Que se passe-t-il un matin sur l'autoroute ?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "false",
+          "id": "fr-b1-le-covoiturage-q3",
+          "item_id": "fr.story.fr-b1-le-covoiturage.3",
+          "prompt": "Après la panne, le groupe panique et se dispute.",
+          "type": "true_false"
+        },
+        {
+          "id": "fr-b1-le-covoiturage-q4",
+          "item_id": "fr.story.fr-b1-le-covoiturage.4",
+          "prompt": "Selon Julien, qu'est-ce que le covoiturage lui a apporté en plus des économies d'essence ?",
+          "rubric": "Passes if the answer names new friendships / social connection with the other passengers; partial if it only restates the fuel savings.",
+          "type": "open"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "carpooling",
+          "term": "le covoiturage"
+        },
+        {
+          "definition": "to save (money)",
+          "term": "économiser"
+        },
+        {
+          "definition": "to sign up",
+          "term": "s'inscrire"
+        },
+        {
+          "definition": "shy",
+          "term": "timide"
+        },
+        {
+          "definition": "a pastry (croissant, pain au chocolat, etc.)",
+          "term": "une viennoiserie"
+        },
+        {
+          "definition": "as the weeks go by",
+          "term": "au fil des semaines"
+        },
+        {
+          "definition": "gasoline/petrol",
+          "term": "l'essence (f.)"
+        },
+        {
+          "definition": "to break down (a vehicle)",
+          "term": "tomber en panne"
+        },
+        {
+          "definition": "a tow truck",
+          "term": "une dépanneuse"
+        },
+        {
+          "definition": "a mishap",
+          "term": "une mésaventure"
+        }
+      ],
+      "id": "fr-b1-le-covoiturage",
+      "kind": "story",
+      "language": "fr",
+      "level": "intermediate",
+      "level_detail": "B1",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "learn-cli t7a"
+      },
+      "subject": "french",
+      "summary": "Julien starts carpooling to save money and ends up gaining unexpected friendships along the way.",
+      "title": "Le covoiturage"
+    },
+    {
+      "audio": null,
+      "body": "Saint-Martin-des-Bois, un village de huit cents habitants niché au cœur du Limousin, n'a rien d'exceptionnel au premier regard. Pourtant, depuis cinq ans, il est devenu, presque malgré lui, un symbole local de la transition écologique.\n\nTout a commencé lorsque le conseil municipal, confronté à la fermeture de la dernière épicerie du village, a décidé de réagir plutôt que de subir ce déclin. Au lieu d'attendre qu'un investisseur extérieur rachète le local, les habitants ont créé une coopérative. Chacun pouvait devenir sociétaire pour une somme modeste, et l'épicerie a rouvert quelques mois plus tard, proposant en priorité des produits locaux et de saison.\n\nCe premier succès a donné des idées. Une association de bénévoles a installé des panneaux solaires sur le toit de la mairie et de l'école. Le maire, initialement sceptique quant à la rentabilité du projet, admet aujourd'hui que les économies réalisées sur la facture d'électricité ont dépassé ses attentes les plus optimistes.\n\nCertes, tout ne s'est pas déroulé sans difficulté. Convaincre les agriculteurs les plus âgés d'adopter des pratiques moins intensives, par exemple, a demandé des années de discussions patientes, souvent autour d'un verre au café du village. Certains, encore aujourd'hui, restent réticents, arguant que ces changements profitent surtout aux « citadins venus s'installer à la campagne ».\n\nCe qui frappe pourtant l'observateur extérieur, c'est l'absence de discours idéologique dans la démarche des habitants de Saint-Martin-des-Bois. Personne, ici, ne parle de sauver la planète en de grandes phrases. On évoque plutôt la volonté de garder le village vivant, de transmettre quelque chose à la génération suivante, et de ne plus dépendre entièrement de décisions prises loin, dans des bureaux qui ignorent tout des réalités locales.\n\nÀ l'heure où la transition écologique reste souvent perçue comme une contrainte imposée d'en haut, l'exemple de ce petit village rappelle qu'elle peut aussi naître, modestement, d'une volonté locale de préserver un mode de vie.",
+      "exercises": [
+        {
+          "answer": "Pour rouvrir la dernière épicerie du village",
+          "choices": [
+            "Pour rouvrir la dernière épicerie du village",
+            "Pour construire une nouvelle école",
+            "Pour attirer des touristes"
+          ],
+          "id": "fr-b2-la-transition-ecologique-q1",
+          "item_id": "fr.story.fr-b2-la-transition-ecologique.1",
+          "prompt": "Pourquoi le conseil municipal de Saint-Martin-des-Bois a-t-il créé une coopérative ?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Que les économies ont dépassé ses attentes",
+          "choices": [
+            "Que les économies ont dépassé ses attentes",
+            "Que le projet a été un échec",
+            "Que le coût était trop élevé"
+          ],
+          "id": "fr-b2-la-transition-ecologique-q2",
+          "item_id": "fr.story.fr-b2-la-transition-ecologique.2",
+          "prompt": "Qu'est-ce que le maire admet à propos des panneaux solaires ?",
+          "type": "multiple_choice"
+        },
+        {
+          "id": "fr-b2-la-transition-ecologique-q3",
+          "item_id": "fr.story.fr-b2-la-transition-ecologique.3",
+          "prompt": "Pourquoi certains agriculteurs âgés restent-ils réticents face à ces changements ?",
+          "rubric": "Passes if the answer mentions the belief that these changes mainly benefit city-dwellers who moved to the countryside; partial if it only says 'they disagree' without the reason.",
+          "type": "short_answer"
+        },
+        {
+          "id": "fr-b2-la-transition-ecologique-q4",
+          "item_id": "fr.story.fr-b2-la-transition-ecologique.4",
+          "prompt": "L'article insiste sur l'absence de « discours idéologique » dans la démarche du village. Penses-tu que ce soit une force ou une limite pour la transition écologique en général ?",
+          "rubric": "Passes if the learner engages with the tension between pragmatic local action and broader ideological/political framing, and takes a defensible position; partial if it only summarizes the village's approach without answering the question.",
+          "type": "discussion"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "nestled, tucked away",
+          "term": "niché(e)"
+        },
+        {
+          "definition": "the town council",
+          "term": "le conseil municipal"
+        },
+        {
+          "definition": "the grocery store",
+          "term": "l'épicerie (f.)"
+        },
+        {
+          "definition": "a cooperative",
+          "term": "une coopérative"
+        },
+        {
+          "definition": "a shareholder/member (of a cooperative)",
+          "term": "un sociétaire"
+        },
+        {
+          "definition": "skeptical",
+          "term": "sceptique"
+        },
+        {
+          "definition": "profitability",
+          "term": "la rentabilité"
+        },
+        {
+          "definition": "reluctant",
+          "term": "réticent(e)"
+        },
+        {
+          "definition": "a city-dweller",
+          "term": "un citadin / une citadine"
+        },
+        {
+          "definition": "a constraint, an imposed burden",
+          "term": "une contrainte"
+        },
+        {
+          "definition": "to preserve",
+          "term": "préserver"
+        }
+      ],
+      "id": "fr-b2-la-transition-ecologique",
+      "kind": "story",
+      "language": "fr",
+      "level": "advanced",
+      "level_detail": "B2",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "learn-cli t7a"
+      },
+      "subject": "french",
+      "summary": "A profile of a small Limousin village that rebuilt its grocery store as a cooperative and added solar panels, without any ideological framing.",
+      "title": "La transition écologique, vue d'un petit village"
+    },
+    {
+      "audio": null,
+      "body": "Il y a dix ans, proposer de travailler depuis son salon aurait semblé, pour la plupart des entreprises françaises, tout à fait saugrenu. Aujourd'hui, le télétravail s'est imposé comme une pratique courante, bouleversant profondément notre rapport au travail et à l'espace urbain.\n\nPour ses partisans, les avantages sont évidents. Fini les heures perdues dans les transports en commun bondés ; fini le stress de devoir arriver à l'heure malgré une grève ou un embouteillage. De nombreux salariés affirment être plus productifs chez eux, à l'abri des interruptions constantes qui rythment souvent la vie de bureau. Certains y voient même une meilleure conciliation entre vie professionnelle et vie personnelle, un équilibre longtemps considéré comme inaccessible.\n\nPourtant, il serait naïf de croire que cette transformation ne comporte aucun inconvénient. Plusieurs managers s'inquiètent que le télétravail n'affaiblisse la cohésion des équipes : sans les échanges informels de la machine à café, les liens entre collègues se distendent, et les jeunes recrues peinent parfois à s'intégrer pleinement à la culture de l'entreprise. D'autres soulignent le risque, bien réel, que la frontière entre vie privée et vie professionnelle ne s'efface complètement, certains salariés se surprenant à répondre à des e-mails tard le soir.\n\nFace à ces constats contradictoires, de nombreuses entreprises optent désormais pour un modèle hybride, alternant jours au bureau et jours à domicile. Cette solution, bien qu'imparfaite, semble pour l'instant représenter le compromis le plus largement accepté.\n\nReste une question, plus profonde, que peu osent poser franchement : et si le télétravail n'était que la première étape d'une remise en cause bien plus vaste de l'organisation même du travail salarié, telle que nous la connaissons depuis plus d'un siècle ?",
+      "exercises": [
+        {
+          "answer": "Moins de temps perdu dans les transports",
+          "choices": [
+            "Moins de temps perdu dans les transports",
+            "Un salaire plus élevé",
+            "Moins de réunions"
+          ],
+          "id": "fr-b2-le-teletravail-q1",
+          "item_id": "fr.story.fr-b2-le-teletravail.1",
+          "prompt": "Selon le texte, quel est un avantage souvent cité du télétravail ?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Que la cohésion des équipes s'affaiblisse",
+          "choices": [
+            "Que la cohésion des équipes s'affaiblisse",
+            "Que les salariés gagnent trop d'argent",
+            "Que les bureaux deviennent trop grands"
+          ],
+          "id": "fr-b2-le-teletravail-q2",
+          "item_id": "fr.story.fr-b2-le-teletravail.2",
+          "prompt": "Quelle inquiétude certains managers expriment-ils ?",
+          "type": "multiple_choice"
+        },
+        {
+          "id": "fr-b2-le-teletravail-q3",
+          "item_id": "fr.story.fr-b2-le-teletravail.3",
+          "prompt": "Quel compromis de nombreuses entreprises adoptent-elles face à ce débat ?",
+          "rubric": "Passes if the answer names the hybrid model alternating office days and remote days; partial if it only says 'a compromise' without naming it.",
+          "type": "short_answer"
+        },
+        {
+          "id": "fr-b2-le-teletravail-q4",
+          "item_id": "fr.story.fr-b2-le-teletravail.4",
+          "prompt": "L'auteur termine par une question sur une remise en cause plus vaste de l'organisation du travail salarié. Qu'en penses-tu : le télétravail est-il une simple adaptation, ou le début d'un changement plus profond ?",
+          "rubric": "Passes if the learner takes and defends a position with at least one supporting reason, engaging with the article's closing question; partial if it restates the question without taking a position.",
+          "type": "discussion"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "absurd, preposterous",
+          "term": "saugrenu(e)"
+        },
+        {
+          "definition": "to upend, to profoundly disrupt",
+          "term": "bouleverser"
+        },
+        {
+          "definition": "packed, crowded (transport)",
+          "term": "bondé(e)"
+        },
+        {
+          "definition": "a traffic jam",
+          "term": "un embouteillage"
+        },
+        {
+          "definition": "work-life balance",
+          "term": "la conciliation (vie pro/perso)"
+        },
+        {
+          "definition": "cohesion, team unity",
+          "term": "la cohésion"
+        },
+        {
+          "definition": "to loosen, to become strained (of ties or relationships)",
+          "term": "se distendre"
+        },
+        {
+          "definition": "to struggle to (do something)",
+          "term": "peiner à"
+        },
+        {
+          "definition": "to fade away, to disappear",
+          "term": "s'effacer"
+        },
+        {
+          "definition": "a hybrid model",
+          "term": "un modèle hybride"
+        },
+        {
+          "definition": "a questioning, a challenging (of an established idea)",
+          "term": "une remise en cause"
+        }
+      ],
+      "id": "fr-b2-le-teletravail",
+      "kind": "story",
+      "language": "fr",
+      "level": "advanced",
+      "level_detail": "B2",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "learn-cli t7a"
+      },
+      "subject": "french",
+      "summary": "An essay-style piece weighing the promises and hidden costs of remote work, and the hybrid compromise many companies now choose.",
+      "title": "Le télétravail, une révolution silencieuse"
+    },
+    {
+      "audio": null,
+      "body": "Monsieur Aubert tenait sa librairie depuis si longtemps que personne, dans le quartier, ne se souvenait d'un temps où elle n'avait pas existé. Coincée entre une pharmacie et un magasin de vêtements qui changeait d'enseigne tous les deux ans, la petite boutique semblait échapper au temps, avec sa devanture en bois vert écaillé et son odeur tenace de papier vieilli.\n\nCela faisait quarante-trois ans que Monsieur Aubert vendait des livres, et il aurait été bien en peine de dire combien il en avait recommandés à ses clients au fil des décennies. Il avait ce don, rare, de deviner en quelques mots à peine échangés ce qu'une personne cherchait vraiment à lire — non pas ce qu'elle demandait, mais ce dont, sans le savoir elle-même, elle avait besoin.\n\nUn après-midi de novembre, alors que la pluie tambourinait contre la vitrine, une jeune femme entra, visiblement égarée plus qu'intéressée par les livres. Elle errait entre les rayonnages sans but précis, effleurant les tranches du bout des doigts.\n\n« Vous cherchez quelque chose de particulier ? » demanda-t-il, sans lever complètement les yeux du roman qu'il était en train de réparer.\n\n« Pas vraiment, » répondit-elle après un silence. « Je viens de perdre mon emploi. Je ne sais pas très bien ce que je fais ici, à vrai dire. »\n\nMonsieur Aubert hocha la tête, comme si cette réponse ne le surprenait guère. Il se leva, disparut un instant entre deux étagères, et revint avec un livre à la couverture usée, dont le titre avait presque disparu.\n\n« Celui-ci, » dit-il simplement, en le lui tendant. « Ce n'est pas ce que vous cherchiez. Mais je crois que c'est ce dont vous avez besoin, aujourd'hui. »\n\nElle le regarda, surprise par cette assurance tranquille, puis accepta le livre sans poser de questions.\n\nDes années plus tard, devenue elle-même écrivaine, elle raconterait souvent cette scène dans les interviews, sans jamais réussir à expliquer tout à fait pourquoi ce vieil homme, ce jour-là, avait vu juste. Quant à Monsieur Aubert, il continua, jusqu'à sa retraite, à faire ce qu'il avait toujours fait : ouvrir sa boutique chaque matin, et attendre, avec une patience inlassable, que les bonnes personnes croisent les bons livres.",
+      "exercises": [
+        {
+          "answer": "Quarante-trois ans",
+          "choices": [
+            "Quarante-trois ans",
+            "Dix ans",
+            "Vingt ans"
+          ],
+          "id": "fr-c1-le-vieux-libraire-q1",
+          "item_id": "fr.story.fr-c1-le-vieux-libraire.1",
+          "prompt": "Depuis combien de temps Monsieur Aubert tient-il sa librairie ?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Elle vient de perdre son emploi et se sent perdue",
+          "choices": [
+            "Elle vient de perdre son emploi et se sent perdue",
+            "Elle cherche un livre précis pour un cadeau",
+            "Elle s'abrite de la pluie uniquement"
+          ],
+          "id": "fr-c1-le-vieux-libraire-q2",
+          "item_id": "fr.story.fr-c1-le-vieux-libraire.2",
+          "prompt": "Pourquoi la jeune femme entre-t-elle dans la librairie ?",
+          "type": "multiple_choice"
+        },
+        {
+          "id": "fr-c1-le-vieux-libraire-q3",
+          "item_id": "fr.story.fr-c1-le-vieux-libraire.3",
+          "prompt": "Que fait Monsieur Aubert avant de donner un livre à la jeune femme ?",
+          "rubric": "Passes if the answer mentions he goes and selects a specific worn/old book from between the shelves rather than asking more questions; partial if it just says 'he gives her a book'.",
+          "type": "short_answer"
+        },
+        {
+          "id": "fr-c1-le-vieux-libraire-q4",
+          "item_id": "fr.story.fr-c1-le-vieux-libraire.4",
+          "prompt": "Le texte ne révèle jamais ce que contenait le livre offert par Monsieur Aubert. Pourquoi, selon toi, l'auteur fait-il ce choix ? Qu'est-ce que cela ajoute à l'histoire ?",
+          "rubric": "Passes if the learner reflects on the literary effect of withholding the title (mystery, focus on the human moment rather than the object, room for the reader's imagination) rather than simply guessing a specific title; partial if the answer only guesses a title without reflecting on the choice.",
+          "type": "discussion"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "wedged, squeezed (between two things)",
+          "term": "coincé(e)"
+        },
+        {
+          "definition": "a shop front",
+          "term": "une devanture"
+        },
+        {
+          "definition": "chipped, peeling (of paint)",
+          "term": "écaillé(e)"
+        },
+        {
+          "definition": "stubborn, persistent (of a smell)",
+          "term": "tenace"
+        },
+        {
+          "definition": "to be at a loss to (do something)",
+          "term": "être en peine de"
+        },
+        {
+          "definition": "a bookshelf, a shelving unit",
+          "term": "un rayonnage"
+        },
+        {
+          "definition": "to lightly touch, to brush against",
+          "term": "effleurer"
+        },
+        {
+          "definition": "lost, disoriented",
+          "term": "égaré(e)"
+        },
+        {
+          "definition": "to nod",
+          "term": "hocher la tête"
+        },
+        {
+          "definition": "to hold out (an object)",
+          "term": "tendre (un objet)"
+        },
+        {
+          "definition": "to be right, to have judged correctly",
+          "term": "voir juste"
+        },
+        {
+          "definition": "tireless, untiring",
+          "term": "inlassable"
+        }
+      ],
+      "id": "fr-c1-le-vieux-libraire",
+      "kind": "story",
+      "language": "fr",
+      "level": "advanced",
+      "level_detail": "C1",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "learn-cli t7a"
+      },
+      "subject": "french",
+      "summary": "A literary short story about an old bookseller's uncanny gift for recommending the book a stranger truly needs, not the one she asked for.",
+      "title": "Le vieux libraire"
+    }
+  ],
+  "subject": "french"
+}

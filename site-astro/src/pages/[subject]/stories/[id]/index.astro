@@ -1,0 +1,312 @@
+---
+// The story reader: clean prose, glossary, and comprehension questions
+// listed statically (no interactive form — practice/checking is CLI or
+// signed-in territory, a later wave). One page per story in the
+// content-export; scripts/check-export-pages.mjs enforces the pairing.
+import Layout from "../../../../layouts/Layout.astro";
+import PageHero from "../../../../components/PageHero.astro";
+import site from "../../../../data/site";
+import { getSubjects, getStories, type Subject, type Story } from "../../../../lib/content";
+
+export function getStaticPaths() {
+  return getSubjects().flatMap((subject) =>
+    getStories(subject.name).map((story) => ({
+      params: { subject: subject.name, id: story.id },
+      props: { subject, story },
+    }))
+  );
+}
+
+interface Props {
+  subject: Subject;
+  story: Story;
+}
+
+const { subject, story } = Astro.props;
+
+// Paragraphs are separated by a blank line; a lone \n inside a paragraph is
+// just a wrapped source line, not an intentional break, so it collapses to
+// a space rather than a <br>.
+const paragraphs = story.body
+  .split(/\n{2,}/)
+  .map((p) => p.replace(/\n/g, " ").trim())
+  .filter(Boolean);
+
+const levelLabel: Record<string, string> = {
+  beginner: "Beginner",
+  intermediate: "Intermediate",
+  advanced: "Advanced",
+};
+
+const levelLine = [levelLabel[story.level] ?? story.level, story.level_detail]
+  .filter(Boolean)
+  .join(" · ");
+
+const intro = [story.summary ?? subject.description, levelLine].filter(Boolean);
+
+const typeLabel: Record<string, string> = {
+  multiple_choice: "Multiple choice",
+  true_false: "True or false",
+  cloze: "Fill in the blank",
+  short_answer: "Short answer",
+  translation: "Translation",
+  open: "Open response",
+  discussion: "Discussion",
+};
+---
+
+<Layout
+  title={`${story.title} · ${subject.display_name} · ${site.title}`}
+  description={story.summary ?? subject.description}
+  homeHref="../../../"
+>
+  <PageHero title={story.title} intro={intro} />
+
+  <section class="section breadcrumb-section" aria-label="Wayfinding">
+    <div class="container">
+      <a class="breadcrumb" href="../../">← {subject.display_name}</a>
+    </div>
+  </section>
+
+  <section class="section story-body" aria-label="Story">
+    <div class="container prose">
+      {paragraphs.map((p, i) => (
+        <p data-reveal style={`--reveal-delay: ${Math.min(i * 0.04, 0.24)}s`}>
+          {p}
+        </p>
+      ))}
+    </div>
+  </section>
+
+  {
+    story.glossary.length > 0 && (
+      <section class="section glossary-section" aria-label="Glossary">
+        <div class="container">
+          <h2 data-reveal>Glossary</h2>
+          <dl class="glossary">
+            {story.glossary.map((entry) => (
+              <div class="glossary-entry" data-reveal>
+                <dt>{entry.term}</dt>
+                <dd>
+                  {entry.definition}
+                  {entry.note && <span class="note muted"> — {entry.note}</span>}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
+    )
+  }
+
+  {
+    story.exercises.length > 0 && (
+      <section
+        class="section exercises-section"
+        aria-label="Comprehension questions"
+        data-subject={subject.name}
+        data-story-id={story.id}
+      >
+        <div class="container prose">
+          <h2 data-reveal>Comprehension questions</h2>
+          <p class="muted" data-reveal>
+            {story.exercises.length}{" "}
+            {story.exercises.length === 1 ? "question" : "questions"} — practice
+            and checking happen in the CLI, or sign in on the web to record
+            your results here.
+          </p>
+          <ol class="exercises">
+            {story.exercises.map((exercise) => (
+              <li class="exercise" data-reveal>
+                <span class="exercise-type muted">
+                  {typeLabel[exercise.type] ?? exercise.type}
+                </span>
+                <p class="exercise-prompt">{exercise.prompt}</p>
+                {exercise.choices && exercise.choices.length > 0 && (
+                  <ul class="choices muted">
+                    {exercise.choices.map((choice) => (
+                      <li>{choice}</li>
+                    ))}
+                  </ul>
+                )}
+                {exercise.item_id && (
+                  <div
+                    class="record signedin-only"
+                    data-record
+                    data-item-id={exercise.item_id}
+                    data-exercise-id={exercise.id}
+                  >
+                    <span class="record-label muted">Record your result:</span>
+                    <button type="button" class="record-btn" data-result="pass">
+                      Got it
+                    </button>
+                    <button type="button" class="record-btn" data-result="partial">
+                      Partly
+                    </button>
+                    <button type="button" class="record-btn" data-result="fail">
+                      Missed it
+                    </button>
+                    <span class="record-status muted" data-record-status aria-live="polite"></span>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ol>
+          <p class="cta-note muted signedout-only" data-reveal>
+            Practice with the CLI (<code>{subject.name} practice</code>), or
+            sign in to check your answers and track a streak.
+          </p>
+        </div>
+      </section>
+    )
+  }
+</Layout>
+
+<style>
+  .breadcrumb-section {
+    padding-block: 0 0.5rem;
+  }
+
+  .breadcrumb {
+    font-size: 0.92rem;
+    font-weight: 500;
+  }
+
+  .story-body {
+    padding-top: 0.5rem;
+  }
+
+  .story-body p {
+    font-size: 1.05rem;
+    line-height: 1.75;
+  }
+
+  .glossary-section,
+  .exercises-section {
+    padding-top: 0.5rem;
+  }
+
+  .glossary {
+    display: grid;
+    gap: 1rem;
+    max-width: 42rem;
+    margin: 1.2rem 0 0;
+  }
+
+  .glossary-entry dt {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 1.05rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .glossary-entry dd {
+    margin: 0;
+    font-size: 0.96rem;
+    line-height: 1.55;
+  }
+
+  .glossary-entry .note {
+    font-style: italic;
+  }
+
+  .exercises {
+    list-style: decimal;
+    padding-left: 1.4rem;
+    display: grid;
+    gap: 1.4rem;
+    margin: 1.2rem 0 0;
+  }
+
+  .exercise-type {
+    display: inline-block;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 0.3rem;
+  }
+
+  .exercise-prompt {
+    font-size: 1rem;
+    margin-bottom: 0.4em;
+  }
+
+  .choices {
+    list-style: none;
+    display: grid;
+    gap: 0.35rem;
+    padding-left: 0;
+    font-size: 0.94rem;
+  }
+
+  .choices li {
+    padding-left: 1.1rem;
+    position: relative;
+  }
+
+  .choices li::before {
+    content: "";
+    position: absolute;
+    left: 0.15rem;
+    top: 0.6em;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--mesh-node) 55%, var(--bg));
+  }
+
+  .cta-note {
+    margin-top: 1.6rem;
+    font-size: 0.94rem;
+  }
+
+  /* Signed-out CTA note fades out once signed in — the record buttons
+     below (.record, shown via the shared .signedin-only default in
+     global.css) are its replacement, not an addition alongside it. */
+  :global(html[data-auth="in"]) .cta-note {
+    display: none;
+  }
+
+  .record {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.7rem;
+  }
+
+  :global(html[data-auth="in"]) .record {
+    display: flex;
+  }
+
+  .record-label {
+    font-size: 0.82rem;
+  }
+
+  .record-btn {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.3rem 0.8rem;
+    cursor: pointer;
+  }
+
+  .record-btn:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+    color: var(--accent-strong);
+  }
+
+  .record-btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  .record-status {
+    font-size: 0.82rem;
+    font-style: italic;
+  }
+</style>

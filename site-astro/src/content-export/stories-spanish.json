@@ -1,0 +1,1094 @@
+{
+  "stories": [
+    {
+      "audio": null,
+      "body": "Los sábados, Ana va al mercado central con su madre. El mercado está cerca de\nsu casa y siempre hay mucha gente.\n\nEn el mercado hay frutas de muchos colores: manzanas rojas, plátanos amarillos\ny uvas verdes. Ana camina entre los puestos y mira todo con curiosidad.\n\n—Buenos días —dice el vendedor—. ¿Qué necesita hoy?\n\n—Buenos días —responde la madre de Ana—. Necesito un kilo de manzanas y medio\nkilo de fresas, por favor.\n\nEl vendedor pone las frutas en una bolsa. Ana elige tres plátanos para ella. Le\ngustan mucho los plátanos porque son dulces y fáciles de comer.\n\n—¿Algo más? —pregunta el vendedor.\n\n—No, gracias. Eso es todo —dice la madre.\n\nPagan y caminan a casa. Ana lleva la bolsa de plátanos con mucho cuidado. En\ncasa, ponen las frutas en la mesa de la cocina. Ana come un plátano antes de\nalmorzar.\n\nLos sábados en el mercado son el momento favorito de la semana para Ana.",
+      "exercises": [
+        {
+          "answer": "Un kilo de manzanas y medio kilo de fresas",
+          "choices": [
+            "Un kilo de manzanas y medio kilo de fresas",
+            "Dos kilos de plátanos",
+            "Un kilo de uvas verdes"
+          ],
+          "id": "es-a1-el-mercado-de-frutas-q1",
+          "item_id": "es.story.es-a1-el-mercado-de-frutas.1",
+          "prompt": "¿Qué compra la madre de Ana en el mercado?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Verdadero",
+          "choices": [
+            "Verdadero",
+            "Falso"
+          ],
+          "id": "es-a1-el-mercado-de-frutas-q2",
+          "item_id": "es.story.es-a1-el-mercado-de-frutas.2",
+          "prompt": "Ana elige tres plátanos para ella.",
+          "type": "true_false"
+        },
+        {
+          "answer": "almorzar",
+          "id": "es-a1-el-mercado-de-frutas-q3",
+          "item_id": "es.story.es-a1-el-mercado-de-frutas.3",
+          "prompt": "Ana come un plátano antes de ___.",
+          "type": "cloze"
+        },
+        {
+          "id": "es-a1-el-mercado-de-frutas-q4",
+          "item_id": "es.story.es-a1-el-mercado-de-frutas.4",
+          "prompt": "¿Por qué le gustan los plátanos a Ana?",
+          "rubric": "Passes if the answer mentions that they are sweet and easy to eat (son dulces y fáciles de comer); naming only one of the two reasons is partial.",
+          "type": "short_answer"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "the market",
+          "term": "el mercado"
+        },
+        {
+          "definition": "the market stall",
+          "term": "el puesto"
+        },
+        {
+          "definition": "the strawberry",
+          "term": "la fresa"
+        },
+        {
+          "definition": "sweet",
+          "term": "dulce"
+        },
+        {
+          "definition": "to choose",
+          "note": "Irregular e→i verb: yo elijo, tú eliges.",
+          "term": "elegir"
+        },
+        {
+          "definition": "Anything else? (a shopkeeper's stock phrase)",
+          "term": "¿Algo más?"
+        },
+        {
+          "definition": "carefully",
+          "term": "con cuidado"
+        }
+      ],
+      "id": "es-a1-el-mercado-de-frutas",
+      "kind": "story",
+      "language": "es",
+      "level": "beginner",
+      "level_detail": "A1",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "agent-t7b"
+      },
+      "subject": "spanish",
+      "summary": "Ana and her mother go to the Saturday market and buy fruit.",
+      "title": "El mercado de frutas"
+    },
+    {
+      "audio": null,
+      "body": "Me llamo Sofía y tengo diez años. Vivo con mi familia en una casa pequeña pero\nmuy bonita.\n\nMi papá se llama Andrés. Es alto y trabaja en un hospital. Mi mamá se llama\nCarolina. Es profesora de matemáticas y es muy paciente.\n\nTengo un hermano mayor. Se llama Diego y tiene quince años. Diego juega fútbol\ntodos los fines de semana. También tengo una hermana menor. Se llama\nValentina y tiene solo cinco años. Valentina es muy curiosa y hace muchas\npreguntas.\n\nEn casa también vivimos con Rex, nuestro perro. Rex es negro y blanco, y le\nencanta correr en el jardín.\n\nLos domingos, toda la familia almuerza junta. Mi abuela Rosa viene a comer con\nnosotros. Ella cocina un pastel de chocolate delicioso para el postre.\n\nDespués de almorzar, jugamos juegos de mesa en la sala. A mi hermana\nValentina le encanta ganar, y siempre sonríe cuando gana una partida.\n\nMi familia es pequeña, pero estamos muy unidos. Me gusta mucho pasar tiempo\ncon ellos.",
+      "exercises": [
+        {
+          "answer": "Quince años",
+          "choices": [
+            "Cinco años",
+            "Diez años",
+            "Quince años"
+          ],
+          "id": "es-a1-mi-familia-q1",
+          "item_id": "es.story.es-a1-mi-familia.1",
+          "prompt": "¿Cuántos años tiene Diego, el hermano de Sofía?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Falso",
+          "choices": [
+            "Verdadero",
+            "Falso"
+          ],
+          "id": "es-a1-mi-familia-q2",
+          "item_id": "es.story.es-a1-mi-familia.2",
+          "prompt": "La abuela Rosa vive en la misma casa que Sofía.",
+          "type": "true_false"
+        },
+        {
+          "answer": "matemáticas",
+          "id": "es-a1-mi-familia-q3",
+          "item_id": "es.story.es-a1-mi-familia.3",
+          "prompt": "Mi mamá es profesora de ___.",
+          "type": "cloze"
+        },
+        {
+          "id": "es-a1-mi-familia-q4",
+          "item_id": "es.story.es-a1-mi-familia.4",
+          "prompt": "Describe a Rex, el perro de la familia.",
+          "rubric": "Passes if the answer mentions his colors (negro y blanco) and that he likes to run in the garden; naming only the colors is partial.",
+          "type": "short_answer"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "older (sibling)",
+          "term": "mayor"
+        },
+        {
+          "definition": "younger (sibling)",
+          "term": "menor"
+        },
+        {
+          "definition": "the garden / yard",
+          "term": "el jardín"
+        },
+        {
+          "definition": "close-knit, united",
+          "term": "unidos"
+        },
+        {
+          "definition": "dessert",
+          "term": "el postre"
+        },
+        {
+          "definition": "patient",
+          "term": "paciente"
+        }
+      ],
+      "id": "es-a1-mi-familia",
+      "kind": "story",
+      "language": "es",
+      "level": "beginner",
+      "level_detail": "A1",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "agent-t7b"
+      },
+      "subject": "spanish",
+      "summary": "Sofía introduces her parents, siblings, dog, and Sunday family lunches.",
+      "title": "Mi familia"
+    },
+    {
+      "audio": null,
+      "body": "La semana que viene, Lucía va a cumplir ocho años y su familia está\norganizando una fiesta sorpresa.\n\nSu hermano mayor, Tomás, va a decorar el jardín con globos de colores y una\npancarta que dice «¡Feliz cumpleaños, Lucía!». Su mamá va a preparar un\npastel de fresas, porque es el favorito de Lucía.\n\nLos abuelos van a traer una piñata en forma de estrella. Dentro de la piñata\nhay dulces y pequeños juguetes para todos los niños invitados.\n\nTomás ya invitó a los compañeros de clase de Lucía y a sus primos. En total,\nvan a venir doce personas a la fiesta.\n\nEl día de la fiesta, Lucía va a llegar a casa después del colegio sin saber\nnada. Cuando abra la puerta, todos van a gritar «¡Sorpresa!» al mismo tiempo.\n\nDespués de cantar «Feliz cumpleaños» y soplar las velas, los niños van a\njugar juegos en el jardín. Al final de la tarde, cada invitado va a recibir\nuna pequeña bolsa con dulces para llevar a casa.\n\nLucía todavía no sabe nada, pero está muy emocionada porque sabe que algo\nespecial va a pasar pronto.",
+      "exercises": [
+        {
+          "answer": "Tomás, el hermano mayor",
+          "choices": [
+            "Tomás, el hermano mayor",
+            "Los abuelos",
+            "La mamá de Lucía"
+          ],
+          "id": "es-a2-el-cumpleanos-de-lucia-q1",
+          "item_id": "es.story.es-a2-el-cumpleanos-de-lucia.1",
+          "prompt": "¿Quién va a decorar el jardín?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Falso",
+          "choices": [
+            "Verdadero",
+            "Falso"
+          ],
+          "id": "es-a2-el-cumpleanos-de-lucia-q2",
+          "item_id": "es.story.es-a2-el-cumpleanos-de-lucia.2",
+          "prompt": "Lucía ya sabe que sus amigos van a hacerle una fiesta.",
+          "type": "true_false"
+        },
+        {
+          "answer": "estrella",
+          "id": "es-a2-el-cumpleanos-de-lucia-q3",
+          "item_id": "es.story.es-a2-el-cumpleanos-de-lucia.3",
+          "prompt": "Los abuelos van a traer una piñata en forma de ___.",
+          "type": "cloze"
+        },
+        {
+          "id": "es-a2-el-cumpleanos-de-lucia-q4",
+          "item_id": "es.story.es-a2-el-cumpleanos-de-lucia.4",
+          "prompt": "¿Cuántas personas van a venir a la fiesta y quiénes son?",
+          "rubric": "Passes if the answer says twelve people, including classmates and cousins (compañeros de clase y primos); naming only the number is partial.",
+          "type": "short_answer"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "to turn a certain age, to have a birthday",
+          "term": "cumplir años"
+        },
+        {
+          "definition": "the banner",
+          "term": "la pancarta"
+        },
+        {
+          "definition": "the piñata",
+          "term": "la piñata"
+        },
+        {
+          "definition": "to blow out the candles",
+          "term": "soplar las velas"
+        },
+        {
+          "definition": "the guest",
+          "term": "el/la invitado(a)"
+        },
+        {
+          "definition": "excited",
+          "term": "emocionado(a)"
+        },
+        {
+          "definition": "the surprise",
+          "term": "la sorpresa"
+        }
+      ],
+      "id": "es-a2-el-cumpleanos-de-lucia",
+      "kind": "story",
+      "language": "es",
+      "level": "beginner",
+      "level_detail": "A2",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "agent-t7b"
+      },
+      "subject": "spanish",
+      "summary": "Lucía's family plans a surprise eighth-birthday party for her.",
+      "title": "El cumpleaños de Lucía"
+    },
+    {
+      "audio": null,
+      "body": "El sábado pasado, Camila y sus amigos fueron a la playa por primera vez del\nverano. Salieron de casa muy temprano para evitar el calor y el tráfico.\n\nCuando llegaron, el mar estaba tranquilo y el cielo estaba completamente\ndespejado. Pusieron las toallas cerca de las sombrillas y prepararon la\ncomida para el almuerzo.\n\nCamila y su amiga Valeria nadaron un rato en el mar. El agua estaba fría al\nprincipio, pero después de unos minutos ya no lo notaban. Mientras tanto, los\ndemás jugaron vóley playa en la arena.\n\nA la hora del almuerzo, todos se sentaron juntos. Comieron sándwiches, fruta\nfresca y bebieron mucha agua para no deshidratarse con el calor.\n\nPor la tarde, el viento cambió y aparecieron algunas nubes grises. Decidieron\nrecoger sus cosas antes de que empezara a llover.\n\nCuando volvían a casa, cansados pero felices, Camila pensó que había sido un\ndía perfecto. Ya tenía ganas de volver a la playa el próximo fin de semana.",
+      "exercises": [
+        {
+          "answer": "Para evitar el calor y el tráfico",
+          "choices": [
+            "Para evitar el calor y el tráfico",
+            "Porque el mar cerraba temprano",
+            "Porque iban a llegar tarde al trabajo"
+          ],
+          "id": "es-a2-un-dia-en-la-playa-q1",
+          "item_id": "es.story.es-a2-un-dia-en-la-playa.1",
+          "prompt": "¿Por qué salieron temprano de casa?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Falso",
+          "choices": [
+            "Verdadero",
+            "Falso"
+          ],
+          "id": "es-a2-un-dia-en-la-playa-q2",
+          "item_id": "es.story.es-a2-un-dia-en-la-playa.2",
+          "prompt": "El agua del mar estaba caliente todo el tiempo.",
+          "type": "true_false"
+        },
+        {
+          "answer": "llover",
+          "id": "es-a2-un-dia-en-la-playa-q3",
+          "item_id": "es.story.es-a2-un-dia-en-la-playa.3",
+          "prompt": "Decidieron recoger sus cosas antes de que empezara a ___.",
+          "type": "cloze"
+        },
+        {
+          "id": "es-a2-un-dia-en-la-playa-q4",
+          "item_id": "es.story.es-a2-un-dia-en-la-playa.4",
+          "prompt": "¿Qué hicieron los amigos que no nadaron?",
+          "rubric": "Passes if the answer mentions they played beach volleyball on the sand (jugaron vóley playa en la arena).",
+          "type": "short_answer"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "to avoid",
+          "term": "evitar"
+        },
+        {
+          "definition": "clear, cloudless (sky)",
+          "term": "despejado"
+        },
+        {
+          "definition": "the beach umbrella",
+          "term": "la sombrilla"
+        },
+        {
+          "definition": "to notice",
+          "term": "notar"
+        },
+        {
+          "definition": "to become dehydrated",
+          "term": "deshidratarse"
+        },
+        {
+          "definition": "to pack up, to gather",
+          "term": "recoger"
+        },
+        {
+          "definition": "to feel like (doing something)",
+          "term": "tener ganas de"
+        }
+      ],
+      "id": "es-a2-un-dia-en-la-playa",
+      "kind": "story",
+      "language": "es",
+      "level": "beginner",
+      "level_detail": "A2",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "agent-t7b"
+      },
+      "subject": "spanish",
+      "summary": "Camila and her friends spend the first beach day of summer together.",
+      "title": "Un día en la playa"
+    },
+    {
+      "audio": null,
+      "body": "Cuando Diego tenía doce años, su familia se mudó a un barrio nuevo al otro\nlado de la ciudad. Al principio, no le gustaba nada la idea de dejar a sus\namigos y su antigua escuela.\n\nEl primer día en la casa nueva, Diego se sentía triste y no quería salir de\nsu habitación. Todo era desconocido: las calles, los sonidos, incluso el\nolor del aire era diferente.\n\nSin embargo, al día siguiente, mientras ordenaba sus libros, escuchó una voz\ndesde el jardín de al lado.\n\n—¡Hola! Me llamo Rodrigo. Vivo aquí desde que nací. ¿Quieres jugar fútbol\ncon nosotros esta tarde?\n\nDiego dudó un momento, pero decidió aceptar la invitación. Esa tarde conoció\na varios chicos del barrio y descubrió que, aunque el lugar era nuevo, las\npersonas eran muy amables.\n\nCon el paso de las semanas, Diego empezó a explorar el barrio. Encontró una\npanadería con un pan delicioso, un parque con una cancha de básquetbol y una\nbiblioteca pequeña donde podía estudiar en silencio.\n\nPoco a poco, hizo nuevos amigos en su nueva escuela también. Aunque todavía\nextrañaba a sus amigos anteriores, hablaba con ellos por videollamada casi\ntodos los fines de semana.\n\nUn año después, cuando alguien le preguntaba dónde vivía, Diego respondía\ncon orgullo el nombre de su nuevo barrio. Ya no se sentía como un extraño;\nse sentía como en casa.\n\nDiego aprendió que, aunque los cambios pueden dar miedo al principio, muchas\nveces traen cosas buenas que uno no esperaba.",
+      "exercises": [
+        {
+          "answer": "Rodrigo, el vecino",
+          "choices": [
+            "Rodrigo, el vecino",
+            "Su hermano mayor",
+            "Un compañero de la escuela antigua"
+          ],
+          "id": "es-b1-el-barrio-nuevo-q1",
+          "item_id": "es.story.es-b1-el-barrio-nuevo.1",
+          "prompt": "¿Quién invitó a Diego a jugar fútbol?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Falso",
+          "choices": [
+            "Verdadero",
+            "Falso"
+          ],
+          "id": "es-b1-el-barrio-nuevo-q2",
+          "item_id": "es.story.es-b1-el-barrio-nuevo.2",
+          "prompt": "Diego dejó de hablar con sus amigos antiguos por completo.",
+          "type": "true_false"
+        },
+        {
+          "answer": "miedo",
+          "id": "es-b1-el-barrio-nuevo-q3",
+          "item_id": "es.story.es-b1-el-barrio-nuevo.3",
+          "prompt": "Diego aprendió que, aunque los cambios pueden dar ___ al principio, muchas veces traen cosas buenas.",
+          "type": "cloze"
+        },
+        {
+          "id": "es-b1-el-barrio-nuevo-q4",
+          "item_id": "es.story.es-b1-el-barrio-nuevo.4",
+          "prompt": "¿Qué tres lugares descubrió Diego en el barrio nuevo?",
+          "rubric": "Passes if the answer names the bakery, the basketball court, and the library (la panadería, la cancha de básquetbol, la biblioteca); two of three is partial.",
+          "type": "short_answer"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "to move house",
+          "term": "mudarse"
+        },
+        {
+          "definition": "unknown",
+          "term": "desconocido(a)"
+        },
+        {
+          "definition": "to hesitate",
+          "term": "dudar"
+        },
+        {
+          "definition": "the (sports) court / field",
+          "term": "la cancha"
+        },
+        {
+          "definition": "the library",
+          "term": "la biblioteca"
+        },
+        {
+          "definition": "a stranger",
+          "term": "el/la extraño(a)"
+        },
+        {
+          "definition": "to be scary",
+          "term": "dar miedo"
+        },
+        {
+          "definition": "to expect, to wait for",
+          "term": "esperar"
+        },
+        {
+          "definition": "proudly",
+          "term": "con orgullo"
+        }
+      ],
+      "id": "es-b1-el-barrio-nuevo",
+      "kind": "story",
+      "language": "es",
+      "level": "intermediate",
+      "level_detail": "B1",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "agent-t7b"
+      },
+      "subject": "spanish",
+      "summary": "Diego moves to a new neighborhood and slowly learns to feel at home.",
+      "title": "El barrio nuevo"
+    },
+    {
+      "audio": null,
+      "body": "Martín se despertó tarde aquella mañana porque su despertador no sonó. Miró\nel reloj y se dio cuenta de que solo tenía veinte minutos para llegar a la\nestación.\n\nSe vistió rápidamente, no desayunó y salió de su apartamento casi corriendo.\nEn la calle, no encontró ningún taxi libre, así que decidió correr hacia la\nestación de metro más cercana.\n\nCuando por fin llegó al andén, el tren ya estaba cerrando las puertas. Martín\nintentó llegar a tiempo, pero fue inútil: el tren salió justo delante de sus\nojos.\n\n—¡No puede ser! —pensó, respirando con dificultad—. Ese era el único tren\nque llegaba a tiempo a mi reunión.\n\nFrustrado, se sentó en un banco del andén y sacó el teléfono para llamar a su\njefe. Le explicó la situación con calma y, para su sorpresa, su jefe no se\nenojó.\n\n—No te preocupes, Martín —le dijo—. Podemos empezar la reunión quince\nminutos más tarde. Avísame cuando estés cerca.\n\nAliviado, Martín esperó el siguiente tren, que llegó diez minutos después.\nDurante el viaje, pensó que debía comprar un despertador nuevo, uno más\nfuerte y confiable.\n\nCuando finalmente llegó a la oficina, sus compañeros lo recibieron con una\nsonrisa. Nadie se había dado cuenta de que había llegado tarde, porque la\nreunión todavía no había comenzado.\n\nEsa noche, antes de dormir, Martín programó tres alarmas diferentes. No\nquería repetir la misma experiencia nunca más.",
+      "exercises": [
+        {
+          "answer": "Porque su despertador no sonó",
+          "choices": [
+            "Porque su despertador no sonó",
+            "Porque se quedó dormido leyendo",
+            "Porque el tren llegó antes de tiempo"
+          ],
+          "id": "es-b1-el-tren-perdido-q1",
+          "item_id": "es.story.es-b1-el-tren-perdido.1",
+          "prompt": "¿Por qué se despertó tarde Martín?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Falso",
+          "choices": [
+            "Verdadero",
+            "Falso"
+          ],
+          "id": "es-b1-el-tren-perdido-q2",
+          "item_id": "es.story.es-b1-el-tren-perdido.2",
+          "prompt": "El jefe de Martín se enojó mucho cuando se enteró.",
+          "type": "true_false"
+        },
+        {
+          "answer": "alarmas",
+          "id": "es-b1-el-tren-perdido-q3",
+          "item_id": "es.story.es-b1-el-tren-perdido.3",
+          "prompt": "Esa noche, Martín programó tres ___ diferentes.",
+          "type": "cloze"
+        },
+        {
+          "id": "es-b1-el-tren-perdido-q4",
+          "item_id": "es.story.es-b1-el-tren-perdido.4",
+          "prompt": "¿Cómo resolvió el jefe el problema de Martín?",
+          "rubric": "Passes if the answer mentions the meeting was pushed back fifteen minutes (empezar la reunión quince minutos más tarde).",
+          "type": "short_answer"
+        },
+        {
+          "answer": "Me di cuenta de que solo tenía veinte minutos.",
+          "id": "es-b1-el-tren-perdido-q5",
+          "item_id": "es.story.es-b1-el-tren-perdido.5",
+          "prompt": "Traduce al español: \"I realized I only had twenty minutes.\"",
+          "type": "translation"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "the alarm clock",
+          "term": "el despertador"
+        },
+        {
+          "definition": "the (train) platform",
+          "term": "el andén"
+        },
+        {
+          "definition": "useless",
+          "term": "inútil"
+        },
+        {
+          "definition": "to breathe heavily",
+          "term": "respirar con dificultad"
+        },
+        {
+          "definition": "to get angry",
+          "term": "enojarse"
+        },
+        {
+          "definition": "relieved",
+          "term": "aliviado(a)"
+        },
+        {
+          "definition": "reliable",
+          "term": "confiable"
+        },
+        {
+          "definition": "to realize",
+          "term": "darse cuenta de"
+        },
+        {
+          "definition": "to set / program (an alarm, a device)",
+          "term": "programar"
+        }
+      ],
+      "id": "es-b1-el-tren-perdido",
+      "kind": "story",
+      "language": "es",
+      "level": "intermediate",
+      "level_detail": "B1",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "agent-t7b"
+      },
+      "subject": "spanish",
+      "summary": "Martín oversleeps, misses his train, and calls his boss to explain.",
+      "title": "El tren perdido"
+    },
+    {
+      "audio": null,
+      "body": "Valentina llevaba dos semanas preparándose para la entrevista de trabajo más\nimportante de su vida. Había investigado la empresa, había practicado sus\nrespuestas y había elegido con cuidado la ropa que iba a llevar.\n\nLa mañana de la entrevista, llegó a la oficina con quince minutos de\nanticipación. Se sentó en la sala de espera, con las manos un poco\nsudorosas, y repasó mentalmente sus argumentos una última vez.\n\nCuando la recepcionista la llamó, Valentina respiró profundamente y entró a\nla sala de reuniones. Allí la esperaban dos personas: el gerente de recursos\nhumanos y la directora del departamento de marketing.\n\n—Cuéntenos sobre un proyecto del que se sienta orgullosa —le pidió el\ngerente.\n\nValentina habló sobre una campaña publicitaria que había liderado en su\ntrabajo anterior. Explicó los problemas que había enfrentado y cómo su\nequipo había logrado superarlos.\n\nLa directora hizo varias preguntas sobre cómo Valentina manejaba el estrés y\nlos plazos ajustados. Valentina respondió con ejemplos concretos, sin dudar\ndemasiado.\n\nAl final de la entrevista, el gerente le agradeció su tiempo y le explicó\nque se comunicarían con ella en una semana.\n\nValentina salió del edificio con una mezcla de alivio y ansiedad. No sabía\nsi había respondido bien a todas las preguntas, pero sentía que había hecho\nsu mejor esfuerzo.\n\nEsa noche, mientras cenaba con su familia, les contó cada detalle de la\nentrevista. Su madre la abrazó y le dijo que, sin importar el resultado,\nestaba muy orgullosa de ella.\n\nUna semana después, Valentina recibió una llamada: había conseguido el\ntrabajo.",
+      "exercises": [
+        {
+          "answer": "Sobre un proyecto del que se sienta orgullosa",
+          "choices": [
+            "Sobre un proyecto del que se sienta orgullosa",
+            "Sobre su sueldo anterior",
+            "Sobre sus estudios universitarios"
+          ],
+          "id": "es-b1-la-entrevista-de-trabajo-q1",
+          "item_id": "es.story.es-b1-la-entrevista-de-trabajo.1",
+          "prompt": "¿Sobre qué le pidió el gerente que hablara Valentina?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Falso",
+          "choices": [
+            "Verdadero",
+            "Falso"
+          ],
+          "id": "es-b1-la-entrevista-de-trabajo-q2",
+          "item_id": "es.story.es-b1-la-entrevista-de-trabajo.2",
+          "prompt": "Valentina se enteró del resultado el mismo día de la entrevista.",
+          "type": "true_false"
+        },
+        {
+          "answer": "ansiedad",
+          "id": "es-b1-la-entrevista-de-trabajo-q3",
+          "item_id": "es.story.es-b1-la-entrevista-de-trabajo.3",
+          "prompt": "Valentina salió del edificio con una mezcla de alivio y ___.",
+          "type": "cloze"
+        },
+        {
+          "id": "es-b1-la-entrevista-de-trabajo-q4",
+          "item_id": "es.story.es-b1-la-entrevista-de-trabajo.4",
+          "prompt": "¿Qué le preguntó la directora de marketing?",
+          "rubric": "Passes if the answer mentions questions about handling stress and tight deadlines (el estrés y los plazos ajustados).",
+          "type": "short_answer"
+        },
+        {
+          "id": "es-b1-la-entrevista-de-trabajo-q5",
+          "item_id": "es.story.es-b1-la-entrevista-de-trabajo.5",
+          "prompt": "¿Qué habrías respondido tú si te hubieran hecho la misma pregunta sobre un proyecto del que te sientas orgulloso/a?",
+          "rubric": "Open-ended: passes if the learner describes a concrete project and connects it to a skill, in Spanish, using at least one past tense correctly.",
+          "type": "discussion"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "in advance, ahead of time",
+          "term": "la anticipación"
+        },
+        {
+          "definition": "sweaty",
+          "term": "sudoroso(a)"
+        },
+        {
+          "definition": "the manager",
+          "term": "el/la gerente"
+        },
+        {
+          "definition": "proud",
+          "term": "orgulloso(a)"
+        },
+        {
+          "definition": "to lead",
+          "term": "liderar"
+        },
+        {
+          "definition": "the tight deadline",
+          "term": "el plazo ajustado"
+        },
+        {
+          "definition": "to hesitate, to doubt",
+          "term": "dudar"
+        },
+        {
+          "definition": "relief",
+          "term": "el alivio"
+        },
+        {
+          "definition": "anxiety",
+          "term": "la ansiedad"
+        }
+      ],
+      "id": "es-b1-la-entrevista-de-trabajo",
+      "kind": "story",
+      "language": "es",
+      "level": "intermediate",
+      "level_detail": "B1",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "agent-t7b"
+      },
+      "subject": "spanish",
+      "summary": "Valentina prepares for and lands the most important job interview of her life.",
+      "title": "La entrevista de trabajo"
+    },
+    {
+      "audio": null,
+      "body": "Querida abuela:\n\nEspero que estés bien y que el jardín siga lleno de flores como siempre. Te\nescribo porque hace mucho tiempo que no hablamos y te extraño mucho.\n\nLa semana pasada encontré una foto vieja de cuando yo era pequeña y\npasábamos los veranos en tu casa del campo. Me acordé de las tardes en las\nque me enseñabas a hacer pan y de las historias que me contabas antes de\ndormir.\n\nAhora vivo en la ciudad y todo es muy diferente. Trabajo muchas horas y, a\nveces, olvido las cosas simples que tú siempre me enseñaste: caminar\ndespacio, escuchar a los demás y disfrutar de una buena comida sin prisa.\n\nEl mes pasado empecé a cocinar los platos que tú me enseñaste. Al principio\nno me salían igual de bien, pero después de varios intentos, logré hacer tu\nfamoso guiso de lentejas. Cuando lo probé, sentí que estaba de vuelta en tu\ncocina.\n\nMi hermano me contó que fuiste al médico la semana pasada y que todo salió\nbien. Me alegré mucho de escuchar esa noticia. Por favor, cuídate y no\ntrabajes tanto en el jardín bajo el sol fuerte.\n\nEstoy planeando visitarte el próximo mes, cuando tenga unos días libres del\ntrabajo. Quiero sentarme contigo en el porche, tomar café y escuchar tus\nhistorias otra vez.\n\nEspero que estas líneas te alegren el día. Te quiero mucho y pienso en ti\ntodos los días.\n\nCon mucho cariño,\nCamila",
+      "exercises": [
+        {
+          "answer": "Una foto vieja de su infancia",
+          "choices": [
+            "Una foto vieja de su infancia",
+            "Una carta antigua de su abuela",
+            "Un libro de recetas"
+          ],
+          "id": "es-b1-una-carta-a-mi-abuela-q1",
+          "item_id": "es.story.es-b1-una-carta-a-mi-abuela.1",
+          "prompt": "¿Qué encontró Camila la semana pasada?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Falso",
+          "choices": [
+            "Verdadero",
+            "Falso"
+          ],
+          "id": "es-b1-una-carta-a-mi-abuela-q2",
+          "item_id": "es.story.es-b1-una-carta-a-mi-abuela.2",
+          "prompt": "A Camila le salió el guiso de lentejas perfecto la primera vez.",
+          "type": "true_false"
+        },
+        {
+          "answer": "porche",
+          "id": "es-b1-una-carta-a-mi-abuela-q3",
+          "item_id": "es.story.es-b1-una-carta-a-mi-abuela.3",
+          "prompt": "Quiero sentarme contigo en el ___, tomar café y escuchar tus historias.",
+          "type": "cloze"
+        },
+        {
+          "id": "es-b1-una-carta-a-mi-abuela-q4",
+          "item_id": "es.story.es-b1-una-carta-a-mi-abuela.4",
+          "prompt": "¿Qué noticia sobre la salud de la abuela le contó su hermano?",
+          "rubric": "Passes if the answer mentions the grandmother went to the doctor and everything was fine (fue al médico y todo salió bien).",
+          "type": "short_answer"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "to miss (someone)",
+          "term": "extrañar"
+        },
+        {
+          "definition": "the countryside",
+          "term": "el campo"
+        },
+        {
+          "definition": "to teach",
+          "term": "enseñar"
+        },
+        {
+          "definition": "without rushing",
+          "term": "sin prisa"
+        },
+        {
+          "definition": "lentil stew",
+          "term": "el guiso de lentejas"
+        },
+        {
+          "definition": "to taste, to try",
+          "term": "probar"
+        },
+        {
+          "definition": "to be glad",
+          "term": "alegrarse"
+        },
+        {
+          "definition": "the porch",
+          "term": "el porche"
+        },
+        {
+          "definition": "affection",
+          "term": "el cariño"
+        }
+      ],
+      "id": "es-b1-una-carta-a-mi-abuela",
+      "kind": "story",
+      "language": "es",
+      "level": "intermediate",
+      "level_detail": "B1",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "agent-t7b"
+      },
+      "subject": "spanish",
+      "summary": "Camila writes to her grandmother about city life, cooking, and missing her.",
+      "title": "Una carta a mi abuela"
+    },
+    {
+      "audio": null,
+      "body": "Desde que la empresa anunció que el teletrabajo dejaría de ser obligatorio,\nRenata no ha dejado de pensar en qué decisión tomar. Su jefe le ha propuesto\ndos opciones: volver a la oficina cuatro días a la semana o continuar\ntrabajando desde casa, aunque esto último implicaría renunciar a ciertos\nbeneficios, como el bono de transporte.\n\nRenata lleva casi tres años trabajando desde su apartamento y, con el\ntiempo, ha desarrollado una rutina que le funciona bien. Empieza a trabajar\ntemprano, hace pausas para cocinar y, por las tardes, tiene tiempo de sobra\npara hacer ejercicio. Sin embargo, también reconoce que a veces se siente\naislada y que extraña las conversaciones espontáneas con sus compañeros.\n\nSu amiga Beatriz, que regresó a la oficina hace unos meses, le insiste en\nque es importante que vuelva.\n\n—Entiendo que estés cómoda en casa —le dijo Beatriz durante el almuerzo—,\npero dudo que puedas construir buenas relaciones profesionales si nunca ves\na nadie en persona. Además, no creo que sea sano pasar tantas horas solas\nfrente a la pantalla.\n\nRenata reconoce que su amiga tiene razón en algunos puntos, pero no está\nconvencida de que la oficina sea la única solución. Le preocupa perder la\nflexibilidad que le permite cuidar a su madre, quien vive sola y necesita\nayuda con frecuencia.\n\nDespués de varios días de dudas, Renata decidió proponerle a su jefe un plan\nintermedio: ir a la oficina dos días a la semana, para mantener el contacto\ncon el equipo, y trabajar desde casa el resto del tiempo.\n\nPara su sorpresa, su jefe aceptó la propuesta sin poner objeciones. Le\nexplicó que lo que más le importaba a la empresa no era dónde trabajaran los\nempleados, sino que cumplieran con sus responsabilidades y se sintieran\nmotivados.\n\nRenata salió de esa reunión con una sensación de alivio. Había encontrado,\nal menos por ahora, un equilibrio entre lo que necesitaba su carrera y lo\nque necesitaba su vida personal.",
+      "exercises": [
+        {
+          "answer": "Volver a la oficina cuatro días o seguir en casa sin ciertos beneficios",
+          "choices": [
+            "Volver a la oficina cuatro días o seguir en casa sin ciertos beneficios",
+            "Renunciar al trabajo o mudarse de ciudad",
+            "Trabajar de noche o de día"
+          ],
+          "id": "es-b2-el-dilema-del-teletrabajo-q1",
+          "item_id": "es.story.es-b2-el-dilema-del-teletrabajo.1",
+          "prompt": "¿Qué opciones le da la empresa a Renata?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Falso",
+          "choices": [
+            "Verdadero",
+            "Falso"
+          ],
+          "id": "es-b2-el-dilema-del-teletrabajo-q2",
+          "item_id": "es.story.es-b2-el-dilema-del-teletrabajo.2",
+          "prompt": "El jefe de Renata rechaza el plan intermedio que ella propone.",
+          "type": "true_false"
+        },
+        {
+          "answer": "persona",
+          "id": "es-b2-el-dilema-del-teletrabajo-q3",
+          "item_id": "es.story.es-b2-el-dilema-del-teletrabajo.3",
+          "prompt": "Dudo que puedas construir buenas relaciones profesionales si nunca ves a nadie en ___.",
+          "type": "cloze"
+        },
+        {
+          "id": "es-b2-el-dilema-del-teletrabajo-q4",
+          "item_id": "es.story.es-b2-el-dilema-del-teletrabajo.4",
+          "prompt": "¿Por qué le preocupa a Renata perder la flexibilidad del teletrabajo?",
+          "rubric": "Passes if the answer mentions caring for her mother, who lives alone and needs frequent help (cuidar a su madre, que vive sola).",
+          "type": "short_answer"
+        },
+        {
+          "id": "es-b2-el-dilema-del-teletrabajo-q5",
+          "item_id": "es.story.es-b2-el-dilema-del-teletrabajo.5",
+          "prompt": "¿Estás de acuerdo con Beatriz en que es difícil construir relaciones profesionales sin verse en persona? Explica tu opinión usando el subjuntivo al menos una vez (por ejemplo, con \"dudo que\" o \"no creo que\").",
+          "rubric": "Open-ended: passes if the learner states a clear opinion and correctly uses a subjunctive trigger phrase; a plausible opinion without the subjunctive is partial.",
+          "type": "discussion"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "remote work, telecommuting",
+          "term": "el teletrabajo"
+        },
+        {
+          "definition": "to give up, to forfeit",
+          "term": "renunciar a"
+        },
+        {
+          "definition": "the transportation stipend",
+          "term": "el bono de transporte"
+        },
+        {
+          "definition": "isolated",
+          "term": "aislado(a)"
+        },
+        {
+          "definition": "to doubt that…",
+          "note": "Triggers the subjunctive: dudo que puedas, no creo que sea.",
+          "term": "dudar que + subjuntivo"
+        },
+        {
+          "definition": "healthy",
+          "term": "sano/a"
+        },
+        {
+          "definition": "convinced",
+          "term": "convencido(a)"
+        },
+        {
+          "definition": "the proposal",
+          "term": "la propuesta"
+        },
+        {
+          "definition": "to raise objections",
+          "term": "poner objeciones"
+        },
+        {
+          "definition": "to fulfill, to follow through on",
+          "term": "cumplir con"
+        },
+        {
+          "definition": "balance",
+          "term": "el equilibrio"
+        }
+      ],
+      "id": "es-b2-el-dilema-del-teletrabajo",
+      "kind": "story",
+      "language": "es",
+      "level": "advanced",
+      "level_detail": "B2",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "agent-t7b"
+      },
+      "subject": "spanish",
+      "summary": "Renata weighs returning to the office against keeping her remote routine.",
+      "title": "El dilema del teletrabajo"
+    },
+    {
+      "audio": null,
+      "body": "Cada mes de diciembre, mi pueblo natal en Oaxaca se transforma por completo.\nLas calles se llenan de luces de colores, los puestos de comida aparecen en\ncada esquina y el aroma a pan de fiesta y chocolate caliente se siente desde\ntemprano en la mañana.\n\nLa celebración principal dura nueve días y se conoce como «las posadas».\nCada noche, un grupo de vecinos recorre las calles cantando villancicos y\npidiendo posada de casa en casa, tal como lo hicieron José y María en la\nhistoria bíblica. Al final del recorrido, la familia anfitriona abre sus\npuertas y ofrece ponche caliente, tamales y, por supuesto, la tradicional\npiñata.\n\nRecuerdo que, de niño, esperaba todo el año el momento de romper la piñata.\nNos vendaban los ojos, nos daban un palo de madera y nos hacían girar varias\nveces antes de dejarnos golpear. Cuando finalmente la piñata se rompía,\ntodos corríamos a recoger los dulces y las frutas que caían al suelo.\n\nMi abuela siempre decía que las posadas no eran solo una fiesta religiosa,\nsino también una manera de fortalecer los lazos entre los vecinos. «Aquí\nnadie festeja solo», me repetía cada año mientras preparaba tamales para\ncompartir con toda la cuadra.\n\nEl último día de las fiestas, el 24 de diciembre, toda la familia se reúne\npara la cena de Nochebuena. Comemos bacalao, romeritos y, al dar la\nmedianoche, brindamos con sidra mientras suenan los cohetes en el cielo.\n\nAunque ahora vivo lejos, en otra ciudad, cada diciembre siento la necesidad\nde volver aunque sea por unos días. Mi pueblo tiene algo que no encuentro en\nningún otro lugar: esa sensación de que, durante nueve noches, toda la\ncomunidad late al mismo ritmo.\n\nCuando mis hijos me preguntan por qué viajamos tan lejos cada Navidad, les\ncuento estas historias y espero que, algún día, ellos también sientan ese\nmismo cariño por las tradiciones de su pueblo.",
+      "exercises": [
+        {
+          "answer": "Nueve días",
+          "choices": [
+            "Nueve días",
+            "Siete días",
+            "Un mes"
+          ],
+          "id": "es-b2-las-fiestas-de-mi-pueblo-q1",
+          "item_id": "es.story.es-b2-las-fiestas-de-mi-pueblo.1",
+          "prompt": "¿Cuántos días duran las posadas?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Falso",
+          "choices": [
+            "Verdadero",
+            "Falso"
+          ],
+          "id": "es-b2-las-fiestas-de-mi-pueblo-q2",
+          "item_id": "es.story.es-b2-las-fiestas-de-mi-pueblo.2",
+          "prompt": "La abuela pensaba que las posadas eran solo una fiesta religiosa.",
+          "type": "true_false"
+        },
+        {
+          "answer": "girar",
+          "id": "es-b2-las-fiestas-de-mi-pueblo-q3",
+          "item_id": "es.story.es-b2-las-fiestas-de-mi-pueblo.3",
+          "prompt": "Nos vendaban los ojos, nos daban un palo de madera y nos hacían ___ varias veces antes de dejarnos golpear.",
+          "type": "cloze"
+        },
+        {
+          "id": "es-b2-las-fiestas-de-mi-pueblo-q4",
+          "item_id": "es.story.es-b2-las-fiestas-de-mi-pueblo.4",
+          "prompt": "¿Qué comen y beben en la cena de Nochebuena, según el texto?",
+          "rubric": "Passes if the answer names at least two of: bacalao, romeritos, sidra; naming only one is partial.",
+          "type": "short_answer"
+        },
+        {
+          "id": "es-b2-las-fiestas-de-mi-pueblo-q5",
+          "item_id": "es.story.es-b2-las-fiestas-de-mi-pueblo.5",
+          "prompt": "El texto usa vocabulario y platos regionales de México (las posadas, los romeritos, la cuadra). ¿Qué tradición navideña de tu propia cultura podrías comparar con las posadas?",
+          "rubric": "Open-ended: passes if the learner names a comparable tradition and draws at least one concrete point of comparison, in Spanish.",
+          "type": "discussion"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "native (as in pueblo natal, one's hometown)",
+          "term": "natal"
+        },
+        {
+          "definition": "the traditional pre-Christmas nightly procession",
+          "note": "Mexican regional term; commemorates Joseph and Mary seeking shelter.",
+          "term": "la posada"
+        },
+        {
+          "definition": "the Christmas carol",
+          "term": "el villancico"
+        },
+        {
+          "definition": "the piñata",
+          "term": "la piñata"
+        },
+        {
+          "definition": "to blindfold",
+          "term": "vendar los ojos"
+        },
+        {
+          "definition": "to strengthen bonds",
+          "term": "fortalecer los lazos"
+        },
+        {
+          "definition": "the (city) block",
+          "note": "Latin-American usage; not used this way in Spain.",
+          "term": "la cuadra"
+        },
+        {
+          "definition": "codfish",
+          "term": "el bacalao"
+        },
+        {
+          "definition": "a traditional Mexican herb-and-mole dish",
+          "note": "Regional Mexican Christmas dish.",
+          "term": "los romeritos"
+        },
+        {
+          "definition": "to toast (with a drink)",
+          "term": "brindar"
+        },
+        {
+          "definition": "the firework, the rocket",
+          "term": "el cohete"
+        },
+        {
+          "definition": "to beat (as a heart)",
+          "term": "latir"
+        }
+      ],
+      "id": "es-b2-las-fiestas-de-mi-pueblo",
+      "kind": "story",
+      "language": "es",
+      "level": "advanced",
+      "level_detail": "B2 — Mexican Spanish register",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "agent-t7b"
+      },
+      "subject": "spanish",
+      "summary": "A narrator recalls the nine nights of posadas in their Oaxacan hometown.",
+      "title": "Las fiestas de mi pueblo"
+    },
+    {
+      "audio": null,
+      "body": "Hacía más de diez años que Julián no volvía a Buenos Aires. Cuando el tren\nse detuvo en la estación de Retiro, sintió una mezcla extraña de nostalgia y\ndesconfianza, como si la ciudad ya no le perteneciera del todo.\n\n—¿Vos sos de acá? —le preguntó una mujer que viajaba en el asiento de\nenfrente, notando quizás la expresión perdida en su rostro.\n\n—Nací acá, sí —respondió Julián—, pero me fui hace mucho tiempo. No sé si\ntodavía puedo decir que soy de acá.\n\nLa mujer, que se llamaba Renata, sonrió con complicidad. Le contó que ella\ntambién se había ido de joven, aunque había regresado hacía ya varios años,\ncuando su padre se enfermó y necesitó que alguien cuidara de él.\n\n—A veces pienso que uno nunca deja de ser de un lugar, aunque se vaya —dijo\nRenata, mirando por la ventanilla—. Es como si la ciudad te esperara, sin\nimportar cuánto tiempo hayas estado afuera.\n\nJulián no supo qué responder. Durante el viaje, había evitado pensar\ndemasiado en lo que encontraría al llegar: la casa de su infancia, ahora\nvendida a otra familia; el bar de la esquina, tal vez cerrado; los amigos\nque, con los años, habían dejado de escribirle.\n\nCuando el tren finalmente entró en la estación, Julián bajó despacio, como\nsi temiera que sus piernas no recordaran cómo caminar por esas calles. El\naire olía distinto de lo que recordaba, aunque no sabría explicar\nexactamente en qué.\n\nAntes de despedirse, Renata le dio un consejo que Julián guardaría durante\nmucho tiempo:\n\n—No busques la ciudad que dejaste. Esa ya no existe. Dejate sorprender por\nla que encontrás ahora.\n\nJulián caminó por Avenida Santa Fe sin rumbo fijo, dejando que sus pies\ndecidieran el camino. Reconoció algunos edificios, otros habían cambiado por\ncompleto. En una esquina, encontró una confitería que, para su sorpresa,\nseguía funcionando después de tantos años.\n\nEntró, pidió un café con leche y unas medialunas, y se sentó junto a la\nventana. Mientras observaba pasar a la gente por la calle, entendió que\nquizás Renata tenía razón: no había vuelto a buscar el pasado, sino a\ndescubrir en qué se había convertido su ciudad — y, en el fondo, en qué se\nhabía convertido él mismo.",
+      "exercises": [
+        {
+          "answer": "Más de diez años",
+          "choices": [
+            "Más de diez años",
+            "Dos años",
+            "Seis meses"
+          ],
+          "id": "es-c1-el-ultimo-tren-a-buenos-aires-q1",
+          "item_id": "es.story.es-c1-el-ultimo-tren-a-buenos-aires.1",
+          "prompt": "¿Cuánto tiempo hacía que Julián no volvía a Buenos Aires?",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Verdadero",
+          "choices": [
+            "Verdadero",
+            "Falso"
+          ],
+          "id": "es-c1-el-ultimo-tren-a-buenos-aires-q2",
+          "item_id": "es.story.es-c1-el-ultimo-tren-a-buenos-aires.2",
+          "prompt": "Renata volvió a Buenos Aires porque su padre se enfermó.",
+          "type": "true_false"
+        },
+        {
+          "answer": "sorprender",
+          "id": "es-c1-el-ultimo-tren-a-buenos-aires-q3",
+          "item_id": "es.story.es-c1-el-ultimo-tren-a-buenos-aires.3",
+          "prompt": "—No busques la ciudad que dejaste. Esa ya no existe. Dejate ___ por la que encontrás ahora.",
+          "type": "cloze"
+        },
+        {
+          "id": "es-c1-el-ultimo-tren-a-buenos-aires-q4",
+          "item_id": "es.story.es-c1-el-ultimo-tren-a-buenos-aires.4",
+          "prompt": "¿Qué consejo le da Renata a Julián antes de despedirse?",
+          "rubric": "Passes if the answer captures that she tells him not to look for the city he left, but to let himself be surprised by the one he finds now.",
+          "type": "short_answer"
+        },
+        {
+          "id": "es-c1-el-ultimo-tren-a-buenos-aires-q5",
+          "item_id": "es.story.es-c1-el-ultimo-tren-a-buenos-aires.5",
+          "prompt": "El cuento usa voseo rioplatense (\"vos sos\", \"encontrás\", \"dejate\") en vez de \"tú eres\", \"encuentras\", \"déjate\". Reescribe la frase de Renata \"Dejate sorprender por la que encontrás ahora\" usando la forma de tú.",
+          "rubric": "Passes if the learner correctly converts both verbs: 'Déjate sorprender por la que encuentras ahora.'",
+          "type": "discussion"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "distrust, wariness",
+          "term": "la desconfianza"
+        },
+        {
+          "definition": "to belong",
+          "term": "pertenecer"
+        },
+        {
+          "definition": "a sense of shared understanding, camaraderie",
+          "term": "la complicidad"
+        },
+        {
+          "definition": "the train/car window",
+          "term": "la ventanilla"
+        },
+        {
+          "definition": "without a fixed direction, aimlessly",
+          "term": "sin rumbo fijo"
+        },
+        {
+          "definition": "a traditional café-bakery",
+          "note": "Especially associated with Buenos Aires' historic cafés.",
+          "term": "la confitería"
+        },
+        {
+          "definition": "the croissant",
+          "note": "Argentine term; not used this way elsewhere.",
+          "term": "la medialuna"
+        },
+        {
+          "definition": "you are / you have (voseo)",
+          "note": "Rioplatense voseo replaces tú with vos and shifts present-tense stress: sos instead of eres, tenés instead of tienes.",
+          "term": "vos sos / vos tenés"
+        },
+        {
+          "definition": "let yourself / you find (voseo imperative & present)",
+          "note": "Voseo imperative dejate (from dejarse) and voseo present encontrás (from encontrar).",
+          "term": "dejate / encontrás"
+        },
+        {
+          "definition": "the face",
+          "term": "el rostro"
+        },
+        {
+          "definition": "to hold onto, to keep (advice)",
+          "term": "guardar un consejo"
+        },
+        {
+          "definition": "back, in return",
+          "term": "de vuelta"
+        },
+        {
+          "definition": "the bottom, the core (\"en el fondo\" = deep down)",
+          "term": "el fondo"
+        }
+      ],
+      "id": "es-c1-el-ultimo-tren-a-buenos-aires",
+      "kind": "story",
+      "language": "es",
+      "level": "advanced",
+      "level_detail": "C1 — Argentine Spanish (voseo)",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "agent-t7b"
+      },
+      "subject": "spanish",
+      "summary": "Julián returns to Buenos Aires after a decade away and meets a stranger on the train.",
+      "title": "El último tren a Buenos Aires"
+    }
+  ],
+  "subject": "spanish"
+}

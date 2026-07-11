@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentculture.org/learn/contract/1.0/overview.json",
+  "title": "Subject overview payload",
+  "description": "Emitted by `<subject> overview --json`. The subject's self-description: identity, modules (one site sub-page per module), and content counts. Learner-independent and side-effect free.",
+  "type": "object",
+  "required": ["schema_version", "kind", "subject", "display_name", "description", "modules"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$",
+      "description": "Contract version family 1.x this payload conforms to."
+    },
+    "kind": { "const": "subject_overview" },
+    "subject": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "The subject's registry id (e.g. 'french')."
+    },
+    "display_name": { "type": "string", "minLength": 1 },
+    "tagline": { "type": "string" },
+    "description": { "type": "string", "minLength": 1 },
+    "language": {
+      "type": "string",
+      "description": "BCP-47 tag of the language being taught, when the subject is a language."
+    },
+    "modules": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Ordered course modules; the web face renders one sub-page per module.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "summary"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+          "title": { "type": "string", "minLength": 1 },
+          "summary": { "type": "string", "minLength": 1 },
+          "level": { "enum": ["beginner", "intermediate", "advanced"] }
+        }
+      }
+    },
+    "content": {
+      "type": "object",
+      "description": "Counts of committed content, for catalog display and content gates.",
+      "properties": {
+        "stories": { "type": "integer", "minimum": 0 },
+        "lessons": { "type": "integer", "minimum": 0 },
+        "exercises": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

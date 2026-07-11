@@ -1,0 +1,10 @@
+# Worker deps + build artifacts
+node_modules/
+.wrangler/
+dist/
+
+# Local dev secrets — NEVER commit (mirror of `wrangler secret put`)
+.dev.vars
+.dev.vars.*
+*.local
+package-lock.json

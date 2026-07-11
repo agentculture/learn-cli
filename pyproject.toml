@@ -1,6 +1,6 @@
 [project]
 name = "learn-cli"
-version = "0.4.2"
+version = "0.5.0"
 description = "A CLI, MCP server, and web front for learning — a hosted site where humans and agents learn a subject step by step. Fronts the french-cli and spanish-cli language tutors, and generalizes to other learnable domains such as leading teams of agents. The learn command is the local operator surface and how agents drive it."
 readme = "README.md"
 license = "Apache-2.0"
@@ -13,7 +13,10 @@ classifiers = [
     "Topic :: Software Development",
     "Intended Audience :: Developers",
 ]
-dependencies = []
+# The three faces (CLI additions, MCP server, HTTP site + static export) are all
+# derived from one agentfront App (learn/front/). The [mcp] extra pulls the mcp
+# SDK that `learn mcp serve` needs; the CLI/HTTP/export faces work without it.
+dependencies = ["agentfront[mcp]>=0.20"]
 
 [project.urls]
 Homepage = "https://github.com/agentculture/learn-cli"

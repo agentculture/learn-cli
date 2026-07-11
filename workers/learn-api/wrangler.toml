@@ -1,0 +1,66 @@
+# wrangler config for the learn API Worker.
+#
+# This is the thin, Cloudflare-native dynamic layer behind agentculture.org/learn
+# (spec decision c22): auth sessions, the learner ledger, and the tutoring
+# broker. The static site + signed-out tour are served by Cloudflare Pages and
+# never invoke this Worker.
+#
+# Placeholders below (ids marked REPLACE_ME) are filled in by the operator at
+# provisioning time — see README.md. Nothing secret lives in this file; secrets
+# are set with `wrangler secret put` (also in README.md).
+
+name = "learn-api"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+# Node-compat is not required — the Worker uses only Web-standard APIs
+# (fetch, Request/Response, crypto.subtle, btoa/atob). Keep the bundle lean.
+
+# --- Non-secret vars -------------------------------------------------------
+# INFERENCE_URL points at the cloudai-cli / ec2bedrock-cli SERVED endpoint
+# (an OpenAI-shaped HTTP API), NEVER a bespoke provider SDK. The broker only
+# ever POSTs JSON to this URL. Leave it unset to disable tutoring (broker 503s).
+[vars]
+GITHUB_CLIENT_ID = "REPLACE_ME_github_oauth_client_id"
+# PUBLIC_URL   = "https://agentculture.org"          # origin used to build the OAuth callback
+# APP_URL      = "https://agentculture.org/learn/"   # where the web callback redirects post-login
+# CORS_ORIGIN  = "https://agentculture.org"          # allow the /learn site to call the API with creds
+# INFERENCE_URL = "https://<cloudai-or-ec2bedrock-served-endpoint>/v1/messages"
+# PAGES_ORIGIN = "https://agentculture-learn.pages.dev"  # static-site origin the /learn zone mount proxies to
+
+# --- Zone route (the same-origin /learn mount) -------------------------------
+# Cloudflare Pages cannot be mounted at a path, so this ONE worker owns
+# agentculture.org/learn/*: /learn/api/* is handled here, everything else
+# proxies to PAGES_ORIGIN (which serves the site under /learn/ too).
+# Uncomment once the zone is reachable from this account's token:
+# routes = [
+#   { pattern = "agentculture.org/learn/*", zone_name = "agentculture.org" },
+#   { pattern = "agentculture.org/learn", zone_name = "agentculture.org" },
+# ]
+
+# --- Secrets (NEVER committed) ---------------------------------------------
+# Set with: wrangler secret put <NAME>
+#   SESSION_SECRET        random >=32 bytes; signs session tokens (HMAC-SHA256)
+#   GITHUB_CLIENT_SECRET  from the GitHub OAuth app
+#   INFERENCE_TOKEN       bearer token for the served inference endpoint
+
+# --- KV: sessions namespace -------------------------------------------------
+# Holds device-flow bookkeeping and session-revocation tombstones. Sessions
+# themselves are stateless signed tokens; KV is only for revocation + device
+# codes. Create with: wrangler kv namespace create SESSIONS
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "REPLACE_ME_kv_namespace_id"
+preview_id = "REPLACE_ME_kv_preview_namespace_id"
+
+# --- D1: learner ledger -----------------------------------------------------
+# learners (id, display_name, state) + records (append-only recorded results).
+# Create with: wrangler d1 create learn-ledger
+# Init schema:  wrangler d1 execute learn-ledger --file schema.sql
+[[d1_databases]]
+binding = "DB"
+database_name = "learn-ledger"
+database_id = "REPLACE_ME_d1_database_id"
+
+# --- Observability ----------------------------------------------------------
+[observability]
+enabled = true

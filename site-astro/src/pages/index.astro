@@ -1,0 +1,175 @@
+---
+// The /learn/ landing page: what learn is, the subject catalog as cards
+// (module + story counts pulled live from the content-export fixtures), and
+// how to install the CLI. Mirrors org's index.astro pattern (hero + teaser
+// cards) with zero new design tokens.
+import Layout from "../layouts/Layout.astro";
+import PageHero from "../components/PageHero.astro";
+import LearnerPanelOverview from "../components/LearnerPanelOverview.astro";
+import site from "../data/site";
+import { getSubjects, storyCount, moduleCount } from "../lib/content";
+
+const subjects = getSubjects();
+---
+
+<Layout title={`${site.title} · ${site.orgTitle}`} description={site.tagline} homeHref="./">
+  <PageHero title={site.title} intro={site.intro} />
+
+  <section class="section learner-section" aria-label="Your learning">
+    <div class="container">
+      <LearnerPanelOverview subjects={subjects} />
+    </div>
+  </section>
+
+  <section class="section" aria-label="Subjects">
+    <div class="container">
+      <ul class="subjects">
+        {
+          subjects.map((subject, i) => (
+            <li data-reveal style={`--reveal-delay: ${Math.min(i * 0.1, 0.3)}s`}>
+              <a class="card subject-card" href={`${subject.name}/`}>
+                <header class="subject-head">
+                  <h2>{subject.display_name}</h2>
+                  {!subject.available && <span class="badge muted">stories only</span>}
+                </header>
+                <p class="muted">{subject.description}</p>
+                <dl class="stats">
+                  <div>
+                    <dt>Modules</dt>
+                    <dd>{moduleCount(subject)}</dd>
+                  </div>
+                  <div>
+                    <dt>Stories</dt>
+                    <dd>{storyCount(subject)}</dd>
+                  </div>
+                </dl>
+                <span class="go" aria-hidden="true">
+                  →
+                </span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <section class="section install" aria-label="Install the CLI">
+    <div class="container prose">
+      <h2 data-reveal>Install the CLI</h2>
+      <p class="muted" data-reveal>
+        Everything on this site also runs from a terminal — the same
+        subjects, the same stories, the same practice. Agents drive it the
+        same way a human does.
+      </p>
+      <pre data-reveal><code>uv tool install learn-cli
+learn subjects</code></pre>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .learner-section {
+    padding-block: 0 1rem;
+  }
+
+  .subjects {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    gap: 1.4rem;
+  }
+
+  .subject-card {
+    position: relative;
+    height: 100%;
+    padding-bottom: 3.2rem;
+  }
+
+  .subject-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .subject-head h2 {
+    margin: 0;
+    font-size: 1.4rem;
+  }
+
+  .badge {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    font-weight: 640;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+  }
+
+  .subject-card p {
+    font-size: 0.97rem;
+    line-height: 1.6;
+    margin-bottom: 1.1em;
+  }
+
+  .stats {
+    display: flex;
+    gap: 1.6rem;
+    margin: 0;
+  }
+
+  .stats dt {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  .stats dd {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    color: var(--ink);
+  }
+
+  .subject-card .go {
+    position: absolute;
+    left: 2rem;
+    bottom: 1.6rem;
+    color: var(--accent);
+    font-size: 1.15rem;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .subject-card .go {
+      transition: transform 0.35s var(--ease-out);
+    }
+
+    .subject-card:hover .go {
+      transform: translateX(6px);
+    }
+  }
+
+  .install h2 {
+    margin-bottom: 0.5em;
+  }
+
+  .install pre {
+    background: var(--surface);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.4rem;
+    overflow-x: auto;
+    box-shadow: var(--shadow);
+  }
+
+  .install code {
+    font-size: 0.88em;
+    line-height: 1.6;
+  }
+</style>
