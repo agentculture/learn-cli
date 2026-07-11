@@ -227,6 +227,9 @@ export async function listAllLearners(env) {
       // Absent field means "private" — same default getLearner/handleMe use
       // (spec c12: default-private, no migration needed for existing rows).
       visibility: state.visibility === "public" ? "public" : "private",
+      // Absent key means NOT approved (spec c13, t9) — reported as a literal
+      // false so the admin surface never has to distinguish undefined/false.
+      approved: state.approved === true,
       consent: latestConsentByUser.get(uid) || null,
       records,
       records_total: Object.values(records).reduce((a, b) => a + b, 0),
@@ -251,6 +254,31 @@ export async function setLearnerVisibility(env, uid, visibility) {
     .bind(JSON.stringify(state), now, String(uid))
     .run();
   return visibility;
+}
+
+/**
+ * Set (or clear) a learner's tutoring-tier approval flag inside their
+ * `state` blob (spec c13, decision c20's flag half; task t9). Same
+ * no-schema-change pattern as setLearnerVisibility directly above:
+ * read-then-write, merging into whatever else lives in `state`. Approving
+ * stores a literal `approved: true`; revoking DELETES the key rather than
+ * writing `false`, so a revoked learner's state is indistinguishable from a
+ * never-approved one and every reader keeps one rule — absent means not
+ * approved, no migration for pre-t9 rows. POLICY is the caller's job: the
+ * c20 "consent must be current" precondition lives in index.js's
+ * handleAdminApprove, not here (mirroring how listAllLearners leaves
+ * consent_status policy to its caller).
+ */
+export async function setLearnerApproved(env, uid, approved) {
+  const learner = await getLearner(env, uid);
+  const state = { ...(learner ? learner.state : {}) };
+  if (approved) state.approved = true;
+  else delete state.approved;
+  const now = new Date().toISOString();
+  await env.DB.prepare(`UPDATE learners SET state = ?, updated_at = ? WHERE github_user_id = ?`)
+    .bind(JSON.stringify(state), now, String(uid))
+    .run();
+  return !!approved;
 }
 
 /**
