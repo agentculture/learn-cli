@@ -14,12 +14,19 @@ from __future__ import annotations
 import json
 import os
 import stat
+import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable
 
 import pytest
+
+# The voice-bridge Lambda package lives under infra/ (outside the learn/
+# package on purpose — see infra/template.yaml), so tests import it by path.
+_INFRA_DIR = Path(__file__).resolve().parent.parent / "infra"
+if str(_INFRA_DIR) not in sys.path:
+    sys.path.insert(0, str(_INFRA_DIR))
 
 FIXTURE_SUBJECTS = Path(__file__).parent / "fixtures" / "subjects"
 CONFORMANT_SCRIPT = FIXTURE_SUBJECTS / "conformant_subject.py"
