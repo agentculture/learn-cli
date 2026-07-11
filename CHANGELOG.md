@@ -29,6 +29,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Launch-gate api-server.mjs no longer throws ERR_HTTP_HEADERS_SENT on Set-Cookie responses (consent accept / login / logout / delete), so those flows can be exercised end-to-end.
 - getConsent tiebreaks same-millisecond granted_at rows by rowid, removing a flaky re-consent race.
+- Review fix (security): POST /api/delete now revokes EVERY session for the learner, not only the calling token — a per-uid revocation marker (`revoked_uid:<uid>`) that requireAuth checks, so "delete logs me out everywhere."
+- Review fix (reliability): the monthly voice budget is now booked with a compare-and-swap retry on the learner row, so concurrent /api/voice/token mints can no longer both pass the cap check and exceed it.
+- Review fix (performance): the voice-bridge Lambda's $connect concurrency gate queries session metadata under a constant partition key (Query COUNT) instead of a full-table Scan that read every frame item.
+- Review fix (maintainability): the two new cloze conformance validators were refactored below SonarCloud's cognitive-complexity threshold (behavior-preserving helper extraction).
 
 ## [0.5.4] - 2026-07-11
 
