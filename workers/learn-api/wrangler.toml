@@ -35,9 +35,9 @@ routes = [
 # (an OpenAI-shaped HTTP API), NEVER a bespoke provider SDK. The broker only
 # ever POSTs JSON to this URL. Leave it unset to disable tutoring (broker 503s).
 [vars]
-# GITHUB_CLIENT_ID is public; still REPLACE_ME until the GitHub OAuth app exists
-# (needed only for the signed-in tier — see README "Phase 2").
-GITHUB_CLIENT_ID = "REPLACE_ME_github_oauth_client_id"
+# GITHUB_CLIENT_ID is public (the OAuth/GitHub-App client id). The matching
+# GITHUB_CLIENT_SECRET is set via `wrangler secret put`, never committed.
+GITHUB_CLIENT_ID = "Ov23liX8uNduVkEqVeQB"
 PUBLIC_URL   = "https://agentculture.org"          # origin used to build the OAuth callback
 APP_URL      = "https://agentculture.org/learn/"   # where the web callback redirects post-login
 CORS_ORIGIN  = "https://agentculture.org"          # allow the /learn site to call the API with creds
@@ -56,8 +56,8 @@ PAGES_ORIGIN = "https://agentculture-learn.pages.dev"  # static-site origin the 
 # codes. Create with: wrangler kv namespace create SESSIONS
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "REPLACE_ME_kv_namespace_id"
-preview_id = "REPLACE_ME_kv_preview_namespace_id"
+id = "9b32092755154bb5a1a72e1b92102254"
+preview_id = "11ce3873085a4cee89fb791e0be901ab"
 
 # --- D1: learner ledger -----------------------------------------------------
 # learners (id, display_name, state) + records (append-only recorded results).
@@ -66,7 +66,7 @@ preview_id = "REPLACE_ME_kv_preview_namespace_id"
 [[d1_databases]]
 binding = "DB"
 database_name = "learn-ledger"
-database_id = "REPLACE_ME_d1_database_id"
+database_id = "c32b7bf6-b0a8-4c22-86f7-b50b3aa22a2e"
 
 # --- Observability ----------------------------------------------------------
 [observability]

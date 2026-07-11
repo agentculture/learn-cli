@@ -281,6 +281,17 @@ test("GET /api/auth/login redirects to GitHub with a state cookie", async () => 
   assert.ok(res.headers.getSetCookie().some((c) => c.startsWith("oauth_state=")));
 });
 
+test("login redirect_uri carries the /learn mount prefix (matches the GitHub app callback)", async () => {
+  // Regression: the callback must include /learn or GitHub rejects the flow
+  // (redirect_uri mismatch) AND the bare-origin callback would miss this
+  // worker's zone route and hit org's Pages site instead.
+  const env = makeEnv({ APP_URL: "https://agentculture.org/learn/" });
+  const res = await call(env, new Request(`${BASE}/learn/api/auth/login`));
+  assert.equal(res.status, 302);
+  const redirectUri = new URL(res.headers.get("Location")).searchParams.get("redirect_uri");
+  assert.equal(redirectUri, "https://agentculture.org/learn/api/auth/callback");
+});
+
 test("GET /api/auth/callback exchanges code, upserts learner, sets session", async () => {
   const fetchStub = makeFetchStub({
     [GH.token]: () => jsonResp({ access_token: "gho_web", token_type: "bearer" }),

@@ -125,7 +125,7 @@ function handleHealth(env) {
 function handleLogin(request, env) {
   requireConfig(env, "GITHUB_CLIENT_ID");
   const url = new URL(request.url);
-  const redirectUri = `${publicOrigin(env, url)}/api/auth/callback`;
+  const redirectUri = callbackUrl(env, url);
   const state = crypto.randomUUID();
   return redirect(authorizeUrl(env, redirectUri, state), {
     "Set-Cookie": cookie("oauth_state", state, { maxAge: 600, sameSite: "Lax" }),
@@ -309,6 +309,16 @@ function requireConfig(env, key) {
 
 function publicOrigin(env, url) {
   return env.PUBLIC_URL ? env.PUBLIC_URL.replace(/\/+$/, "") : url.origin;
+}
+
+// The GitHub OAuth callback URL. It MUST carry the /learn zone-mount prefix so
+// it (a) matches the GitHub app's registered callback and (b) routes back to
+// THIS worker (agentculture.org/learn/*) rather than org's Pages site at the
+// bare origin. APP_URL is the mount root (".../learn/") and the callback lives
+// under it; fall back to origin + /learn/ when APP_URL is unset (local/dev).
+function callbackUrl(env, url) {
+  const base = (env.APP_URL || `${publicOrigin(env, url)}/learn/`).replace(/\/+$/, "");
+  return `${base}/api/auth/callback`;
 }
 
 async function readJson(request) {
