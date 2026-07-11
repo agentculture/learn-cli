@@ -101,14 +101,19 @@ const typeLabel: Record<string, string> = {
 
   {
     story.exercises.length > 0 && (
-      <section class="section exercises-section" aria-label="Comprehension questions">
+      <section
+        class="section exercises-section"
+        aria-label="Comprehension questions"
+        data-subject={subject.name}
+        data-story-id={story.id}
+      >
         <div class="container prose">
           <h2 data-reveal>Comprehension questions</h2>
           <p class="muted" data-reveal>
             {story.exercises.length}{" "}
             {story.exercises.length === 1 ? "question" : "questions"} — practice
-            and checking happen in the CLI, or sign in on the web once that
-            lands.
+            and checking happen in the CLI, or sign in on the web to record
+            your results here.
           </p>
           <ol class="exercises">
             {story.exercises.map((exercise) => (
@@ -124,10 +129,30 @@ const typeLabel: Record<string, string> = {
                     ))}
                   </ul>
                 )}
+                {exercise.item_id && (
+                  <div
+                    class="record signedin-only"
+                    data-record
+                    data-item-id={exercise.item_id}
+                    data-exercise-id={exercise.id}
+                  >
+                    <span class="record-label muted">Record your result:</span>
+                    <button type="button" class="record-btn" data-result="pass">
+                      Got it
+                    </button>
+                    <button type="button" class="record-btn" data-result="partial">
+                      Partly
+                    </button>
+                    <button type="button" class="record-btn" data-result="fail">
+                      Missed it
+                    </button>
+                    <span class="record-status muted" data-record-status aria-live="polite"></span>
+                  </div>
+                )}
               </li>
             ))}
           </ol>
-          <p class="cta-note muted" data-reveal>
+          <p class="cta-note muted signedout-only" data-reveal>
             Practice with the CLI (<code>{subject.name} practice</code>), or
             sign in to check your answers and track a streak.
           </p>
@@ -233,5 +258,55 @@ const typeLabel: Record<string, string> = {
   .cta-note {
     margin-top: 1.6rem;
     font-size: 0.94rem;
+  }
+
+  /* Signed-out CTA note fades out once signed in — the record buttons
+     below (.record, shown via the shared .signedin-only default in
+     global.css) are its replacement, not an addition alongside it. */
+  :global(html[data-auth="in"]) .cta-note {
+    display: none;
+  }
+
+  .record {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.7rem;
+  }
+
+  :global(html[data-auth="in"]) .record {
+    display: flex;
+  }
+
+  .record-label {
+    font-size: 0.82rem;
+  }
+
+  .record-btn {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.3rem 0.8rem;
+    cursor: pointer;
+  }
+
+  .record-btn:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+    color: var(--accent-strong);
+  }
+
+  .record-btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  .record-status {
+    font-size: 0.82rem;
+    font-style: italic;
   }
 </style>

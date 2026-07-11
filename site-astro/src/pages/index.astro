@@ -5,6 +5,7 @@
 // cards) with zero new design tokens.
 import Layout from "../layouts/Layout.astro";
 import PageHero from "../components/PageHero.astro";
+import LearnerPanelOverview from "../components/LearnerPanelOverview.astro";
 import site from "../data/site";
 import { getSubjects, storyCount, moduleCount } from "../lib/content";
 
@@ -13,6 +14,12 @@ const subjects = getSubjects();
 
 <Layout title={`${site.title} · ${site.orgTitle}`} description={site.tagline} homeHref="./">
   <PageHero title={site.title} intro={site.intro} />
+
+  <section class="section learner-section" aria-label="Your learning">
+    <div class="container">
+      <LearnerPanelOverview subjects={subjects} />
+    </div>
+  </section>
 
   <section class="section" aria-label="Subjects">
     <div class="container">
@@ -62,6 +69,10 @@ learn subjects</code></pre>
 </Layout>
 
 <style>
+  .learner-section {
+    padding-block: 0 1rem;
+  }
+
   .subjects {
     list-style: none;
     display: grid;

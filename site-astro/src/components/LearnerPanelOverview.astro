@@ -1,0 +1,152 @@
+---
+// The landing page's learner panel — the cross-subject counterpart to
+// LearnerPanelSubject.astro (see that file's comment for the honesty notes
+// on "mastered/touched" vs. curriculum totals, and on "last active" vs. a
+// true streak count; both apply here unchanged).
+//
+// One card, one signed-out invitation, one signed-in list built entirely
+// client-side by learner.js from:
+//   1. `data-subjects` below — the subject roster (name/display_name/href),
+//      embedded as static JSON at build time so hydration needs zero extra
+//      calls to discover *which* subjects exist;
+//   2. one GET /api/progress/:subject per subject in that roster (t14's
+//      whitelisted, signed-in-only endpoint).
+// No cross-subject aggregate endpoint exists on workers/learn-api today, so
+// this is the two-step client-side join a per-learner "everything" endpoint
+// would otherwise do server-side — worth revisiting if that endpoint ever
+// lands, but not a change this task makes to workers/.
+import type { Subject } from "../lib/content";
+import { API_BASE } from "../lib/api";
+
+interface Props {
+  subjects: Subject[];
+}
+const { subjects } = Astro.props;
+const subjectRoster = subjects.map((s) => ({
+  name: s.name,
+  display_name: s.display_name,
+  href: `${s.name}/`,
+}));
+---
+
+<div class="card learner-panel" data-learner-panel="overview">
+  <div class="panel-out signedout-only">
+    <span class="eyebrow">Your learning</span>
+    <p class="lede">Sign in to track progress, streaks, and get your next lesson.</p>
+    <p class="muted">
+      One learner profile spans every subject here — mastered items, when you
+      last studied, and an adaptive next step, wherever you left off.
+    </p>
+    <a class="btn-signin" href={`${API_BASE}/auth/login`}>Sign in with GitHub</a>
+  </div>
+
+  <div class="panel-in signedin-only">
+    <span class="eyebrow">Welcome back, <span data-auth-name>your account</span></span>
+
+    <p class="panel-empty muted" data-slot="empty" hidden>
+      Nothing recorded yet. Pick a subject below and your first session will
+      show up here.
+    </p>
+
+    <ul class="subject-rows" data-slot="subject-rows" hidden></ul>
+  </div>
+
+  <script type="application/json" data-subjects set:html={JSON.stringify(subjectRoster)} />
+</div>
+
+<style>
+  .learner-panel {
+    margin-bottom: 2.2rem;
+    min-block-size: 9rem;
+  }
+
+  .panel-out .lede {
+    margin-bottom: 0.5em;
+  }
+
+  .btn-signin {
+    display: inline-block;
+    margin-top: 0.9rem;
+    padding: 0.55rem 1.2rem;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+    font-size: 0.92rem;
+    text-decoration: none;
+  }
+
+  :global(html[data-auth="in"]) .panel-out {
+    display: none;
+  }
+
+  :global(html[data-auth="in"]) .panel-in {
+    display: block;
+  }
+
+  .subject-rows {
+    list-style: none;
+    gap: 0.9rem;
+    margin-top: 0.9rem;
+  }
+
+  /* The list ships with the `hidden` attribute (see the markup above) and
+     stays that way — showing the empty-state copy instead — until
+     learner.js finds at least one touched subject. `:not([hidden])` (not
+     an unconditional `display: grid`) is what makes the attribute able to
+     actually hide it: an unconditional author `display` would outrank the
+     UA stylesheet's `[hidden] { display: none }` at equal specificity. */
+  .subject-rows:not([hidden]) {
+    display: grid;
+  }
+
+  .subject-rows :global(.subject-row) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.7rem 1.1rem;
+    padding-block: 0.5rem;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .subject-rows :global(.subject-row:last-child) {
+    border-bottom: none;
+  }
+
+  .subject-rows :global(.subject-row a) {
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .subject-rows :global(.subject-row-stat) {
+    font-size: 0.88rem;
+  }
+
+  .subject-rows :global(.progress-bar) {
+    display: block;
+    flex-basis: 7rem;
+    flex-grow: 1;
+    max-width: 10rem;
+    height: 0.4rem;
+    border-radius: 999px;
+    background: var(--line-soft);
+    overflow: hidden;
+  }
+
+  .subject-rows :global(.progress-bar-fill) {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    border-radius: inherit;
+  }
+
+  .subject-rows :global(.streak-chip) {
+    display: inline-block;
+    font-size: 0.76rem;
+    font-weight: 640;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent-strong);
+  }
+</style>

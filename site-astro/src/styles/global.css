@@ -351,6 +351,29 @@ a.card:hover {
   }
 }
 
+/* ---------- auth-state visibility ----------
+   Signed-out is the default, no-JS-safe state (see src/scripts/learner.js
+   and README.md's "Auth" section): every `.signedin-only` element renders
+   in the static HTML but stays hidden until learner.js confirms a session
+   (GET /api/me -> 200) and stamps data-auth="in" on <html>. Each component
+   that uses this class pairs it with its own
+   `html[data-auth="in"] .signedin-only { display: ...; }` /
+   `html[data-auth="in"] .signedout-only { display: none; }` override —
+   the "shown" display value is context-specific (inline-flex for a header
+   slot, block for a card), so there is no single generic "shown" rule to
+   centralize here, only the shared hidden default.
+
+   A 401 or network-error bootstrap stamps data-auth="out" explicitly, but
+   nothing in this file (or any component) keys off "out" — the built
+   static HTML never carries a data-auth attribute at all (learner.js adds
+   it at runtime), so a no-JS visit and a checked-and-signed-out visit
+   render byte-for-byte the same signed-out markup. That equivalence is
+   what site-astro/scripts/check-static-auth.mjs verifies. */
+
+.signedin-only {
+  display: none;
+}
+
 /* ---------- reduced-motion kill switch ----------
    Belt and braces: even transitions declared in component-scoped styles
    are silenced, and view transitions fall back to instant navigation. */

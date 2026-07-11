@@ -1,8 +1,6 @@
 ---
 // Adapted from org/site-astro's Header.astro — same markup shape, same
-// classes, same tokens (zero new CSS). Two differences from the org header,
-// both from the brief (learn-cli is served under agentculture.org/learn and
-// must still read as the same site):
+// classes, same tokens. Three differences from the org header:
 //   1. The org wordmark ("AgentCulture") always points at the org root,
 //      even from here — clicking the brand name leaves this sub-site.
 //   2. A second, local wordmark segment ("Learn") plus a "Subjects" nav
@@ -10,8 +8,15 @@
 //      `homeHref` — a relative path computed by the calling page (see
 //      Layout.astro), since the base-path/domain mapping between the
 //      Pages preview and agentculture.org/learn isn't settled yet (README).
+//   3. An auth slot (t14): a quiet "Sign in" link, real and functional
+//      with zero JS (a plain anchor to `${API_BASE}/auth/login`), and a
+//      signed-in variant (display name + "Sign out") that only appears
+//      once src/scripts/learner.js confirms a session and stamps
+//      data-auth="in" on <html> — see global.css's "auth-state visibility"
+//      block for the show/hide mechanics and README.md's "Auth" section.
 import site from "../data/site";
 import Mark from "./Mark.astro";
+import { API_BASE } from "../lib/api";
 
 interface Props {
   homeHref: string;
@@ -42,20 +47,33 @@ const onLanding = homeHref === "./";
         {site.title}
       </a>
     </div>
-    <nav aria-label="Primary">
-      <ul>
-        <li>
-          <a href={homeHref} aria-current={onLanding ? "page" : undefined}>Subjects</a>
-        </li>
-        {
-          orgLinks.map(({ href, label }) => (
-            <li>
-              <a href={href}>{label}</a>
-            </li>
-          ))
-        }
-      </ul>
-    </nav>
+    <div class="bar-end">
+      <nav aria-label="Primary">
+        <ul>
+          <li>
+            <a href={homeHref} aria-current={onLanding ? "page" : undefined}>Subjects</a>
+          </li>
+          {
+            orgLinks.map(({ href, label }) => (
+              <li>
+                <a href={href}>{label}</a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+      <div class="auth-slot" aria-live="polite">
+        <a class="auth-signin signedout-only" href={`${API_BASE}/auth/login`}>
+          Sign in
+        </a>
+        <div class="auth-signedin signedin-only">
+          <span class="auth-name" data-auth-name>your account</span>
+          <button type="button" class="auth-signout" data-sign-out>
+            Sign out
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </header>
 
@@ -113,6 +131,13 @@ const onLanding = homeHref === "./";
     color: var(--ink);
   }
 
+  .bar-end {
+    display: flex;
+    align-items: center;
+    gap: clamp(1.1rem, 3vw, 1.8rem);
+    flex-wrap: wrap;
+  }
+
   nav ul {
     display: flex;
     align-items: center;
@@ -159,5 +184,68 @@ const onLanding = homeHref === "./";
     nav a::after {
       transition: transform 0.35s var(--ease-out);
     }
+  }
+
+  /* ---------- auth slot ----------
+     Base state (also the no-JS state): the quiet "Sign in" link is a real,
+     working anchor with no JS dependency. `.auth-signedin` is hidden by the
+     shared `.signedin-only` rule in global.css until learner.js stamps
+     data-auth="in" on <html> — see that file's "auth-state visibility"
+     comment for why the show/hide split lives partly there, partly here. */
+
+  .auth-slot {
+    display: flex;
+    align-items: center;
+  }
+
+  .auth-signin {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--ink-soft);
+    text-decoration: none;
+  }
+
+  .auth-signin:hover {
+    color: var(--ink);
+  }
+
+  .auth-signedin {
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  :global(html[data-auth="in"]) .auth-signedin {
+    display: inline-flex;
+  }
+
+  :global(html[data-auth="in"]) .auth-signin {
+    display: none;
+  }
+
+  .auth-name {
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: var(--ink);
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .auth-signout {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--ink-soft);
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.3rem 0.8rem;
+    cursor: pointer;
+  }
+
+  .auth-signout:hover {
+    color: var(--ink);
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
   }
 </style>
