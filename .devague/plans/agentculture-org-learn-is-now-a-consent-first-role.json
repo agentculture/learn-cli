@@ -1,0 +1,521 @@
+{
+  "slug": "agentculture-org-learn-is-now-a-consent-first-role",
+  "title": "agentculture.org/learn is now a consent-first, role-aware tutoring service: sign-in asks explicit consent against versioned Terms + Privacy before anything is saved (with self-serve export and delete), an admin approves which learners get the Bedrock tutoring tier \u2014 Nova Sonic 2 voice sessions and a Nova Pro teacher with personalized cloze stories \u2014 and the curriculum ships a level deeper across french, spanish, and culture-guide with a new cloze exercise type",
+  "frame_slug": "agentculture-org-learn-is-now-a-consent-first-role",
+  "schema_version": 2,
+  "status": "exported",
+  "created": "2026-07-11T06:37:27Z",
+  "updated": "2026-07-11T06:44:11Z",
+  "targets": [
+    {
+      "id": "c1",
+      "kind": "announcement",
+      "text": "agentculture.org/learn is now a consent-first, role-aware tutoring service: sign-in asks explicit consent against versioned Terms + Privacy before anything is saved (with self-serve export and delete), an admin approves which learners get the Bedrock tutoring tier \u2014 Nova Sonic 2 voice sessions and a Nova Pro teacher with personalized cloze stories \u2014 and the curriculum ships a level deeper across french, spanish, and culture-guide with a new cloze exercise type"
+    },
+    {
+      "id": "h10",
+      "kind": "honesty",
+      "text": "The announcement is only true when every acceptance check in the success signal (c8) is demonstrable against prod agentculture.org/learn \u2014 consent-gated writes, versioned re-consent, self-serve delete, 403-with-zero-inference for non-approved, a working approved-tier Nova Pro + Nova Sonic 2 session, cloze content live"
+    },
+    {
+      "id": "c2",
+      "kind": "audience",
+      "text": "Signed-in learners at agentculture.org/learn (humans on the web + agents via CLI/MCP device flow), the admin (GitHub id 20955789 / OriNachum), upstream subject-CLI maintainers (french-cli, spanish-cli, culture-guide), and org as the domain owner for the policy pages"
+    },
+    {
+      "id": "h12",
+      "kind": "honesty",
+      "text": "Each named audience has a concrete surface in the shipped uplift: learners get the consent + tutoring flows, the admin gets the approve/revoke surface, subject repos get the cloze contract change, org gets the policy-page link touchpoint"
+    },
+    {
+      "id": "c3",
+      "kind": "before_state",
+      "text": "Live gap: both sign-in paths (web handleCallback and device-flow poll) upsertLearner + issue a session with NO consent step \u2014 verified on the first real sign-in. No roles: every signed-in user has the same view. /api/tutor requires only a session (no approval flag exists) and 503s because INFERENCE_URL is unset. No Terms/Privacy pages exist. Curriculum is launch-depth; no cloze exercise type in the contract."
+    },
+    {
+      "id": "h13",
+      "kind": "honesty",
+      "text": "The gap is reproducible today: a fresh sign-in on prod writes a learners row with no consent prompt, and the code shows no approval flag and no consent table (index.js handleCallback + handleDevice both call upsertLearner unconditionally; schema.sql has two tables)"
+    },
+    {
+      "id": "c4",
+      "kind": "why_it_matters",
+      "text": "The nav link is public on agentculture.org \u2014 real users can sign in today into a system that persists identity + full learning history with no recorded consent (compliance exposure that grows with every new user), and the tutoring tier is the actual product value: inference costs real money, so it must be admin-approved per learner"
+    },
+    {
+      "id": "h14",
+      "kind": "honesty",
+      "text": "Holds while the nav link is public and sign-in is open: any new user's first sign-in persists identity + history unconsented, and once INFERENCE_URL is set every tutor call spends real money \u2014 so both halves (consent, approval) are live risks, not hypotheticals"
+    },
+    {
+      "id": "c5",
+      "kind": "after_state",
+      "text": "First sign-in presents a consent notice pinned to a published Terms/Privacy version and writes nothing until the learner accepts; consent is recorded (learner, terms_version, granted_at) and a version bump forces re-consent; learners can export and delete everything self-serve; the admin (id allow-list) approves who gets tutoring; approved learners get a Nova Pro teacher (grading, adaptive next-step, personalized cloze stories) and a Nova Sonic 2 voice session; all three subjects ship cloze exercises and a deeper curriculum, re-exported to /learn"
+    },
+    {
+      "id": "h15",
+      "kind": "honesty",
+      "text": "Every clause of the after-state maps to at least one confirmed requirement (c9-c13, c15-c17, c24) and is exercised by a success-signal check \u2014 no aspirational orphan clauses in the spec"
+    },
+    {
+      "id": "c6",
+      "kind": "boundary",
+      "text": "Invariants that hold: no email/password ever (GitHub id + public display name only); signed-out stays fully static with zero API/model calls; the Worker stays provider-agnostic (no Bedrock SDK in the Worker \u2014 inference only via served OpenAI-shaped endpoints). Deep curriculum authoring happens UPSTREAM in the subject repos (their own issues spawn from #9) \u2014 this spec covers the contract change (cloze), the export/redeploy, and all learn-cli-side wiring, not the prose of new French stories."
+    },
+    {
+      "id": "h16",
+      "kind": "honesty",
+      "text": "The invariants are mechanically checkable: the schema stores no email/password column, signed-out pages make zero API calls (existing launch gate), the Worker diff adds no provider SDK, and no subject prose is authored inside learn-cli"
+    },
+    {
+      "id": "c8",
+      "kind": "success_signal",
+      "text": "Launch-gate-style checks, all green against prod: a fresh first sign-in writes zero D1 rows until consent is accepted (web AND device paths); bumping the published terms version forces re-consent on next authenticated request; self-serve delete leaves no row carrying the learner's github_user_id and revokes the session; a signed-in but non-approved learner calling /api/tutor gets 403 with zero outbound inference calls; an approved learner completes a Nova Pro-graded exercise and a Nova Sonic 2 voice exchange; cloze exercises from all three subjects are live at /learn with subject doctor green"
+    },
+    {
+      "id": "h17",
+      "kind": "honesty",
+      "text": "Each listed check becomes a real test in the extended launch gate or worker suite and FAILS against today's build \u2014 they are acceptance tests that distinguish shipped from not-shipped, not restatements"
+    },
+    {
+      "id": "c9",
+      "kind": "requirement",
+      "text": "Consent gate (#10): neither sign-in path (web handleCallback nor device-flow poll) may call upsertLearner \u2014 or write anything to D1 \u2014 before a recorded consent exists for the current terms version. Unconsented sign-in lands in an explicit pending-consent state instead of silently persisting."
+    },
+    {
+      "id": "h1",
+      "kind": "honesty",
+      "text": "A worker test drives a fresh sign-in on BOTH paths (web callback and device poll) and asserts zero D1 writes occur before consent is accepted \u2014 the test fails if upsertLearner runs pre-consent on either path"
+    },
+    {
+      "id": "c10",
+      "kind": "requirement",
+      "text": "Consent record (#10/#11): consent is stored in D1 as (github_user_id, terms_version, granted_at) \u2014 a consents table \u2014 where terms_version is exactly the published version of the #11 documents at accept time; publishing a new version forces re-consent before further writes"
+    },
+    {
+      "id": "h2",
+      "kind": "honesty",
+      "text": "The consent row's terms_version equals the exact published document version at accept time, and bumping the published version makes the next authenticated request route back to the consent screen \u2014 both proven by test"
+    },
+    {
+      "id": "c11",
+      "kind": "requirement",
+      "text": "Right to withdraw/delete (#10): a self-serve authenticated path exports the learner's data (JSON) and deletes it \u2014 the learners row, all their records, their consents \u2014 and revokes the session. Withdrawal of consent means deletion."
+    },
+    {
+      "id": "h3",
+      "kind": "honesty",
+      "text": "After self-serve delete, a D1 query finds no row in learners, records, or consents carrying that github_user_id, and the old session token is rejected (revoked) \u2014 proven by test"
+    },
+    {
+      "id": "c12",
+      "kind": "requirement",
+      "text": "Roles + visibility (#8): admin is an explicit GitHub-id allow-list (20955789) in Worker config, enforced server-side; admin can list all learners and their progress; a regular learner sees only their own data by default (default private) and controls what of theirs is visible to others"
+    },
+    {
+      "id": "h4",
+      "kind": "honesty",
+      "text": "Admin capability is enforced server-side against the GitHub-id allow-list (a non-allow-listed session calling an admin route gets 403 regardless of any client claim), and no authed route ever returns another learner's data to a non-admin \u2014 proven by test"
+    },
+    {
+      "id": "c13",
+      "kind": "requirement",
+      "text": "Approval gate (#8): an approved flag on the D1 learner row, settable only via an admin-only surface (CLI verb + web), enforced in the Worker BEFORE any /api/tutor forwarding \u2014 signed-in but non-approved gets 403 and zero outbound inference. Extends the existing ordering-based resource-gate invariant one level: signed-out < signed-in < approved."
+    },
+    {
+      "id": "h5",
+      "kind": "honesty",
+      "text": "A signed-in, non-approved learner POSTing /api/tutor receives 403 and the Worker makes ZERO outbound inference requests \u2014 proven by extending the existing signed-out-never-calls-inference ordering test to the approval level"
+    },
+    {
+      "id": "c15",
+      "kind": "requirement",
+      "text": "Nova Sonic 2 voice (#8): learner speech is a real-time bidirectional audio session against Bedrock Nova Sonic 2 on a SEPARATE transport (WebSocket/WebRTC bridge, not the JSON broker), enforcing the same approval gate before any audio reaches Bedrock"
+    },
+    {
+      "id": "h7",
+      "kind": "honesty",
+      "text": "No audio byte reaches Bedrock for a session that is not both authenticated AND approved \u2014 the voice transport enforces the same gate as /api/tutor, provable at its entry point"
+    },
+    {
+      "id": "c16",
+      "kind": "requirement",
+      "text": "Cloze exercise type (#9): the subject-plugin contract gains a cloze (pick-the-right-word) exercise kind; french-cli, spanish-cli, and culture-guide each ship cloze items; existing item_ids stay stable so learner mastery survives re-export; learn subject doctor stays green for all three; then learn site export + Pages redeploy publishes the new content"
+    },
+    {
+      "id": "h8",
+      "kind": "honesty",
+      "text": "All three subjects pass learn subject doctor with at least one cloze item present, and a learner's pre-existing mastery/progress reads back identically after the re-export (item_id join keys unchanged)"
+    },
+    {
+      "id": "c17",
+      "kind": "requirement",
+      "text": "Terms of Use + Privacy Policy (#11): both pages published, versioned, linked from the /learn footer and from the consent notice. The Privacy Policy names GitHub (OAuth identity), Cloudflare (Workers/KV/D1/Pages hosting), and AWS Bedrock (Nova Sonic 2 / Nova Pro \u2014 approved tier only, learner speech/text leaves to the model provider) as processors, states retention + the delete/export path, and matches what the code actually persists (no email, no password)."
+    },
+    {
+      "id": "h9",
+      "kind": "honesty",
+      "text": "Every processor the code actually calls (GitHub OAuth endpoints, Cloudflare storage/hosting, the Bedrock-backed inference endpoint) is named in the published Privacy Policy, and nothing the policy claims about data (no email, no password, deletable on request) is contradicted by the schema or worker code"
+    },
+    {
+      "id": "c24",
+      "kind": "requirement",
+      "text": "Nova Pro tutoring (#8): text tutoring (exercise grading, adaptive next-step, explanation, personalized cloze-story generation) routes through the existing /api/tutor broker with INFERENCE_URL pointing directly at AWS Bedrock's OpenAI-compatible chat-completions endpoint (bedrock-runtime .../openai/v1) and a Bedrock API key as INFERENCE_TOKEN \u2014 AWS Bedrock is the only service that serves AWS Nova models; no sibling-hosted model server, no idle host. Cost-when-busy: per-token Nova Pro spend only. Generated cloze stories and their results are recorded to the existing ledger as contract-valid records with stable item_ids."
+    },
+    {
+      "id": "h11",
+      "kind": "honesty",
+      "text": "The Worker gains no Bedrock/provider SDK and no code change beyond config \u2014 a Bedrock API key against the OpenAI-compatible endpoint returns a Nova Pro completion, and the broker forwards approved traffic to it unchanged (h6's condition, retargeted at Bedrock-direct)"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "summary": "Author Terms of Use + Privacy Policy as versioned /learn-local pages (site-astro) with a single TERMS_VERSION source of truth shared with the worker",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "Pages render at /learn/terms/ and /learn/privacy/ with a visible version + date, linked from the /learn footer",
+        "Privacy Policy names GitHub (OAuth), Cloudflare (Workers/KV/D1/Pages), and AWS Bedrock (Nova Sonic 2 / Nova Pro, approved tier only \u2014 learner speech/text leaves to the model provider), states retention + the delete/export path",
+        "A test cross-checks the policy's data claims against schema.sql (no email/password column) and TERMS_VERSION is importable by both site and worker from one place"
+      ],
+      "deps": [],
+      "covers": [
+        "c17",
+        "h9"
+      ],
+      "instruction": ""
+    },
+    {
+      "id": "t2",
+      "summary": "D1 consent schema + db helpers: consents table migration plus getConsent/recordConsent/deleteLearner data-layer functions",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "schema.sql migration applies cleanly to fresh AND existing remote DB (idempotent CREATE IF NOT EXISTS), consents keyed (github_user_id, terms_version, granted_at)",
+        "db.js gains getConsent/recordConsent/deleteLearnerData (learners+records+consents in one transaction) with unit tests; no route wiring yet (file-disjoint from index.js)"
+      ],
+      "deps": [],
+      "covers": [],
+      "instruction": ""
+    },
+    {
+      "id": "t3",
+      "summary": "Cloze exercise kind in the subject-plugin contract (learn-cli side): schema, validation, subject doctor check, export rendering",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "Contract documents the cloze (pick-the-right-word) exercise shape; validate.py/worker validate.js accept it as a contract-valid recorded activity",
+        "learn subject doctor verifies cloze items when a subject declares them; site export renders a cloze exercise interactively; item_id join-key rules unchanged"
+      ],
+      "deps": [],
+      "covers": [],
+      "instruction": ""
+    },
+    {
+      "id": "t4",
+      "summary": "Voice-bridge serverless spike + SAM template copying league-of-agents-platform infra pattern: API GW WebSocket + arm64 Lambda relaying to Bedrock Nova Sonic 2 bidirectional stream, Budgets alarm with hard monthly ceiling",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "A spike proves Lambda can hold Bedrock's InvokeModelWithBidirectionalStream (Nova Sonic 2) and relay audio both ways through an API GW WebSocket connection \u2014 go/no-go recorded before any UI work",
+        "infra template mirrors league-of-agents-platform/infra/template.yaml conventions: SAM, arm64, long-form intrinsics, capacity caps + AWS Budgets alarm pinned to a stated USD ceiling, every sizing choice commented against it; zero idle cost",
+        "The Lambda accepts only short-lived voice tokens minted by learn-api (no session cookie reuse); token verification unit-tested"
+      ],
+      "deps": [],
+      "covers": [],
+      "instruction": ""
+    },
+    {
+      "id": "t5",
+      "summary": "Consent gate on BOTH sign-in paths: pending-consent session, consent accept/decline endpoints, no D1 write pre-consent",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "FIRST a red test reproduces today's gap: fresh sign-in on web callback AND device poll writes a learners row with no consent \u2014 then the fix makes it green",
+        "Unconsented sign-in issues a pending-consent session: /api/me reports pending_consent, every other authed route 403s, upsertLearner is NOT called; accept records consent + upgrades the session; decline drops the session with zero rows written",
+        "Worker test asserts zero D1 writes before consent acceptance on both paths (h1 verbatim)"
+      ],
+      "deps": [
+        "t2"
+      ],
+      "covers": [
+        "c9",
+        "h1",
+        "c3",
+        "h13"
+      ],
+      "instruction": ""
+    },
+    {
+      "id": "t6",
+      "summary": "Re-consent on version bump: authenticated requests against a stale consented terms_version route back to the consent flow",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "Consent row stores the exact published TERMS_VERSION at accept time (h2)",
+        "Bumping TERMS_VERSION makes the next authenticated request return consent_required / route to the consent screen until re-accepted \u2014 proven by test"
+      ],
+      "deps": [
+        "t5",
+        "t1"
+      ],
+      "covers": [
+        "c10",
+        "h2"
+      ],
+      "instruction": ""
+    },
+    {
+      "id": "t7",
+      "summary": "Self-serve export + delete: GET data export (JSON) and consent-withdrawal deletion removing learners+records+consents and revoking the session",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "Export returns the learner's full data (learner row, records, consents) as JSON",
+        "After delete, a D1 query finds NO row in learners/records/consents for that github_user_id and the old session token is rejected (h3) \u2014 deletion test covers the append-only override decision (c18)"
+      ],
+      "deps": [
+        "t6"
+      ],
+      "covers": [
+        "c11",
+        "h3"
+      ],
+      "instruction": ""
+    },
+    {
+      "id": "t8",
+      "summary": "Roles + visibility: ADMIN_GITHUB_IDS allow-list (20955789), admin list-all surface, default-private learner visibility field",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "Admin routes enforce the GitHub-id allow-list server-side: non-allow-listed session gets 403 regardless of client claims (h4)",
+        "No authed route returns another learner's data to a non-admin; visibility defaults to private in learners.state and the learner can toggle it",
+        "Admin can list all learners + their progress (web + CLI read surface)"
+      ],
+      "deps": [
+        "t7"
+      ],
+      "covers": [
+        "c12",
+        "h4"
+      ],
+      "instruction": ""
+    },
+    {
+      "id": "t9",
+      "summary": "Approval gate for tutoring: approved flag on the learner, admin approve/revoke (CLI verb + web + API), enforced BEFORE /api/tutor forwards",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "Signed-in non-approved POST /api/tutor gets 403 with ZERO outbound inference requests \u2014 extends the existing signed-out ordering test one level (h5)",
+        "Approve/revoke is admin-only (allow-list enforced) and takes effect without re-login; learn admin verbs pass teken cli doctor --strict (explain catalog entries included)",
+        "Approval requires an existing consent to the CURRENT terms version (sequencing decision c20 enforced in code)"
+      ],
+      "deps": [
+        "t8"
+      ],
+      "covers": [
+        "c13",
+        "h5"
+      ],
+      "instruction": ""
+    },
+    {
+      "id": "t10",
+      "summary": "Consent UI in site-astro: the consent notice page (what/why/retention/visibility), accept/decline flow against the pending-consent API, links to Terms + Privacy",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "OAuth redirect lands a pending-consent user on the consent page (c19 UX decision); accept proceeds into /learn signed-in, decline signs out with a confirmation that nothing was stored",
+        "The notice states what is stored, why, retention, and who can see it, and links both policy pages with their version"
+      ],
+      "deps": [
+        "t5"
+      ],
+      "covers": [],
+      "instruction": ""
+    },
+    {
+      "id": "t11",
+      "summary": "french-cli: author cloze exercise items against the new contract kind (upstream repo, own PR cycle)",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "french-cli ships cloze items across its levels, passes learn subject doctor with cloze present, releases to PyPI; existing item_ids untouched"
+      ],
+      "deps": [
+        "t3"
+      ],
+      "covers": [],
+      "instruction": ""
+    },
+    {
+      "id": "t12",
+      "summary": "spanish-cli: author cloze exercise items against the new contract kind (upstream repo, own PR cycle)",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "spanish-cli ships cloze items across its levels, passes learn subject doctor with cloze present, releases to PyPI; existing item_ids untouched"
+      ],
+      "deps": [
+        "t3"
+      ],
+      "covers": [],
+      "instruction": ""
+    },
+    {
+      "id": "t13",
+      "summary": "culture-guide: author cloze exercise items against the new contract kind (upstream repo, own PR cycle)",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "culture-guide ships cloze scenarios, passes learn subject doctor with cloze present, releases to PyPI; existing item_ids untouched"
+      ],
+      "deps": [
+        "t3"
+      ],
+      "covers": [],
+      "instruction": ""
+    },
+    {
+      "id": "t14",
+      "summary": "Re-export + redeploy content: pull the three released subjects, learn site export, Pages redeploy",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "All three subjects pass learn subject doctor with at least one cloze item (h8); dev- fixture stories still excluded from public export",
+        "A learner's pre-existing mastery/progress reads back identically after re-export (item_id join keys unchanged, h8); new cloze content is live at /learn"
+      ],
+      "deps": [
+        "t11",
+        "t12",
+        "t13"
+      ],
+      "covers": [
+        "c16",
+        "h8"
+      ],
+      "instruction": ""
+    },
+    {
+      "id": "t15",
+      "summary": "Nova Pro tutoring wiring (Bedrock-direct): INFERENCE_URL -> Bedrock OpenAI-compatible endpoint + Bedrock API key; grading, adaptive next-step, personalized cloze-story generation recorded to the ledger",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "A curl with the Bedrock API key against bedrock-runtime .../openai/v1 returns a Nova Pro completion BEFORE any feature work (h11 / c24 instruction); the region + model id + cost-when-busy (per-token only) are recorded in the worker README",
+        "The Worker diff adds NO provider SDK \u2014 config change plus tutoring prompt/flow modules only (h11)",
+        "An approved learner gets a graded exercise + adaptive next-step, and a generated cloze story personalized to their weak items lands in the ledger as a contract-valid record with a stable item_id"
+      ],
+      "deps": [
+        "t9",
+        "t3"
+      ],
+      "covers": [
+        "c24",
+        "h11"
+      ],
+      "instruction": ""
+    },
+    {
+      "id": "t16",
+      "summary": "Voice session end-to-end: learn-api mints approval-checked short-lived voice tokens, site voice UI connects to the serverless bridge, session budget caps enforced",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "No audio byte reaches Bedrock for a session that is not both authenticated AND approved \u2014 enforced at the bridge entry (token required, minted only for approved learners), proven by test (h7)",
+        "An approved learner completes a live Nova Sonic 2 voice exchange from the /learn UI; per-session time/token budget cap enforced server-side",
+        "The deployed stack stays within the SAM template's Budgets ceiling; idle cost is zero"
+      ],
+      "deps": [
+        "t4",
+        "t9"
+      ],
+      "covers": [
+        "c15",
+        "h7"
+      ],
+      "instruction": ""
+    },
+    {
+      "id": "t17",
+      "summary": "Extended launch gate + prod verification: consent, re-consent, delete, 403-zero-inference, tutor, voice, cloze checks wired into tools/launch-gate/run.sh and run green against prod",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "Every success-signal check (c8) is a real gate check that FAILED against the pre-uplift build and passes now (h17), run with LIVE_ORIGIN=https://agentculture.org (h10)",
+        "Boundary invariants asserted mechanically: no email/password column, signed-out zero API calls, no provider SDK in the worker bundle, no subject prose authored in learn-cli (h16)",
+        "Gate demonstrates each audience surface: learner consent+tutoring flows, admin approve/revoke, subject cloze contract, org policy link (h12); after-state clauses each map to a passing check (h15); run recorded while the public nav link is live (h14)"
+      ],
+      "deps": [
+        "t10",
+        "t14",
+        "t15",
+        "t16"
+      ],
+      "covers": [
+        "c1",
+        "h10",
+        "c2",
+        "h12",
+        "c4",
+        "h14",
+        "c5",
+        "h15",
+        "c6",
+        "h16",
+        "c8",
+        "h17"
+      ],
+      "instruction": ""
+    },
+    {
+      "id": "t18",
+      "summary": "File the org issue: link /learn policy pages site-wide and record the /learn-local hosting decision (c26)",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "Issue filed on agentculture/org via /communicate (signed), inlining the decision + the /learn/terms and /learn/privacy URLs; org's footer links land whenever org ships them (non-blocking for /learn)"
+      ],
+      "deps": [
+        "t1"
+      ],
+      "covers": [],
+      "instruction": ""
+    }
+  ],
+  "risks": [
+    {
+      "id": "r1",
+      "text": "Lambda <-> Bedrock InvokeModelWithBidirectionalStream feasibility: HTTP/2 bidirectional streaming from Lambda relayed over an API GW WebSocket is the unproven link \u2014 t4 front-loads the spike with an explicit go/no-go before any voice UI work; fallback shapes (Lambda response streaming, a different serverless relay) stay inside the no-EC2 rule",
+      "kind": "unknown_nonblocking",
+      "task_id": "t4"
+    },
+    {
+      "id": "r2",
+      "text": "Bedrock OpenAI-compatible endpoint must serve Nova Pro chat completions with a Bedrock API key in the chosen region \u2014 t15's first acceptance is the curl proof before feature work; if a region/model gap appears, the fix is region choice, not architecture",
+      "kind": "unknown_nonblocking",
+      "task_id": "t15"
+    },
+    {
+      "id": "r3",
+      "text": "API Gateway WebSocket limits (2h connection, 10min idle timeout, 32KB frames) bound voice session shape \u2014 the per-session budget cap must fit inside them; sizing gets commented against the Budgets ceiling league-style",
+      "kind": "unknown_nonblocking",
+      "task_id": "t16"
+    },
+    {
+      "id": "r4",
+      "text": "Upstream content latency: t11-t13 ride french-cli/spanish-cli/culture-guide PR + PyPI release cycles owned by their repos (umbrella #9 spawns per-repo issues) \u2014 the content lane can lag the platform lanes without blocking them; t14 waits, nothing else does",
+      "kind": "unknown_nonblocking",
+      "task_id": "t14"
+    },
+    {
+      "id": "r5",
+      "text": "Retention period wording + privacy contact point (frame v4) must be decided during t1 drafting \u2014 a drafting detail, not a design fork",
+      "kind": "unknown_nonblocking",
+      "task_id": "t1"
+    }
+  ]
+}
