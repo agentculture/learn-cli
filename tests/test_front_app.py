@@ -72,7 +72,7 @@ def test_subject_doctor_tool(fourth_app) -> None:
 
 def test_learning_loop_over_mcp(fourth_app) -> None:
     stories = call_mcp(fourth_app, ["story_list"], {"subject": "fourthlang"})["result"]["stories"]
-    assert [s["id"] for s in stories] == ["s1"]
+    assert [s["id"] for s in stories] == ["s1", "dev-smoke"]
 
     read = call_mcp(fourth_app, ["story_read"], {"subject": "fourthlang", "story_id": "s1"})
     assert read["result"]["kind"] == "story_read"
@@ -126,7 +126,7 @@ def test_record_with_counts(fourth_app) -> None:
 
 def test_story_list_level_filter(fourth_app) -> None:
     hit = call_mcp(fourth_app, ["story_list"], {"subject": "fourthlang", "level": "beginner"})
-    assert len(hit["result"]["stories"]) == 1
+    assert len(hit["result"]["stories"]) == 2  # raw list includes the dev- fixture story
     miss = call_mcp(fourth_app, ["story_list"], {"subject": "fourthlang", "level": "advanced"})
     assert miss["result"]["stories"] == []
 

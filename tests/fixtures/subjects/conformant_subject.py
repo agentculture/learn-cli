@@ -132,7 +132,15 @@ def _story_list() -> dict[str, Any]:
                 "level_detail": "A1",
                 "summary": "A tiny graded reader for the fourth language.",
                 "exercises": 2,
-            }
+            },
+            {
+                "id": "dev-smoke",
+                "title": "Dev Smoke Story",
+                "level": "beginner",
+                "level_detail": "A1",
+                "summary": "In-repo test fixture; excluded from the public export.",
+                "exercises": 0,
+            },
         ],
     }
 

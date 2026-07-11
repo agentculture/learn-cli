@@ -102,7 +102,10 @@ def test_stories_file_only_for_available_subjects(tmp_path, mixed_registry) -> N
 
     stories = _load(tmp_path / "stories-fourthlang.json")
     assert stories["subject"] == "fourthlang"
+    # The fixture lists two stories, but `dev-` prefixed ids are in-repo test
+    # fixtures, not learner content — the public export excludes them.
     assert len(stories["stories"]) == 1
+    assert all(not s["id"].startswith("dev-") for s in stories["stories"])
     story = stories["stories"][0]
     # Full story object from `story read` (not just the list summary): has a body.
     assert story["id"] == "s1"

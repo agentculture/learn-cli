@@ -92,6 +92,10 @@ def _subject_stories(entry: SubjectEntry, source: str | None) -> list[dict[str, 
         if not isinstance(summary, dict):
             continue
         story_id = summary.get("id")
+        # Subject repos ship `dev-` prefixed stories as in-repo test fixtures;
+        # they are not learner content, so the public export excludes them.
+        if isinstance(story_id, str) and story_id.startswith("dev-"):
+            continue
         full: dict[str, Any] | None = None
         if isinstance(story_id, str) and story_id:
             try:
