@@ -489,6 +489,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-xdist" },
+    { name = "pyyaml" },
     { name = "teken" },
 ]
 
@@ -504,6 +505,7 @@ dev = [
     { name = "pytest", specifier = ">=8.0" },
     { name = "pytest-cov", specifier = ">=4.1" },
     { name = "pytest-xdist", specifier = ">=3.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "teken", specifier = ">=0.8" },
 ]
 
