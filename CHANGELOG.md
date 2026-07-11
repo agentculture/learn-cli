@@ -9,7 +9,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- The learn platform: subject registry fronting french-cli, spanish-cli, and culture-guide as external runtimes (learn subjects, learn subject doctor <name> conformance gate)
+- The learn platform: subject registry fronting french-cli, spanish-cli, and culture-guide as external runtimes (`learn subjects`, `learn subject doctor <name>` conformance gate)
 - Subject-plugin contract v1.0: 11 versioned JSON schemas + stdlib validator as package data (learn/contract), directive pattern, story schema shared by all subjects
 - Motivation layer (learn/motivation): deterministic scores, streaks, time-decayed mastery, review queues, and never-ending what-next over recorded history
 - Learner profile (learn/profile + auth/progress/next/record verbs): GitHub device-flow sign-in, offline-first local ledger with best-effort sync
