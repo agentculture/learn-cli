@@ -117,8 +117,12 @@ async function webResponseToNodeRes(webRes, res) {
     if (key.toLowerCase() === "set-cookie") return;
     headers[key] = value;
   });
+  // Multiple Set-Cookie headers go in as an ARRAY value on the writeHead
+  // headers object — setHeader() AFTER writeHead throws ERR_HTTP_HEADERS_SENT,
+  // which corrupts every Set-Cookie-bearing response (login, consent accept,
+  // logout, delete). Keep them together in the single writeHead call.
+  if (setCookies.length) headers["Set-Cookie"] = setCookies;
   res.writeHead(webRes.status, headers);
-  if (setCookies.length) res.setHeader("Set-Cookie", setCookies);
   const buf = Buffer.from(await webRes.arrayBuffer());
   res.end(buf);
 }

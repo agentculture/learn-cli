@@ -90,6 +90,21 @@ RUN_LAUNCH_GATE=1 uv --project "$REPO_ROOT" run pytest "$REPO_ROOT/tests/e2e" \
   -p no:randomly -q >/dev/null 2>&1
 echo "  (per-test results recorded to the gate table)"
 
+# --- 5b. Worker unit suite: the authed consent/approval/delete/voice flows ----
+# The consent walk (step 6b) drives these flows over HTTP against the LOCAL
+# topology, but the AUTHED half cannot be reproduced against LIVE prod (no
+# mintable prod session). The Worker's own in-memory suite is the authoritative
+# proof of the same invariants (zero-inference counting, consent ordering,
+# revocation), so run it here and fold one row into the gate table.
+step "worker unit suite (consent/approval/delete/voice invariants)"
+if (cd "$REPO_ROOT/workers/learn-api" && npm test >/dev/null 2>&1); then
+  echo "  [PASS ] workers/learn-api node --test green"
+  emit static "worker unit suite (node --test)" PASS "authed consent/approval/delete/voice invariants green"
+else
+  echo "  [FAIL ] workers/learn-api node --test failed"
+  emit static "worker unit suite (node --test)" FAIL "see: cd workers/learn-api && npm test"
+fi
+
 # --- 6. web audience: the scripted success walk (Playwright) ------------------
 step "web audience: scripted success walk (phone + desktop)"
 (
@@ -100,6 +115,14 @@ step "web audience: scripted success walk (phone + desktop)"
   npx --yes playwright install chromium >/dev/null 2>&1 || true
   node walk.mjs
 ) || true
+
+# --- 6b. consent/approval/deletion walk (the uplift success signals) ----------
+# LOCAL: full authed flows over HTTP against the in-process topology (the
+# "passes now" evidence). LIVE (LIVE_ORIGIN set): unauthenticated probes of the
+# deployed origin — against pre-uplift prod these FAIL by design (the h17
+# baseline); after the supervised deploy they pass. Plain node, no Playwright.
+step "consent/approval/deletion walk (uplift success signals)"
+node "$SCRIPT_DIR/consent_walk.mjs" || true
 
 # --- 7. render the final PASS/FAIL table + gate verdict -----------------------
 uv --project "$REPO_ROOT" run python "$SCRIPT_DIR/report.py" "$RESULTS"

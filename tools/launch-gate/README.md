@@ -126,13 +126,53 @@ Every launch-bar number, machine-checked:
 - The zero-API static check is `site-astro`'s own `npm run check` (static-auth +
   export-pages), run as a `run.sh` step since it needs the node build.
 
+## The consent-tutoring uplift checks (t17)
+
+The extended gate adds the uplift's four new guarantees — consent, approval,
+deletion, and the tutoring/voice tiers — on top of the original walk. They live
+in two places so the pre/post-deploy story is legible:
+
+- **`consent_walk.mjs`** — the success signals as HTTP flows over a real origin,
+  in two modes with the SAME check ids:
+  - **LOCAL** (default): the FULL authed flows against the in-process topology
+    (`api-server.mjs`) — a fresh sign-in writes **zero D1 rows until consent is
+    accepted** (and the consent row is written **before** the learner row); a
+    published-version bump forces **re-consent**; **self-serve delete** erases
+    every row and revokes the session; a consented-but-unapproved `/api/tutor`
+    call gets **403 with the inference endpoint hit zero times**; **admin
+    approve/revoke** flips the tutoring tier; the **voice-token mint** enforces
+    the same gate in the same order (approval before config); and the policy /
+    consent / voice pages plus **cloze** story content are actually served. This
+    is the "passes now" evidence.
+  - **LIVE** (`LIVE_ORIGIN` set): the deployed origin's **unauthenticated**
+    surface — new routes must answer 401 (not 404), new pages must exist with
+    their markers. Against **pre-uplift** prod these FAIL (404s) — the recorded
+    **`BASELINE-2026-07-11.md`** baseline (spec h17); post-deploy they pass.
+- **`tests/test_launch_gate_invariants.py`** (repo `tests/`, always-on — not
+  gated by `RUN_LAUNCH_GATE`) — the mechanical boundary invariants (h16): the
+  schema stores **no email/password** column, the Worker adds **no provider
+  SDK** (dependency or import), the static-auth zero-API check stays wired, and
+  **no subject prose is authored inside learn-cli** (the exporter drives the
+  subject CLIs and embeds no prose; learn-cli's own JSON carries no story
+  content). These run in the normal `uv run pytest` suite.
+
+The **authed** consent/approval/delete/voice flows cannot be reproduced against
+LIVE prod (no mintable prod session), so the Worker's own unit suite
+(`cd workers/learn-api && npm test`, 168 tests) is run as a `run.sh` step and is
+the authoritative proof of the zero-inference counting, consent ordering, and
+revocation invariants — `consent_walk.mjs` LOCAL mode re-proves them at the HTTP
+layer.
+
 ## Files
 
 - `run.sh` — the single entrypoint; orchestrates every check, prints the table.
 - `api-server.mjs` — wraps the real Worker + static site into one local origin.
 - `walk.mjs` — the Playwright walk (web audience) + the CLI parity bridge.
+- `consent_walk.mjs` — the consent → approval → deletion → tutoring/voice success
+  signals (t17), LOCAL authed flows + LIVE unauthenticated probes.
 - `launch_bar.py` — the measurable launch-bar checks.
 - `report.py` — reads the collected NDJSON results, renders the PASS/FAIL table.
+- `BASELINE-2026-07-11.md` — the recorded pre-uplift LIVE baseline (h17).
 - `package.json` — this package's own `playwright` devDependency (**not** added
   to `site-astro/package.json`).
 - `.out/` — generated results (gitignored).
@@ -150,18 +190,36 @@ origin:
 LIVE_ORIGIN=https://agentculture.org bash tools/launch-gate/run.sh
 ```
 
-`walk.mjs` honors `LIVE_ORIGIN` for the signed-out walk (cards, story
-body/glossary, `data-auth="out"`, and the single-`/api/me` network invariant)
-against the real deployment. The signed-in walk needs a real session, which the
-gate cannot mint against production — sign in through the deployed site and drive
-that leg by hand, or supply a session out of band. The local-artifact checks
-(launch bar, `npm run check`, the CLI/agent audiences) validate the very build
-that was deployed and still run.
+Both `walk.mjs` (the signed-out progress walk) and `consent_walk.mjs` (the
+uplift LIVE probes) honor `LIVE_ORIGIN`. `walk.mjs` re-runs the signed-out walk
+(cards, story body/glossary, `data-auth="out"`, the single-`/api/me` network
+invariant); `consent_walk.mjs` probes the new routes (must 401, not 404) and
+pages (must 200 with their markers). The signed-in walk and the authed
+consent/approval/delete/voice flows need a real session, which the gate cannot
+mint against production — the Worker's unit suite + `consent_walk.mjs` LOCAL
+mode prove those; against prod, sign in through the deployed site and drive the
+last mile by hand. The local-artifact checks (launch bar, `npm run check`, the
+CLI/agent audiences, the boundary invariants) validate the very build deployed.
+
+**The uplift ships behind a fully-green LIVE run.** Before deploy,
+`BASELINE-2026-07-11.md` records the 9-of-10 `consent_walk.mjs` LIVE failures
+that distinguish shipped-from-not (spec h17). After `wrangler deploy` (Worker) +
+the Pages redeploy (site) — and `sam deploy` for the voice bridge — the same
+command flips them to PASS:
+
+```bash
+RUN_LAUNCH_GATE=1 LIVE_ORIGIN=https://agentculture.org bash tools/launch-gate/run.sh
+```
 
 ## What an operator must re-run against the LIVE site after deployment
 
 - The signed-out live walk above (routing, the `agentculture.org/learn/*` zone
   mount, the static assets, and the single-`/api/me` invariant on real infra).
-- A manual signed-in pass: sign in on the deployed site, record a result, and
-  confirm the learner panel + `GET /learn/api/progress/:subject` agree — the
-  live-infra version of the parity bridge this gate proves locally.
+- The uplift LIVE probes (`consent_walk.mjs` via `run.sh` with `LIVE_ORIGIN`):
+  every new route 401s unauthenticated, every new page is served with its
+  markers, the subject page carries the tutor panel, the cloze story renders.
+- A manual signed-in pass: sign in on the deployed site, accept the consent
+  notice, record a result, confirm the learner panel + `GET
+  /learn/api/progress/:subject` agree, then (as an admin-approved learner) run a
+  Nova Pro-graded exercise and a Nova Sonic 2 voice exchange — the live-infra
+  version of the tiers this gate proves locally.
