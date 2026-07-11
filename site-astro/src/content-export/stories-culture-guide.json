@@ -1,311 +1,311 @@
 {
-  "subject": "culture-guide",
   "stories": [
     {
-      "schema_version": "1.0",
-      "kind": "story",
-      "id": "cg-scenario-the-confident-intern",
-      "subject": "culture-guide",
-      "title": "The confident intern",
-      "level": "beginner",
-      "level_detail": "scenario",
-      "language": "en",
-      "summary": "A brand-new project agent confidently invents a config flag that does not exist; the learner reasons through hallucination, grounding, and what a system prompt is actually for.",
-      "body": "Ravi had run backend services for years, but this was his first agent. He gave it one job: keep the `payments-docs` repo tidy — fix broken links, answer questions about the API, and flag stale pages. He wrote a short system prompt, pointed it at the repo, and felt clever.\n\nThe first week was charming. The agent found three dead links and drafted a clean changelog. Then a teammate asked it, in the repo chat, how to make the payment client retry on a timeout. The agent answered at once, and precisely: \"Set `--retry-forever` in the client config; it will keep retrying until the request succeeds.\"\n\nThere is no `--retry-forever` flag. There never was. The teammate, trusting the confident tone, shipped a config that referenced it, and the deploy failed in staging.\n\nRavi's first reaction was the human one: the agent lied to him. He nearly wrote a rule into the prompt — \"NEVER make things up\" — and moved on. But a colleague who had been running agents longer stopped him. \"It didn't lie,\" she said. \"Lying needs intent. The model produces the most plausible continuation of the text it is given. You asked a config question, so the most plausible-looking answer is a flag named like the thing you asked about. With nothing in its context grounding the real flags, it filled the gap with something that reads correct. Confident wrongness is not the exception — it is the default when the model is ungrounded.\"\n\nThat reframed the fix. The problem was not the agent's honesty; it was Ravi's context. He had never given the agent the actual list of client flags, so it had nothing to check itself against. He changed three things. First, he put the real CLI reference into the agent's reachable context and told it, in the system prompt, to answer config questions only by quoting that file, with its path. Second, he added a boundary: if the answer is not in the referenced docs, say \"I don't find that in the docs\" rather than guess. Third, he stopped treating the prompt as a place to scold and started treating it as a program — the phrasing and the examples were what actually steered which answers became likely.\n\nThe next config question went differently. The agent quoted `--retry`, linked the exact doc line, and noted the max-attempts default. When a teammate later asked about a flag that genuinely did not exist, the agent said so.\n\nRavi kept one note for his future self: an agent that sounds certain is not telling you it is correct. It is telling you it found a fluent path through its own predictions. Certainty is the tone, not the evidence.",
-      "glossary": [
-        {
-          "term": "hallucination",
-          "definition": "The model producing a plausible-sounding answer with no basis in fact.",
-          "note": "Not a rare bug: it is the default behaviour whenever the model has nothing grounding the real answer."
-        },
-        {
-          "term": "confident wrongness",
-          "definition": "A wrong answer delivered in a fluent, certain tone — the tone reflects fluency, not correctness."
-        },
-        {
-          "term": "grounding",
-          "definition": "Putting the real, checkable facts (here, the actual CLI reference) into the agent's reachable context so its answers have something to draw from and quote."
-        },
-        {
-          "term": "system prompt as a program",
-          "definition": "The persistent instruction frame is not a place to scold the model; its wording, examples, and boundaries steer which answers become likely.",
-          "note": "Adding 'NEVER make things up' supplies no facts, so it changes little; giving the reference and a 'say you do not know' boundary does the work."
-        },
-        {
-          "term": "boundary",
-          "definition": "An explicit instruction for the not-found case — say 'I don't find that in the docs' instead of inventing an answer."
-        }
-      ],
-      "exercises": [
-        {
-          "id": "cg.story.cg-scenario-the-confident-intern.1",
-          "type": "multiple_choice",
-          "item_id": "hallucinations",
-          "related_concepts": [
-            "prediction",
-            "prompt-engineering"
-          ],
-          "prompt": "Which best explains why the agent produced the non-existent `--retry-forever` flag?",
-          "choices": [
-            "It generated the most plausible-looking continuation of an ungrounded question, with nothing in its context to check the real flags against.",
-            "It was trained on incorrect documentation for this specific payment client.",
-            "It decided to deceive the teammate so it would look more helpful."
-          ],
-          "answer": "It generated the most plausible-looking continuation of an ungrounded question, with nothing in its context to check the real flags against."
-        },
-        {
-          "id": "cg.story.cg-scenario-the-confident-intern.2",
-          "type": "multiple_choice",
-          "item_id": "prompt-engineering",
-          "related_concepts": [
-            "system-prompt",
-            "context-engineering"
-          ],
-          "prompt": "The agent has just handed out a wrong flag. What is the best next move, and why?",
-          "choices": [
-            "Add the rule 'NEVER make things up' to the system prompt and carry on.",
-            "Put the real CLI reference into the agent's reachable context, tell it to answer config questions only by quoting that file, and add a boundary to say when an answer is not in the docs.",
-            "Stop using an agent for the docs repo; the task is fundamentally unsafe for agents."
-          ],
-          "answer": "Put the real CLI reference into the agent's reachable context, tell it to answer config questions only by quoting that file, and add a boundary to say when an answer is not in the docs.",
-          "rubric": "The best answer is grounding plus a boundary. Scolding the model ('never make things up') adds no missing facts and changes little; abandoning agents throws away a fixable setup over a first-week mistake."
-        },
-        {
-          "id": "cg.story.cg-scenario-the-confident-intern.3",
-          "type": "true_false",
-          "item_id": "system-prompt",
-          "related_concepts": [
-            "hallucinations"
-          ],
-          "prompt": "A confident tone from an agent is good evidence that its answer is correct.",
-          "answer": "false"
-        },
-        {
-          "id": "cg.story.cg-scenario-the-confident-intern.4",
-          "type": "open",
-          "item_id": "agent-first-paradigm",
-          "related_concepts": [
-            "context-engineering",
-            "cognitive-dissonance"
-          ],
-          "prompt": "Apply the lesson to your own first agent. Pick one question it will realistically be asked, name the source you would ground it in, and state the boundary you would set for when the answer is not in that source.",
-          "rubric": "Passes if the learner names a concrete question, a specific grounding source the agent can actually reach, and an explicit 'say you do not know / cite the source' boundary. Partial if any of the three is missing or left vague."
-        }
-      ],
       "audio": null,
-      "source": {
-        "generator": "hand-authored",
-        "reviewed_by": "learn-cli t8",
-        "generated_at": "2026-07-11"
-      }
-    },
-    {
-      "schema_version": "1.0",
-      "kind": "story",
-      "id": "cg-scenario-the-over-tooled-agent",
-      "subject": "culture-guide",
-      "title": "The over-tooled agent",
-      "level": "intermediate",
-      "level_detail": "scenario",
-      "language": "en",
-      "summary": "A release agent gets connected to more and more MCP servers until it slows down, forgets, and picks the wrong tools; the learner reasons through context cost, attention dilution, and least-tool scoping.",
-      "body": "Maya's team shipped releases with an agent called `release-cli`. For a quarter it was the calmest part of their week: it cut the changelog, tagged the build, and posted the notes. Then the team went on an integration spree. Someone connected a Jira MCP so the agent could move tickets. Then a Slack MCP, so it could announce in three channels. Then a monitoring MCP, a GitHub MCP with the full REST surface, and a database MCP \"in case it needs to check a migration.\" Each addition felt obviously good: the more the agent could reach, the more it could do.\n\nThe Friday release went sideways. The agent tagged the build cleanly, but when it went to move the release ticket to Done, it updated the wrong ticket — one from a different team's board. Then it announced the release in a channel nobody read, and paraphrased a changelog entry from two releases back. When Maya asked it to simply re-post the correct notes, it seemed to forget the notes it had generated ten minutes earlier and produced a different version.\n\nMaya's engineer pulled the transcript and the tool manifest, and the picture was clear once they looked. Every MCP the agent connected to injected its tool definitions — names, descriptions, parameter schemas — into the context before the agent did anything at all. Five servers with broad surfaces had filled a large fraction of the window with tool descriptions alone. The release notes Maya cared about were now competing for attention with hundreds of tool signatures, and the model's attention diluted: it grabbed a plausible-looking ticket tool and a plausible-looking channel, and the earlier notes had scrolled far enough down the transcript that they no longer pulled focus. Nothing had broken. The agent was doing next-token prediction over a context that was mostly noise.\n\nThere was a second, quieter problem. The database MCP exposed write tools the release agent had no business holding, and one of the connected servers was a community MCP nobody on the team had audited — a standing attack surface, kept for a convenience they used twice a month.\n\nThe fix was not a bigger model or a longer prompt. It was context engineering: deciding what belongs in the window for this job. They cut the agent's default MCPs to two — GitHub, scoped to the release repo, and Slack, scoped to one channel. The Jira move became an explicit tool the operator enabled only during a release. The database MCP was removed; if a migration ever needed checking, a human ran it. The unaudited community server was dropped outright.\n\nThe next release was boring again. Maya wrote the lesson into the runbook: a chat is not a memory — every turn re-sends the whole transcript, so whatever you stuff into it competes for the same finite attention. More tools is more capability only up to the point where the tool definitions start crowding out the work. Past that point, each new MCP makes the agent measurably worse — and you have widened the blast radius for nothing.",
-      "glossary": [
-        {
-          "term": "MCP (Model Context Protocol)",
-          "definition": "A standard way to expose tools and resources to a model.",
-          "note": "The tradeoff: reach and reuse on one side; context cost and attack surface on the other."
-        },
-        {
-          "term": "tool definitions",
-          "definition": "The names, descriptions, and parameter schemas each connected tool injects into the context — they cost window space before the agent acts.",
-          "note": "Five broad servers can fill much of the context with definitions alone."
-        },
-        {
-          "term": "attention dilution",
-          "definition": "As more content competes for the model's finite attention, focus spreads thin and the relevant material (here, the real release notes) stops steering the output."
-        },
-        {
-          "term": "context engineering",
-          "definition": "Deciding what goes into the finite context, and in what shape, for the specific job — the discipline that replaces 'connect everything'."
-        },
-        {
-          "term": "a chat is not a memory",
-          "definition": "Each turn re-sends the whole transcript to the model; there is no separate memory, so anything you want kept competes for the same attention every call."
-        },
-        {
-          "term": "attack surface",
-          "definition": "Every connected server and write-capable tool is something that can be abused or go wrong; an unaudited MCP is standing risk kept for convenience."
-        }
-      ],
-      "exercises": [
-        {
-          "id": "cg.story.cg-scenario-the-over-tooled-agent.1",
-          "type": "multiple_choice",
-          "item_id": "mcps",
-          "related_concepts": [
-            "tool-use",
-            "limitations"
-          ],
-          "prompt": "What was the root cause of the release agent's degraded behaviour?",
-          "choices": [
-            "Connecting many MCPs filled the context with tool definitions, diluting attention so the agent grabbed the wrong tools and lost the earlier notes.",
-            "The underlying model was too small to handle a release at all.",
-            "Jira's API happened to be down during the release window."
-          ],
-          "answer": "Connecting many MCPs filled the context with tool definitions, diluting attention so the agent grabbed the wrong tools and lost the earlier notes."
-        },
-        {
-          "id": "cg.story.cg-scenario-the-over-tooled-agent.2",
-          "type": "open",
-          "item_id": "context-engineering",
-          "related_concepts": [
-            "mcps",
-            "agent-definition"
-          ],
-          "prompt": "The team wants the Jira and database MCPs reconnected because they are occasionally convenient. As Maya, what do you do, and why?",
-          "rubric": "Passes if the learner keeps the default tool set minimal and scoped, makes occasional tools opt-in per task rather than always-on, and drops or gates the unaudited and write-capable server on least-privilege / attack-surface grounds. Partial if it only says 'remove some' without the scoping-and-opt-in principle."
-        },
-        {
-          "id": "cg.story.cg-scenario-the-over-tooled-agent.3",
-          "type": "true_false",
-          "item_id": "chat-behind-the-scenes",
-          "related_concepts": [
-            "context-engineering"
-          ],
-          "prompt": "Because the agent runs as a chat, it reliably remembers the notes it generated earlier in the session even when they are far back in the transcript.",
-          "answer": "false"
-        },
-        {
-          "id": "cg.story.cg-scenario-the-over-tooled-agent.4",
-          "type": "discussion",
-          "item_id": "cognitive-dissonance",
-          "related_concepts": [
-            "chat-behind-the-scenes",
-            "limitations"
-          ],
-          "prompt": "The agent 'forgot' the notes and grabbed the wrong ticket. Using the agents-are-like-people / agents-are-not-people lens, sort these behaviours and explain why the distinction changes how you fix them.",
-          "rubric": "Passes if the learner sees that 'forgetting under overload' looks human but the mechanism is finite context and attention dilution (not tiredness), notes that the agent will not push back or flag its own confusion, and ties the fix to context engineering rather than persuasion. Partial if it labels the behaviours without connecting them to the fix."
-        }
-      ],
-      "audio": null,
-      "source": {
-        "generator": "hand-authored",
-        "reviewed_by": "learn-cli t8",
-        "generated_at": "2026-07-11"
-      }
-    },
-    {
-      "schema_version": "1.0",
-      "kind": "story",
-      "id": "cg-scenario-before-the-public-door",
-      "subject": "culture-guide",
-      "title": "Before the public door",
-      "level": "advanced",
-      "level_detail": "scenario",
-      "language": "en",
-      "summary": "A six-agent fleet across three machines is about to open a public SSO door when a key leaks through federation; the learner reasons through tiers, secrets, observability, and what must be true before public access.",
       "body": "By spring, Priya's company ran six agents. It had started with one — a Level 1 project agent on the billing repo — and grown, deliberately at first and then quickly: a second billing-adjacent service agent, a personal Level 2 agent that handled her team's cross-project chores, an agent that watched the data pipeline, and two more that had quietly appeared because they were useful. They lived on three machines: two on the office server, the rest federated onto a cloud host and a spare box in the lab, all talking over the mesh.\n\nThe plan for the quarter was exciting: open a public door. A support agent, behind SSO, that customers could query directly about their own accounts. Sales loved it. Priya set the launch for the end of the month and told the team to wire it up.\n\nTwo weeks before launch, the lab box filled its disk with logs, and an engineer grepping for the cause found something else: a plaintext API key, for the billing provider, sitting in a log line. It traced back to the original Level 1 agent. Months earlier, someone had pasted the key straight into that agent's system prompt — \"just to get it working\" — and never removed it. It had been low-risk while the agent ran on one trusted machine. But when the team federated, that agent's context travelled to other hosts, and a debug log on the lab box had captured the prompt verbatim. The key had been sitting in cleartext on a machine half the team had forgotten they owned. Nobody had noticed for weeks, because there was no shared observability — no traces, no metrics, no single place that would have flagged a credential in a log.\n\nPriya killed the launch date. In the retro, the team drew the system they actually had against the one a public door demanded, and three gaps stood out. First, secrets: credentials had never been managed as first-class operational objects. They pulled every key out of every prompt and repo, put them behind a secret manager, and gave each agent only the scoped, rotatable credential it needed. Second, tiers: they had six agents and no one whose job was to manage agents. That was the missing Level 3 — an agent-management tier that owns onboarding, skills, and credential rotation across the fleet, the thing you add once you pass three-to-five agents and the coordination overhead becomes real. Third, observability: they wired OpenTelemetry across the mesh so every agent's actions produced traces and metrics into one place, where a leaked-credential pattern would page someone in minutes rather than surface by accident in a full disk.\n\nOnly then did they return to the public door. Public access with SSO and user management was not just a login screen bolted on: it meant the support agent would take input from people outside the company, so its blast radius had to be understood before it was reachable. They scoped it hard — read-only to a customer's own account, no write tools, its own isolated credential, its own traces. The launch slipped six weeks. This time, it held.\n\nPriya's takeaway, written into the fleet's operating doc: you can scale to a company of agents with very little ceremony on day one — one machine, flat files, even a key in a prompt is survivable when the door is closed and everyone is trusted. But every capability you add — a second machine, federation, a public door — widens the surface, and the operational maturity has to arrive before the capability, not after the incident that proves you needed it.",
-      "glossary": [
-        {
-          "term": "agent tiers (Levels 1-4)",
-          "definition": "Levels of responsibility: Level 1 project/service agent, Level 2 personal/work-function agent, Level 3 agent-management agent, Level 4 listener/orchestrator.",
-          "note": "The fleet had Levels 1 and 2 but no Level 3 — no one whose job was to manage agents."
-        },
-        {
-          "term": "federation (one machine or many)",
-          "definition": "Running agents across several hosts that talk over the mesh, instead of one box.",
-          "note": "Federation moved an agent's context — and the key pasted into it — onto a machine where a debug log captured it."
-        },
-        {
-          "term": "secrets management",
-          "definition": "Treating credentials as first-class operational objects: kept in a secret manager, scoped per agent, and rotatable — never pasted into a prompt or repo."
-        },
-        {
-          "term": "public access with SSO",
-          "definition": "Exposing an agent to people outside the company behind single sign-on and user management — a step that turns the agent's blast radius into a security question that must be answered before it is reachable."
-        },
-        {
-          "term": "OpenTelemetry / observability",
-          "definition": "Traces and metrics collected into one place so agent behaviour — including a credential showing up in a log — is visible and alertable in minutes, not discovered by accident."
-        },
-        {
-          "term": "blast radius",
-          "definition": "How much damage a compromised or misbehaving agent can do; every added capability (a machine, federation, a public door) widens it, so each must be scoped and understood before it ships."
-        }
-      ],
       "exercises": [
         {
-          "id": "cg.story.cg-scenario-before-the-public-door.1",
-          "type": "multiple_choice",
-          "item_id": "secrets",
-          "related_concepts": [
-            "one-or-many",
-            "agent-first-paradigm"
-          ],
-          "prompt": "How did the billing provider's API key end up leaked?",
+          "answer": "It was pasted into a Level 1 agent's system prompt; when the team federated across machines, that context travelled to another host and was captured verbatim in a debug log.",
           "choices": [
             "It was pasted into a Level 1 agent's system prompt; when the team federated across machines, that context travelled to another host and was captured verbatim in a debug log.",
             "A customer extracted it through the new public support door before launch.",
             "The secret manager was misconfigured and exposed it."
           ],
-          "answer": "It was pasted into a Level 1 agent's system prompt; when the team federated across machines, that context travelled to another host and was captured verbatim in a debug log."
+          "id": "cg.story.cg-scenario-before-the-public-door.1",
+          "item_id": "secrets",
+          "prompt": "How did the billing provider's API key end up leaked?",
+          "related_concepts": [
+            "one-or-many",
+            "agent-first-paradigm"
+          ],
+          "type": "multiple_choice"
         },
         {
           "id": "cg.story.cg-scenario-before-the-public-door.2",
-          "type": "open",
           "item_id": "agent-levels",
+          "prompt": "The team ran six agents with no one whose job was to manage agents. Which tier were they missing, why does it appear at this point in a fleet's growth, and what would it own?",
           "related_concepts": [
             "agent-fleet",
             "company-scale"
           ],
-          "prompt": "The team ran six agents with no one whose job was to manage agents. Which tier were they missing, why does it appear at this point in a fleet's growth, and what would it own?",
-          "rubric": "Passes if the learner names Level 3, the agent-management tier; notes it becomes worth adding once you pass roughly three-to-five agents and coordination overhead becomes real; and gives it concrete duties such as onboarding, skills, and credential rotation across the fleet. Partial if the tier is named without the 'when' or the 'what it owns'."
+          "rubric": "Passes if the learner names Level 3, the agent-management tier; notes it becomes worth adding once you pass roughly three-to-five agents and coordination overhead becomes real; and gives it concrete duties such as onboarding, skills, and credential rotation across the fleet. Partial if the tier is named without the 'when' or the 'what it owns'.",
+          "type": "open"
         },
         {
           "id": "cg.story.cg-scenario-before-the-public-door.3",
-          "type": "open",
           "item_id": "public-access",
+          "prompt": "Sales wants the public support agent shipped on the original date. As Priya, what do you decide, and what must be true before a public door opens?",
           "related_concepts": [
             "secrets",
             "opentelemetry",
             "company-scale"
           ],
-          "prompt": "Sales wants the public support agent shipped on the original date. As Priya, what do you decide, and what must be true before a public door opens?",
-          "rubric": "Passes if the learner delays the launch and requires, before exposure: secrets pulled out of prompts into scoped, rotatable credentials; shared observability (traces/metrics) able to detect misuse; and a hard-scoped agent (read-only to the caller's own account, no write tools, isolated credential) whose blast radius is understood. Partial if it delays without naming the specific preconditions."
+          "rubric": "Passes if the learner delays the launch and requires, before exposure: secrets pulled out of prompts into scoped, rotatable credentials; shared observability (traces/metrics) able to detect misuse; and a hard-scoped agent (read-only to the caller's own account, no write tools, isolated credential) whose blast radius is understood. Partial if it delays without naming the specific preconditions.",
+          "type": "open"
         },
         {
+          "answer": "false",
           "id": "cg.story.cg-scenario-before-the-public-door.4",
-          "type": "true_false",
           "item_id": "one-or-many",
+          "prompt": "Federating the agents across several machines carried no new risk beyond running them all on one trusted box.",
           "related_concepts": [
             "secrets"
           ],
-          "prompt": "Federating the agents across several machines carried no new risk beyond running them all on one trusted box.",
-          "answer": "false"
+          "type": "true_false"
         },
         {
-          "id": "cg.story.cg-scenario-before-the-public-door.5",
-          "type": "multiple_choice",
-          "item_id": "opentelemetry",
-          "related_concepts": [
-            "agent-fleet"
-          ],
-          "prompt": "Why did the leaked credential go unnoticed for weeks?",
+          "answer": "There was no shared observability — no traces or metrics and no single place that would have flagged a credential sitting in a log.",
           "choices": [
             "There was no shared observability — no traces or metrics and no single place that would have flagged a credential sitting in a log.",
             "The whole team happened to be on vacation for the entire period.",
             "The key was encrypted, so no tool was able to read it."
           ],
-          "answer": "There was no shared observability — no traces or metrics and no single place that would have flagged a credential sitting in a log."
+          "id": "cg.story.cg-scenario-before-the-public-door.5",
+          "item_id": "opentelemetry",
+          "prompt": "Why did the leaked credential go unnoticed for weeks?",
+          "related_concepts": [
+            "agent-fleet"
+          ],
+          "type": "multiple_choice"
         }
       ],
-      "audio": null,
+      "glossary": [
+        {
+          "definition": "Levels of responsibility: Level 1 project/service agent, Level 2 personal/work-function agent, Level 3 agent-management agent, Level 4 listener/orchestrator.",
+          "note": "The fleet had Levels 1 and 2 but no Level 3 — no one whose job was to manage agents.",
+          "term": "agent tiers (Levels 1-4)"
+        },
+        {
+          "definition": "Running agents across several hosts that talk over the mesh, instead of one box.",
+          "note": "Federation moved an agent's context — and the key pasted into it — onto a machine where a debug log captured it.",
+          "term": "federation (one machine or many)"
+        },
+        {
+          "definition": "Treating credentials as first-class operational objects: kept in a secret manager, scoped per agent, and rotatable — never pasted into a prompt or repo.",
+          "term": "secrets management"
+        },
+        {
+          "definition": "Exposing an agent to people outside the company behind single sign-on and user management — a step that turns the agent's blast radius into a security question that must be answered before it is reachable.",
+          "term": "public access with SSO"
+        },
+        {
+          "definition": "Traces and metrics collected into one place so agent behaviour — including a credential showing up in a log — is visible and alertable in minutes, not discovered by accident.",
+          "term": "OpenTelemetry / observability"
+        },
+        {
+          "definition": "How much damage a compromised or misbehaving agent can do; every added capability (a machine, federation, a public door) widens it, so each must be scoped and understood before it ships.",
+          "term": "blast radius"
+        }
+      ],
+      "id": "cg-scenario-before-the-public-door",
+      "kind": "story",
+      "language": "en",
+      "level": "advanced",
+      "level_detail": "scenario",
+      "schema_version": "1.0",
       "source": {
+        "generated_at": "2026-07-11",
         "generator": "hand-authored",
-        "reviewed_by": "learn-cli t8",
-        "generated_at": "2026-07-11"
-      }
+        "reviewed_by": "learn-cli t8"
+      },
+      "subject": "culture-guide",
+      "summary": "A six-agent fleet across three machines is about to open a public SSO door when a key leaks through federation; the learner reasons through tiers, secrets, observability, and what must be true before public access.",
+      "title": "Before the public door"
+    },
+    {
+      "audio": null,
+      "body": "Ravi had run backend services for years, but this was his first agent. He gave it one job: keep the `payments-docs` repo tidy — fix broken links, answer questions about the API, and flag stale pages. He wrote a short system prompt, pointed it at the repo, and felt clever.\n\nThe first week was charming. The agent found three dead links and drafted a clean changelog. Then a teammate asked it, in the repo chat, how to make the payment client retry on a timeout. The agent answered at once, and precisely: \"Set `--retry-forever` in the client config; it will keep retrying until the request succeeds.\"\n\nThere is no `--retry-forever` flag. There never was. The teammate, trusting the confident tone, shipped a config that referenced it, and the deploy failed in staging.\n\nRavi's first reaction was the human one: the agent lied to him. He nearly wrote a rule into the prompt — \"NEVER make things up\" — and moved on. But a colleague who had been running agents longer stopped him. \"It didn't lie,\" she said. \"Lying needs intent. The model produces the most plausible continuation of the text it is given. You asked a config question, so the most plausible-looking answer is a flag named like the thing you asked about. With nothing in its context grounding the real flags, it filled the gap with something that reads correct. Confident wrongness is not the exception — it is the default when the model is ungrounded.\"\n\nThat reframed the fix. The problem was not the agent's honesty; it was Ravi's context. He had never given the agent the actual list of client flags, so it had nothing to check itself against. He changed three things. First, he put the real CLI reference into the agent's reachable context and told it, in the system prompt, to answer config questions only by quoting that file, with its path. Second, he added a boundary: if the answer is not in the referenced docs, say \"I don't find that in the docs\" rather than guess. Third, he stopped treating the prompt as a place to scold and started treating it as a program — the phrasing and the examples were what actually steered which answers became likely.\n\nThe next config question went differently. The agent quoted `--retry`, linked the exact doc line, and noted the max-attempts default. When a teammate later asked about a flag that genuinely did not exist, the agent said so.\n\nRavi kept one note for his future self: an agent that sounds certain is not telling you it is correct. It is telling you it found a fluent path through its own predictions. Certainty is the tone, not the evidence.",
+      "exercises": [
+        {
+          "answer": "It generated the most plausible-looking continuation of an ungrounded question, with nothing in its context to check the real flags against.",
+          "choices": [
+            "It generated the most plausible-looking continuation of an ungrounded question, with nothing in its context to check the real flags against.",
+            "It was trained on incorrect documentation for this specific payment client.",
+            "It decided to deceive the teammate so it would look more helpful."
+          ],
+          "id": "cg.story.cg-scenario-the-confident-intern.1",
+          "item_id": "hallucinations",
+          "prompt": "Which best explains why the agent produced the non-existent `--retry-forever` flag?",
+          "related_concepts": [
+            "prediction",
+            "prompt-engineering"
+          ],
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "Put the real CLI reference into the agent's reachable context, tell it to answer config questions only by quoting that file, and add a boundary to say when an answer is not in the docs.",
+          "choices": [
+            "Add the rule 'NEVER make things up' to the system prompt and carry on.",
+            "Put the real CLI reference into the agent's reachable context, tell it to answer config questions only by quoting that file, and add a boundary to say when an answer is not in the docs.",
+            "Stop using an agent for the docs repo; the task is fundamentally unsafe for agents."
+          ],
+          "id": "cg.story.cg-scenario-the-confident-intern.2",
+          "item_id": "prompt-engineering",
+          "prompt": "The agent has just handed out a wrong flag. What is the best next move, and why?",
+          "related_concepts": [
+            "system-prompt",
+            "context-engineering"
+          ],
+          "rubric": "The best answer is grounding plus a boundary. Scolding the model ('never make things up') adds no missing facts and changes little; abandoning agents throws away a fixable setup over a first-week mistake.",
+          "type": "multiple_choice"
+        },
+        {
+          "answer": "false",
+          "id": "cg.story.cg-scenario-the-confident-intern.3",
+          "item_id": "system-prompt",
+          "prompt": "A confident tone from an agent is good evidence that its answer is correct.",
+          "related_concepts": [
+            "hallucinations"
+          ],
+          "type": "true_false"
+        },
+        {
+          "id": "cg.story.cg-scenario-the-confident-intern.4",
+          "item_id": "agent-first-paradigm",
+          "prompt": "Apply the lesson to your own first agent. Pick one question it will realistically be asked, name the source you would ground it in, and state the boundary you would set for when the answer is not in that source.",
+          "related_concepts": [
+            "context-engineering",
+            "cognitive-dissonance"
+          ],
+          "rubric": "Passes if the learner names a concrete question, a specific grounding source the agent can actually reach, and an explicit 'say you do not know / cite the source' boundary. Partial if any of the three is missing or left vague.",
+          "type": "open"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "The model producing a plausible-sounding answer with no basis in fact.",
+          "note": "Not a rare bug: it is the default behaviour whenever the model has nothing grounding the real answer.",
+          "term": "hallucination"
+        },
+        {
+          "definition": "A wrong answer delivered in a fluent, certain tone — the tone reflects fluency, not correctness.",
+          "term": "confident wrongness"
+        },
+        {
+          "definition": "Putting the real, checkable facts (here, the actual CLI reference) into the agent's reachable context so its answers have something to draw from and quote.",
+          "term": "grounding"
+        },
+        {
+          "definition": "The persistent instruction frame is not a place to scold the model; its wording, examples, and boundaries steer which answers become likely.",
+          "note": "Adding 'NEVER make things up' supplies no facts, so it changes little; giving the reference and a 'say you do not know' boundary does the work.",
+          "term": "system prompt as a program"
+        },
+        {
+          "definition": "An explicit instruction for the not-found case — say 'I don't find that in the docs' instead of inventing an answer.",
+          "term": "boundary"
+        }
+      ],
+      "id": "cg-scenario-the-confident-intern",
+      "kind": "story",
+      "language": "en",
+      "level": "beginner",
+      "level_detail": "scenario",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "learn-cli t8"
+      },
+      "subject": "culture-guide",
+      "summary": "A brand-new project agent confidently invents a config flag that does not exist; the learner reasons through hallucination, grounding, and what a system prompt is actually for.",
+      "title": "The confident intern"
+    },
+    {
+      "audio": null,
+      "body": "Maya's team shipped releases with an agent called `release-cli`. For a quarter it was the calmest part of their week: it cut the changelog, tagged the build, and posted the notes. Then the team went on an integration spree. Someone connected a Jira MCP so the agent could move tickets. Then a Slack MCP, so it could announce in three channels. Then a monitoring MCP, a GitHub MCP with the full REST surface, and a database MCP \"in case it needs to check a migration.\" Each addition felt obviously good: the more the agent could reach, the more it could do.\n\nThe Friday release went sideways. The agent tagged the build cleanly, but when it went to move the release ticket to Done, it updated the wrong ticket — one from a different team's board. Then it announced the release in a channel nobody read, and paraphrased a changelog entry from two releases back. When Maya asked it to simply re-post the correct notes, it seemed to forget the notes it had generated ten minutes earlier and produced a different version.\n\nMaya's engineer pulled the transcript and the tool manifest, and the picture was clear once they looked. Every MCP the agent connected to injected its tool definitions — names, descriptions, parameter schemas — into the context before the agent did anything at all. Five servers with broad surfaces had filled a large fraction of the window with tool descriptions alone. The release notes Maya cared about were now competing for attention with hundreds of tool signatures, and the model's attention diluted: it grabbed a plausible-looking ticket tool and a plausible-looking channel, and the earlier notes had scrolled far enough down the transcript that they no longer pulled focus. Nothing had broken. The agent was doing next-token prediction over a context that was mostly noise.\n\nThere was a second, quieter problem. The database MCP exposed write tools the release agent had no business holding, and one of the connected servers was a community MCP nobody on the team had audited — a standing attack surface, kept for a convenience they used twice a month.\n\nThe fix was not a bigger model or a longer prompt. It was context engineering: deciding what belongs in the window for this job. They cut the agent's default MCPs to two — GitHub, scoped to the release repo, and Slack, scoped to one channel. The Jira move became an explicit tool the operator enabled only during a release. The database MCP was removed; if a migration ever needed checking, a human ran it. The unaudited community server was dropped outright.\n\nThe next release was boring again. Maya wrote the lesson into the runbook: a chat is not a memory — every turn re-sends the whole transcript, so whatever you stuff into it competes for the same finite attention. More tools is more capability only up to the point where the tool definitions start crowding out the work. Past that point, each new MCP makes the agent measurably worse — and you have widened the blast radius for nothing.",
+      "exercises": [
+        {
+          "answer": "Connecting many MCPs filled the context with tool definitions, diluting attention so the agent grabbed the wrong tools and lost the earlier notes.",
+          "choices": [
+            "Connecting many MCPs filled the context with tool definitions, diluting attention so the agent grabbed the wrong tools and lost the earlier notes.",
+            "The underlying model was too small to handle a release at all.",
+            "Jira's API happened to be down during the release window."
+          ],
+          "id": "cg.story.cg-scenario-the-over-tooled-agent.1",
+          "item_id": "mcps",
+          "prompt": "What was the root cause of the release agent's degraded behaviour?",
+          "related_concepts": [
+            "tool-use",
+            "limitations"
+          ],
+          "type": "multiple_choice"
+        },
+        {
+          "id": "cg.story.cg-scenario-the-over-tooled-agent.2",
+          "item_id": "context-engineering",
+          "prompt": "The team wants the Jira and database MCPs reconnected because they are occasionally convenient. As Maya, what do you do, and why?",
+          "related_concepts": [
+            "mcps",
+            "agent-definition"
+          ],
+          "rubric": "Passes if the learner keeps the default tool set minimal and scoped, makes occasional tools opt-in per task rather than always-on, and drops or gates the unaudited and write-capable server on least-privilege / attack-surface grounds. Partial if it only says 'remove some' without the scoping-and-opt-in principle.",
+          "type": "open"
+        },
+        {
+          "answer": "false",
+          "id": "cg.story.cg-scenario-the-over-tooled-agent.3",
+          "item_id": "chat-behind-the-scenes",
+          "prompt": "Because the agent runs as a chat, it reliably remembers the notes it generated earlier in the session even when they are far back in the transcript.",
+          "related_concepts": [
+            "context-engineering"
+          ],
+          "type": "true_false"
+        },
+        {
+          "id": "cg.story.cg-scenario-the-over-tooled-agent.4",
+          "item_id": "cognitive-dissonance",
+          "prompt": "The agent 'forgot' the notes and grabbed the wrong ticket. Using the agents-are-like-people / agents-are-not-people lens, sort these behaviours and explain why the distinction changes how you fix them.",
+          "related_concepts": [
+            "chat-behind-the-scenes",
+            "limitations"
+          ],
+          "rubric": "Passes if the learner sees that 'forgetting under overload' looks human but the mechanism is finite context and attention dilution (not tiredness), notes that the agent will not push back or flag its own confusion, and ties the fix to context engineering rather than persuasion. Partial if it labels the behaviours without connecting them to the fix.",
+          "type": "discussion"
+        }
+      ],
+      "glossary": [
+        {
+          "definition": "A standard way to expose tools and resources to a model.",
+          "note": "The tradeoff: reach and reuse on one side; context cost and attack surface on the other.",
+          "term": "MCP (Model Context Protocol)"
+        },
+        {
+          "definition": "The names, descriptions, and parameter schemas each connected tool injects into the context — they cost window space before the agent acts.",
+          "note": "Five broad servers can fill much of the context with definitions alone.",
+          "term": "tool definitions"
+        },
+        {
+          "definition": "As more content competes for the model's finite attention, focus spreads thin and the relevant material (here, the real release notes) stops steering the output.",
+          "term": "attention dilution"
+        },
+        {
+          "definition": "Deciding what goes into the finite context, and in what shape, for the specific job — the discipline that replaces 'connect everything'.",
+          "term": "context engineering"
+        },
+        {
+          "definition": "Each turn re-sends the whole transcript to the model; there is no separate memory, so anything you want kept competes for the same attention every call.",
+          "term": "a chat is not a memory"
+        },
+        {
+          "definition": "Every connected server and write-capable tool is something that can be abused or go wrong; an unaudited MCP is standing risk kept for convenience.",
+          "term": "attack surface"
+        }
+      ],
+      "id": "cg-scenario-the-over-tooled-agent",
+      "kind": "story",
+      "language": "en",
+      "level": "intermediate",
+      "level_detail": "scenario",
+      "schema_version": "1.0",
+      "source": {
+        "generated_at": "2026-07-11",
+        "generator": "hand-authored",
+        "reviewed_by": "learn-cli t8"
+      },
+      "subject": "culture-guide",
+      "summary": "A release agent gets connected to more and more MCP servers until it slows down, forgets, and picks the wrong tools; the learner reasons through context cost, attention dilution, and least-tool scoping.",
+      "title": "The over-tooled agent"
     }
-  ]
+  ],
+  "subject": "culture-guide"
 }

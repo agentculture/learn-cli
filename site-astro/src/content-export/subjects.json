@@ -1,76 +1,95 @@
 [
   {
-    "name": "french",
-    "display_name": "French",
-    "description": "Agent + CLI that turns Claude into a private French tutor: track progress, get an overview, get advice, read stories, and learn & practice French (written and spoken) online from your phone.",
-    "repo": "agentculture/french-cli",
     "available": true,
+    "description": "Written and spoken French through graded stories, from A1 upward.",
+    "display_name": "French",
     "modules": [
       {
         "id": "premiers-pas",
-        "title": "Premiers pas",
+        "lessons": 0,
         "summary": "Greetings, introductions, numbers, and prices — the survival core.",
-        "lessons": 2
+        "title": "Premiers pas"
       },
       {
         "id": "la-vie-quotidienne",
-        "title": "La vie quotidienne",
+        "lessons": 0,
         "summary": "Food and the market, ordering at a cafe, and daily-routine verbs.",
-        "lessons": 2
+        "title": "La vie quotidienne"
       },
       {
         "id": "en-ville",
-        "title": "En ville",
+        "lessons": 0,
         "summary": "Getting around town: asking directions and taking public transport.",
-        "lessons": 1
+        "title": "En ville"
       }
-    ]
+    ],
+    "name": "french",
+    "repo": "https://github.com/agentculture/french-cli"
   },
   {
-    "name": "spanish",
-    "display_name": "Spanish",
-    "description": "Agent + CLI that turns Claude into a private Spanish tutor: track progress, get an overview, get advice, read stories, and learn & practice Spanish (written and spoken) online from your phone.",
-    "repo": "agentculture/spanish-cli",
-    "available": false,
-    "modules": []
-  },
-  {
-    "name": "culture-guide",
-    "display_name": "Culture Guide",
-    "description": "Workshop and scaffolding CLI for practical AI efficiency: learn core AI concepts, build your first agents, create useful CLIs, and adopt agent-first development patterns.",
-    "repo": "agentculture/culture-guide",
     "available": true,
+    "description": "Spanish for real conversations through graded stories, from A1 upward.",
+    "display_name": "Spanish",
+    "modules": [
+      {
+        "id": "primeros-pasos",
+        "lessons": 0,
+        "summary": "Saludos, presentaciones, números y precios — lo esencial para sobrevivir.",
+        "title": "Primeros pasos"
+      },
+      {
+        "id": "la-vida-cotidiana",
+        "lessons": 0,
+        "summary": "Comida y el mercado, pedir en un café, y verbos de la rutina diaria.",
+        "title": "La vida cotidiana"
+      },
+      {
+        "id": "en-la-ciudad",
+        "lessons": 0,
+        "summary": "Moverse por la ciudad: pedir direcciones y usar el transporte público.",
+        "title": "En la ciudad"
+      }
+    ],
+    "name": "spanish",
+    "repo": "https://github.com/agentculture/spanish-cli"
+  },
+  {
+    "available": true,
+    "description": "Learning to build and lead teams of agents — the non-language proof the subject interface generalizes.",
+    "display_name": "Culture Guide",
     "modules": [
       {
         "id": "basics",
-        "title": "Part 1: Cover the basics",
+        "lessons": 0,
         "summary": "Cover the basics (~35 min)",
-        "lessons": 10
+        "title": "Part 1: Cover the basics"
       },
       {
         "id": "agents",
-        "title": "Part 2: Warm up to agents",
+        "lessons": 0,
         "summary": "Warm up to agents (~25 min)",
-        "lessons": 6
+        "title": "Part 2: Warm up to agents"
       },
       {
         "id": "coders",
-        "title": "Part 3: Coder agents are here",
+        "lessons": 0,
         "summary": "Agents are here (~30 min)",
-        "lessons": 5
+        "title": "Part 3: Coder agents are here"
       },
       {
         "id": "company",
-        "title": "Building a company of agents",
+        "lessons": 0,
         "summary": "Building a company of agents (~30 min)",
-        "lessons": 10
+        "title": "Building a company of agents"
       },
       {
         "id": "extra",
-        "title": "Additional lessons: agent-first work",
+        "lessons": 0,
         "summary": "Additional lessons (agent-first paradigm, tiers, CLI, company-scale)",
-        "lessons": 4
+        "title": "Additional lessons: agent-first work"
       }
-    ]
+    ],
+    "name": "culture-guide",
+    "repo": "https://github.com/agentculture/culture-guide"
   }
 ]
