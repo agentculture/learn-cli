@@ -1,0 +1,13 @@
+{
+  "name": "learn-launch-gate",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pre-launch E2E gate for learn-cli — boots the real production topology (worker + static site) locally and runs the scripted success walk. NOT part of site-astro; playwright is this package's devDependency only.",
+  "scripts": {
+    "walk": "node walk.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.56.0"
+  }
+}
