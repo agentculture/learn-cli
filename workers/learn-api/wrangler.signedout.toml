@@ -1,0 +1,42 @@
+# wrangler config — PHASE 1 (signed-out) deploy of the learn API Worker.
+#
+# This is the config that is LIVE in production today (deployed 2026-07-11).
+# It stands up the whole SIGNED-OUT experience at agentculture.org/learn:
+# the worker owns the /learn/* zone route and reverse-proxies every non-API
+# path to the Cloudflare Pages origin (PAGES_ORIGIN). The signed-out tour is
+# fully static; the resource-gated API routes (/api/me, /api/tutor, …) return
+# 401 WITHOUT ever touching storage, so this deploy needs NO KV, NO D1, and
+# NO secrets. It requires only two token permissions: Cloudflare Pages: Edit
+# (for the Pages project) and Workers Scripts: Edit (for this worker + route).
+#
+# Deploy with:
+#   wrangler deploy -c wrangler.signedout.toml
+#
+# PHASE 2 (signed-in) uses the full ./wrangler.toml instead — it adds the KV
+# namespace, the D1 ledger, the GitHub OAuth client id, and the secrets. That
+# deploy additionally needs Workers KV Storage: Edit + D1: Edit on the token,
+# and the GitHub OAuth app must exist first. See README.md "Provisioning".
+
+name = "learn-api"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+workers_dev = false
+
+# Top-level key — MUST precede [vars] (see the gotcha note in wrangler.toml).
+routes = [
+  { pattern = "agentculture.org/learn/*", zone_name = "agentculture.org" },
+  { pattern = "agentculture.org/learn", zone_name = "agentculture.org" },
+]
+
+[vars]
+# Placeholder client id: harmless in phase 1. The sign-in button is only
+# reachable by direct navigation (org's Learn nav link is held until phase 2),
+# so a non-functional OAuth start has no public surface yet.
+GITHUB_CLIENT_ID = "REPLACE_ME_github_oauth_client_id"
+PUBLIC_URL   = "https://agentculture.org"
+APP_URL      = "https://agentculture.org/learn/"
+CORS_ORIGIN  = "https://agentculture.org"
+PAGES_ORIGIN = "https://agentculture-learn.pages.dev"
+
+[observability]
+enabled = true

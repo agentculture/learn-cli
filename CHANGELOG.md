@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2026-07-11
+
+### Added
+
+- Phase-1 (signed-out) production deploy of agentculture.org/learn: Cloudflare Pages project agentculture-learn + proxy Worker owning the agentculture.org/learn/* zone route. Signed-out tour, all subject/story pages, and the 401 resource-gate are live; verified 38/38 by the LIVE_ORIGIN launch gate.
+- workers/learn-api/wrangler.signedout.toml — the committed Phase-1 config (proxy-only: route + PAGES_ORIGIN, no KV/D1/secrets).
+
+### Changed
+
+- workers/learn-api/README.md: document the two-phase go-live (signed-out live vs signed-in pending) and the exact token permissions each phase needs (Pages+Workers Scripts for Phase 1; +KV+D1 for Phase 2).
+
+### Fixed
+
+- wrangler.toml: moved the routes array above the [vars] table. Under [vars], TOML scoped it as vars.routes and wrangler silently bound no route (No targets deployed).
+
 ## [0.5.1] - 2026-07-11
 
 ### Fixed

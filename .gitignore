@@ -232,3 +232,6 @@ skills.local.yaml
 # devague working state (not committed by default)
 .devague/reviews/
 .claude/settings.json
+
+# wrangler local state (created by `wrangler pages deploy` at repo root)
+.wrangler/

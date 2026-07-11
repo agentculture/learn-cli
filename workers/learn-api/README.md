@@ -64,18 +64,43 @@ wrangler dev         # serves http://localhost:8787
 For `wrangler dev`, put non-secret vars in `wrangler.toml` and provide dev
 secrets in a git-ignored `.dev.vars` file (see below).
 
-## Provisioning (operator steps still owed)
+## Deploy status: two phases
 
-These steps are done once, by the operator, before the first deploy. Nothing
-here is committed.
+The go-live is staged. **Phase 1 (signed-out) is LIVE** at
+<https://agentculture.org/learn/> (deployed 2026-07-11); **Phase 2 (signed-in)
+is pending** two operator-held credentials.
+
+| | Phase 1 — signed-out (LIVE) | Phase 2 — signed-in (pending) |
+| --- | --- | --- |
+| Config | [`wrangler.signedout.toml`](wrangler.signedout.toml) | [`wrangler.toml`](wrangler.toml) |
+| Serves | Static `/learn/*` proxied to Pages; `/api/*` returns 401 | + sessions, ledger, tutoring |
+| KV / D1 | none | KV `SESSIONS` + D1 `learn-ledger` |
+| Secrets | none | `SESSION_SECRET`, `GITHUB_CLIENT_SECRET`, `INFERENCE_TOKEN` |
+| Token perms | Cloudflare Pages: Edit **+** Workers Scripts: Edit | **+** Workers KV Storage: Edit **+** D1: Edit |
+| Deploy | `wrangler deploy -c wrangler.signedout.toml` | `wrangler deploy` |
+
+The signed-out tier touches no storage and spends no inference — `/api/me` and
+`POST /api/tutor` return `401` *before* any KV/D1 access (proven live by the
+launch gate's "signed-out fires ONLY GET /api/me" walk). That is why Phase 1
+deploys with a Pages+Workers token and nothing else.
+
+**Phase 1 was deployed with the repo's `.env` token, which carries Pages: Edit
+and Workers Scripts: Edit but NOT KV/D1.** To do Phase 2 self-serve, that token
+needs **Workers KV Storage: Edit** and **D1: Edit** added (or swap in a token
+that has them).
+
+## Provisioning Phase 2 (signed-in)
+
+These steps are done once, by the operator, before the signed-in deploy.
+Nothing here is committed.
 
 ### 1. Create the GitHub OAuth app
 
 Create an OAuth app at
 `https://github.com/settings/developers` (or in the AgentCulture org):
 
-- **Authorization callback URL:** `https://<worker-host>/api/auth/callback`
-  (e.g. the route mounted under `agentculture.org/learn`).
+- **Authorization callback URL:**
+  `https://agentculture.org/learn/api/auth/callback` (the live zone route).
 - **Enable Device Flow** — required for the CLI/MCP device sign-in (t12).
 - Requested scope is `read:user` only. Do **not** request `user:email`; the API
   never reads or stores email.
@@ -93,7 +118,16 @@ wrangler d1 execute learn-ledger --file schema.sql
 
 Copy the returned ids into `wrangler.toml` (replace the `REPLACE_ME_*`
 placeholders for `id`, `preview_id`, and `database_id`), and set
-`GITHUB_CLIENT_ID` there too (it is public).
+`GITHUB_CLIENT_ID` there too (it is public). The route + `PUBLIC_URL` /
+`APP_URL` / `CORS_ORIGIN` / `PAGES_ORIGIN` vars are already filled in
+`wrangler.toml` from the live Phase-1 deploy.
+
+Apply the schema to the **remote** D1 (the `--local` form only touches the
+`wrangler dev` SQLite):
+
+```bash
+wrangler d1 execute learn-ledger --remote --file schema.sql
+```
 
 ### 3. Set secrets
 
@@ -128,12 +162,14 @@ INFERENCE_TOKEN = "..."
 ### 4. Deploy
 
 ```bash
-wrangler deploy
+wrangler deploy   # uses wrangler.toml — full stack, same /learn/* route
 ```
 
-Then mount the Worker under the `agentculture.org/learn` zone via the
-operator-owned Cloudflare routing (coordinated with the `org` / cultureflare
-path — the same route that fronts the Pages site).
+The `agentculture.org/learn/*` zone route is already live (Phase 1) and is
+declared in `wrangler.toml`, so this deploy upgrades the *same* worker in place
+— the route does not move. Confirm the signed-in path end-to-end afterward
+(`GET /learn/api/me` with a real session cookie should `200`), then merge org's
+Learn-nav link to open public discovery.
 
 ## Endpoint shapes for downstream waves
 
