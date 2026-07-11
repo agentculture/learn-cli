@@ -13,7 +13,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- Worker OAuth login built redirect_uri from the bare origin (https://agentculture.org/api/auth/callback), dropping the /learn zone-mount prefix — GitHub would reject the web flow on redirect_uri mismatch and the bare callback would miss the worker route entirely. handleLogin now derives the callback from APP_URL via callbackUrl(); regression test asserts the /learn prefix.
+- Worker OAuth login built `redirect_uri` from the bare origin (`https://agentculture.org/api/auth/callback`), dropping the `/learn` zone-mount prefix — GitHub would reject the web flow on redirect_uri mismatch and the bare callback would miss the worker route entirely. `handleLogin` now derives the callback from `APP_URL` via `callbackUrl()`; regression test asserts the `/learn` prefix.
 
 ## [0.5.2] - 2026-07-11
 
