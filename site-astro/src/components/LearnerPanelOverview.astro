@@ -15,6 +15,17 @@
 // this is the two-step client-side join a per-learner "everything" endpoint
 // would otherwise do server-side — worth revisiting if that endpoint ever
 // lands, but not a change this task makes to workers/.
+//
+// Account section (task t8): this is the natural signed-in "hub" — the
+// landing page's cross-subject panel, unlike LearnerPanelSubject.astro's
+// per-subject one — so the account surface (visibility toggle, export,
+// delete, and an admin-only learner list) lives here as a sibling block
+// inside the same `.panel-in.signedin-only` card, hydrated by
+// `hydrateAccountPanel()` in src/scripts/learner.js. It makes good on the
+// consent page's own promise ("decline below, or delete your account
+// later") and gives GET /api/export / POST /api/delete — CLI-ready since
+// t7 — a web affordance for the first time (see workers/learn-api/README.md
+// "For t7"'s note that this task is the natural home for it).
 import type { Subject } from "../lib/content";
 import { API_BASE } from "../lib/api";
 
@@ -49,6 +60,74 @@ const subjectRoster = subjects.map((s) => ({
     </p>
 
     <ul class="subject-rows" data-slot="subject-rows" hidden></ul>
+
+    <div class="account-panel" data-account-panel>
+      <h3 class="account-heading">Your account</h3>
+
+      <div class="account-row">
+        <span class="account-label">Visibility</span>
+        <div class="visibility-toggle" role="group" aria-label="Profile visibility">
+          <button
+            type="button"
+            class="visibility-btn"
+            data-visibility-option="private"
+            aria-pressed="true"
+          >
+            Private
+          </button>
+          <button
+            type="button"
+            class="visibility-btn"
+            data-visibility-option="public"
+            aria-pressed="false"
+          >
+            Public
+          </button>
+        </div>
+        <p class="muted account-note">
+          Private is the default, and today the only one that matters — no
+          leaderboard or public profile page reads this yet. Public just
+          records your intent for when one exists.
+        </p>
+        <p class="account-status muted" data-visibility-status role="status" aria-live="polite"></p>
+      </div>
+
+      <div class="account-row">
+        <span class="account-label">Your data</span>
+        <div class="account-actions">
+          <button type="button" class="btn-secondary" data-export>Export my data</button>
+          <button type="button" class="btn-outline" data-delete-reveal>Delete my data</button>
+        </div>
+        <p class="account-status muted" data-export-status role="status" aria-live="polite"></p>
+
+        <div class="delete-form" data-delete-form hidden>
+          <label class="delete-label" for="account-delete-confirm">
+            Type your GitHub id (<code data-auth-uid>—</code>) to confirm — this
+            permanently deletes your ledger, consent history, and profile.
+          </label>
+          <input
+            type="text"
+            id="account-delete-confirm"
+            data-delete-confirm-input
+            autocomplete="off"
+            inputmode="numeric"
+          />
+          <div class="account-actions">
+            <button type="button" class="btn-outline" data-delete-confirm disabled>
+              Permanently delete
+            </button>
+            <button type="button" class="btn-secondary" data-delete-cancel>Cancel</button>
+          </div>
+          <p class="account-status muted" data-delete-status role="status" aria-live="polite"></p>
+        </div>
+      </div>
+
+      <div class="account-row admin-row" data-admin-only hidden>
+        <span class="account-label">Admin — every learner</span>
+        <ul class="admin-list" data-admin-list></ul>
+        <p class="account-status muted" data-admin-status role="status" aria-live="polite"></p>
+      </div>
+    </div>
   </div>
 
   <script type="application/json" data-subjects set:html={JSON.stringify(subjectRoster)} />
@@ -148,5 +227,162 @@ const subjectRoster = subjects.map((s) => ({
     border-radius: 999px;
     background: color-mix(in srgb, var(--accent) 14%, transparent);
     color: var(--accent-strong);
+  }
+
+  /* ---------- account panel (task t8) ----------
+     Visibility toggle, export, delete, and the admin-only learner list —
+     a sibling block inside the same signed-in card, so it inherits
+     .panel-in's display:block override with no extra auth-state CSS. */
+
+  .account-panel {
+    margin-top: 1.6rem;
+    padding-top: 1.4rem;
+    border-top: 1px solid var(--line-soft);
+    display: grid;
+    gap: 1.2rem;
+  }
+
+  .account-heading {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .account-row {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .account-label {
+    font-size: 0.72rem;
+    font-weight: 640;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .account-note {
+    font-size: 0.85rem;
+    margin: 0;
+  }
+
+  .account-status {
+    font-size: 0.85rem;
+    font-style: italic;
+    min-height: 1.1em;
+    margin: 0;
+  }
+
+  .visibility-toggle {
+    display: inline-flex;
+    gap: 0.4rem;
+  }
+
+  .visibility-btn {
+    padding: 0.4rem 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink-soft);
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .visibility-btn[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+  }
+
+  .visibility-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .account-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+  }
+
+  .btn-secondary,
+  .btn-outline {
+    display: inline-block;
+    padding: 0.5rem 1.1rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .btn-secondary:hover:not(:disabled),
+  .btn-outline:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+    color: var(--accent-strong);
+  }
+
+  /* No dedicated "danger" token exists in this design system — a firmer
+     outline (vs. .btn-secondary's quieter one) is the whole distinction,
+     staying inside the existing --ink/--line palette rather than
+     introducing a new color variable for one destructive action. */
+  .btn-outline {
+    border-color: color-mix(in srgb, var(--ink) 35%, var(--line));
+  }
+
+  .btn-secondary:disabled,
+  .btn-outline:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  .delete-form {
+    display: grid;
+    gap: 0.6rem;
+    margin-top: 0.4rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius);
+  }
+
+  .delete-label {
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+
+  .delete-label code {
+    font-weight: 700;
+  }
+
+  .delete-form input {
+    font: inherit;
+    font-size: 0.9rem;
+    padding: 0.45rem 0.7rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  .admin-list {
+    list-style: none;
+    display: grid;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0;
+    font-size: 0.85rem;
+  }
+
+  .admin-list li {
+    padding-block: 0.3rem;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .admin-list li:last-child {
+    border-bottom: none;
   }
 </style>

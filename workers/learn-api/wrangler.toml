@@ -46,6 +46,15 @@ CORS_ORIGIN  = "https://agentculture.org"          # allow the /learn site to ca
 PAGES_ORIGIN = "https://agentculture-learn.pages.dev"  # static-site origin the /learn zone mount proxies to
 # INFERENCE_URL = "https://<cloudai-or-ec2bedrock-served-endpoint>/v1/messages"  # unset ⇒ tutoring 503s
 
+# ADMIN_GITHUB_IDS (spec c12/h4, task t8): comma-separated GitHub NUMERIC ids
+# allow-listed for the admin surface (GET /api/admin/learners today; the
+# approve/revoke surface, t9, reuses the same allow-list). Non-secret — a
+# GitHub numeric id is not a credential — but enforcement is SERVER-SIDE
+# ONLY: src/admin.js#isAdmin reads this var fresh on every admin request and
+# never trusts a client-supplied admin claim (see that module's own header
+# comment). Production admin: 20955789 (OriNachum, per the spec's audience).
+ADMIN_GITHUB_IDS = "20955789"
+
 # --- Secrets (NEVER committed) ---------------------------------------------
 # Set with: wrangler secret put <NAME>
 #   SESSION_SECRET        random >=32 bytes; signs session tokens (HMAC-SHA256)

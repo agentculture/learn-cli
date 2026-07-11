@@ -16,10 +16,19 @@
 // any further request. This file is the audited surface for that
 // guarantee: scripts/check-static-auth.mjs statically parses this exact
 // source file to confirm (a) the only fetch targets anywhere in it are the
-// whitelisted /api/me, /api/progress/:subject, /api/record, and
-// /api/auth/* paths, and (b) the progress/record/logout calls are lexically
+// whitelisted /api/me, /api/progress/:subject, /api/record, /api/export,
+// /api/delete, /api/me/visibility, /api/admin/learners, and /api/auth/*
+// paths, and (b) the progress/record/logout/account calls are lexically
 // nested inside the post-200 branch, never reachable from the 401/error
 // branch.
+//
+// Account panel (task t8): hydrateAccountPanel() below wires the visibility
+// toggle (POST /api/me/visibility), the data-export/data-delete flow
+// (GET /api/export, POST /api/delete — CLI-ready since t7, this is their
+// first web affordance), and — admin-only, gated on the `is_admin` field
+// GET /api/me now carries — the all-learners list (GET /api/admin/learners).
+// All of it is called from bootstrap() only after the session check
+// succeeds, same discipline as hydratePanels()/wireExerciseRecorders().
 import { API_BASE } from "../lib/api.js";
 
 const html = document.documentElement;
@@ -284,6 +293,185 @@ function wireSignOut() {
   });
 }
 
+// --- account panel: visibility, export, delete, admin list (task t8) ------
+
+/** The private/public toggle (POST /api/me/visibility), seeded from the
+ * `me.learner.visibility` field GET /api/me already carried this call. */
+function wireVisibilityToggle(panel, me) {
+  const buttons = Array.from(panel.querySelectorAll("[data-visibility-option]"));
+  const status = panel.querySelector("[data-visibility-status]");
+  if (buttons.length === 0) return;
+  let current = (me.learner && me.learner.visibility) || "private";
+
+  const paint = () => {
+    buttons.forEach((b) => {
+      b.setAttribute("aria-pressed", b.getAttribute("data-visibility-option") === current ? "true" : "false");
+    });
+  };
+  paint();
+
+  buttons.forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const value = btn.getAttribute("data-visibility-option");
+      if (value === current) return;
+      buttons.forEach((b) => {
+        b.disabled = true;
+      });
+      if (status) status.textContent = "Saving…";
+      try {
+        const res = await fetch(`${API_BASE}/me/visibility`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ visibility: value }),
+        });
+        if (!res.ok) throw new Error(`visibility update failed: ${res.status}`);
+        current = value;
+        paint();
+        if (status) status.textContent = "Saved.";
+      } catch {
+        if (status) status.textContent = "Couldn't save — try again.";
+      } finally {
+        buttons.forEach((b) => {
+          b.disabled = false;
+        });
+      }
+    });
+  });
+}
+
+/** "Export my data" (GET /api/export, t7): downloads the JSON as a file
+ * rather than linking directly — the route needs the session cookie
+ * (credentials:"include"), which a plain <a href> can't send cross-context
+ * as a download, so this fetches, then hands the browser a Blob URL. */
+function wireExport(panel) {
+  const btn = panel.querySelector("[data-export]");
+  const status = panel.querySelector("[data-export-status]");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    if (status) status.textContent = "Preparing your export…";
+    try {
+      const res = await fetch(`${API_BASE}/export`, { credentials: "include" });
+      if (!res.ok) throw new Error(`export failed: ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "learn-export.json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      if (status) status.textContent = "Downloaded.";
+    } catch {
+      if (status) status.textContent = "Couldn't export — try again.";
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
+/** "Delete my data" (POST /api/delete, t7): the confirm-field guard mirrored
+ * in the UI — the learner must TYPE their own github_user_id (from `me`,
+ * already fetched) before the delete button un-disables, matching the API's
+ * own one-extra-step guard against a stray click. On success the account is
+ * gone; reload settles on the now-signed-out state. */
+function wireDelete(panel, me) {
+  const revealBtn = panel.querySelector("[data-delete-reveal]");
+  const form = panel.querySelector("[data-delete-form]");
+  const input = panel.querySelector("[data-delete-confirm-input]");
+  const confirmBtn = panel.querySelector("[data-delete-confirm]");
+  const cancelBtn = panel.querySelector("[data-delete-cancel]");
+  const status = panel.querySelector("[data-delete-status]");
+  if (!revealBtn || !form || !input || !confirmBtn) return;
+
+  const uid = String((me.learner && me.learner.github_user_id) || "");
+  panel.querySelectorAll("[data-auth-uid]").forEach((el) => {
+    el.textContent = uid;
+  });
+
+  revealBtn.addEventListener("click", () => {
+    form.hidden = false;
+    revealBtn.hidden = true;
+    input.focus();
+  });
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", () => {
+      form.hidden = true;
+      revealBtn.hidden = false;
+      input.value = "";
+      confirmBtn.disabled = true;
+      if (status) status.textContent = "";
+    });
+  }
+
+  input.addEventListener("input", () => {
+    confirmBtn.disabled = input.value.trim() !== uid;
+  });
+
+  confirmBtn.addEventListener("click", async () => {
+    if (input.value.trim() !== uid) return;
+    confirmBtn.disabled = true;
+    if (status) status.textContent = "Deleting…";
+    try {
+      const res = await fetch(`${API_BASE}/delete`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: input.value.trim() }),
+      });
+      if (!res.ok) throw new Error(`delete failed: ${res.status}`);
+      location.reload();
+    } catch {
+      if (status) status.textContent = "Couldn't delete — try again.";
+      confirmBtn.disabled = false;
+    }
+  });
+}
+
+/** Admin-only "every learner" list (GET /api/admin/learners) — rendered
+ * ONLY when `me.is_admin` is true (the additive /api/me field, t8); the
+ * server enforces the allow-list independently, this is purely a UI show/
+ * hide, never a source of truth. */
+async function hydrateAdminList(section) {
+  const listEl = section.querySelector("[data-admin-list]");
+  const status = section.querySelector("[data-admin-status]");
+  if (!listEl) return;
+  try {
+    const res = await fetch(`${API_BASE}/admin/learners`, { credentials: "include" });
+    if (!res.ok) throw new Error(`admin list failed: ${res.status}`);
+    const data = await res.json();
+    listEl.textContent = "";
+    (data.learners || []).forEach((l) => {
+      const li = document.createElement("li");
+      li.textContent =
+        `${l.display_name} (github:${l.github_user_id}) — ${l.visibility}, ` +
+        `consent: ${l.consent_status}, records: ${l.records_total}`;
+      listEl.appendChild(li);
+    });
+    if (status) status.textContent = `${data.count} learner(s).`;
+  } catch {
+    if (status) status.textContent = "Couldn't load the admin list.";
+  }
+}
+
+async function hydrateAccountPanel(me) {
+  const panel = document.querySelector("[data-account-panel]");
+  if (!panel) return;
+
+  wireVisibilityToggle(panel, me);
+  wireExport(panel);
+  wireDelete(panel, me);
+
+  const adminSection = panel.querySelector("[data-admin-only]");
+  if (adminSection) {
+    adminSection.hidden = !me.is_admin;
+    if (me.is_admin) await hydrateAdminList(adminSection);
+  }
+}
+
 // --- bootstrap -----------------------------------------------------------
 
 async function bootstrap() {
@@ -310,7 +498,11 @@ async function bootstrap() {
   });
 
   wireSignOut();
-  await Promise.all([hydratePanels(), Promise.resolve(wireExerciseRecorders())]);
+  await Promise.all([
+    hydratePanels(),
+    Promise.resolve(wireExerciseRecorders()),
+    hydrateAccountPanel(me),
+  ]);
 }
 
 // Sign-in independent: wired before bootstrap() and its auth check, so cloze
