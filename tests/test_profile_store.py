@@ -72,6 +72,23 @@ def test_read_ledger_skips_blank_lines(profile_home) -> None:
     assert len(p.read_ledger()) == 1
 
 
+def test_ledger_file_is_created_private(profile_home) -> None:
+    p.append_ledger({"subject": "french", "item_id": "fr.x", "result": "pass"})
+    mode = p.ledger_path().stat().st_mode & 0o777
+    assert mode == 0o600
+
+
+def test_read_ledger_skips_malformed_lines(profile_home) -> None:
+    p.append_ledger({"subject": "french", "item_id": "fr.a", "result": "pass"})
+    with p.ledger_path().open("a", encoding="utf-8") as handle:
+        handle.write("{not json\n")
+        handle.write("[1, 2, 3]\n")
+    p.append_ledger({"subject": "french", "item_id": "fr.b", "result": "partial"})
+    rows = p.read_ledger()
+    assert [r["item_id"] for r in rows] == ["fr.a", "fr.b"]
+    assert p.ledger_count() == 2
+
+
 # --- auth state ------------------------------------------------------------
 
 

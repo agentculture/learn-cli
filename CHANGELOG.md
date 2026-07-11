@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-07-11
+
+### Fixed
+
+- API worker: the /learn zone-mount proxy strips Cookie/Authorization before forwarding to the Pages origin (review finding: session leak)
+- API worker: withCors appends to an existing Vary header instead of overwriting it
+- Profile ledger: created 0600 like auth.json (learner data is private)
+- Profile ledger: a malformed ledger line is skipped instead of crashing progress/next/sync
+
 ## [0.5.0] - 2026-07-11
 
 ### Added
