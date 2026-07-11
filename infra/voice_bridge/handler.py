@@ -120,45 +120,59 @@ def _frame(event: dict, connection_id: str, deps: Deps) -> dict:
 # --- production wiring (boto3; built lazily, unused under pytest) -----------
 
 
+#: Constant partition key every session-metadata item lives under. Frame
+#: items keep their own per-connection partition (``SESSION#<connection>``),
+#: so this key never collides with them — Query-ing it touches only the
+#: handful of metadata rows the concurrency gate cares about, never the
+#: thousands of frame rows the hot path writes.
+_ACTIVE_PK = "ACTIVE"
+
+
 class DynamoSessionStore:
     """Sessions + inbound frames in the one PAY_PER_REQUEST table.
 
-    Item shapes: ``PK=SESSION#<connection>``, ``SK=METADATA`` for the session
-    row; ``SK=FRAME#<arrival-ms>#<nonce>`` for inbound audio frames (ordering
-    is client-``seq`` authoritative — see relay.order_frames; the SK only
-    approximates arrival). Every item carries an ``expires_at`` TTL so a
-    crashed session leaves nothing behind and storage cost stays ~zero.
+    Item shapes: ``PK=ACTIVE``, ``SK=<connection>`` for the session-metadata
+    row (a constant partition key on purpose — see ``count_active`` below);
+    ``PK=SESSION#<connection>``, ``SK=FRAME#<arrival-ms>#<nonce>`` for
+    inbound audio frames (ordering is client-``seq`` authoritative — see
+    relay.order_frames; the SK only approximates arrival). Every item
+    carries an ``expires_at`` TTL so a crashed session leaves nothing behind
+    and storage cost stays ~zero.
     """
 
     def __init__(self, table: Any):
         self._table = table
 
     def count_active(self, now: int) -> int:
-        # A Scan is O(table), which is fine *because* the concurrency cap
-        # keeps this table at a handful of rows by construction; a GSI would
-        # be added capacity for no measurable gain at cap=2.
-        result = self._table.scan(
+        # Metadata lives under the constant PK=ACTIVE, so this is a Query
+        # against a single partition — it reads only metadata items, never
+        # the frame items (PK=SESSION#<connection>) sharing this table.
+        # Frames are the hot path (thousands of writes per session), so a
+        # Scan here would have cost/latency growing with frame volume; this
+        # Query's cost is bounded by the (small, cap-limited) session count.
+        result = self._table.query(
             Select="COUNT",
-            FilterExpression="SK = :meta AND expires_at > :now",
-            ExpressionAttributeValues={":meta": "METADATA", ":now": now},
+            KeyConditionExpression="PK = :active",
+            FilterExpression="expires_at > :now",
+            ExpressionAttributeValues={":active": _ACTIVE_PK, ":now": now},
         )
         return int(result.get("Count", 0))
 
     def put_session(self, connection_id: str, record: dict) -> None:
         item = {
-            "PK": f"SESSION#{connection_id}",
-            "SK": "METADATA",
+            "PK": _ACTIVE_PK,
+            "SK": connection_id,
             "expires_at": record["deadline"] + _TTL_GRACE_SECONDS,
             **record,
         }
         self._table.put_item(Item=item)
 
     def get_session(self, connection_id: str) -> dict | None:
-        result = self._table.get_item(Key={"PK": f"SESSION#{connection_id}", "SK": "METADATA"})
+        result = self._table.get_item(Key={"PK": _ACTIVE_PK, "SK": connection_id})
         return result.get("Item")
 
     def delete_session(self, connection_id: str) -> None:
-        self._table.delete_item(Key={"PK": f"SESSION#{connection_id}", "SK": "METADATA"})
+        self._table.delete_item(Key={"PK": _ACTIVE_PK, "SK": connection_id})
 
     def store_frame(self, connection_id: str, body: str) -> None:
         self._table.put_item(

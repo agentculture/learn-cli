@@ -182,3 +182,145 @@ def test_session_mode_event_routes_to_the_session_runner() -> None:
     assert response == {"ok": True}
     assert ran == [payload]
     assert launched == []
+
+
+# --- DynamoSessionStore: the Query-not-Scan performance fix -----------------
+#
+# Qodo finding: count_active() used to Scan the whole voice-sessions table,
+# and sessions + frames share that table. A Scan reads every item — frames
+# included — before filtering, so $connect latency/cost grew with frame
+# volume even though the concurrency gate only ever needs the session count.
+# The fix stores session-metadata items under a constant partition key
+# (PK="ACTIVE") so count_active can Query that one partition instead. The
+# fake table below mimics just enough of the boto3 Table-resource surface
+# (get_item/put_item/delete_item/query/scan) to prove the new access path
+# for real, against DynamoSessionStore itself — not the FakeStore fake the
+# rest of this file uses, which never touches boto3-shaped calls.
+
+
+class FakeDynamoTable:
+    """Boto3 Table-resource stand-in — only the calls DynamoSessionStore makes.
+
+    Tracks every scan()/query() call it receives so tests can assert on the
+    access *path* (Query on the constant PK, never a table-wide Scan), not
+    just the returned count.
+    """
+
+    def __init__(self):
+        self._items: dict[tuple[str, str], dict] = {}
+        self.scan_calls: list[dict] = []
+        self.query_calls: list[dict] = []
+
+    def seed(self, item: dict) -> None:
+        self._items[(item["PK"], item["SK"])] = item
+
+    def put_item(self, Item: dict) -> None:  # noqa: N803 - boto3's own casing
+        self._items[(Item["PK"], Item["SK"])] = Item
+
+    def get_item(self, Key: dict) -> dict:  # noqa: N803
+        item = self._items.get((Key["PK"], Key["SK"]))
+        return {"Item": item} if item is not None else {}
+
+    def delete_item(self, Key: dict) -> None:  # noqa: N803
+        self._items.pop((Key["PK"], Key["SK"]), None)
+
+    def scan(self, **kwargs) -> dict:
+        # A real Scan reads every item in the table regardless of partition
+        # — record the call (and everything currently stored) so a test can
+        # assert this path was never exercised, and the count it *would*
+        # have produced, for comparison against the Query path.
+        self.scan_calls.append(kwargs)
+        return {"Count": len(self._items), "Items": list(self._items.values())}
+
+    def query(self, **kwargs) -> dict:
+        self.query_calls.append(kwargs)
+        values = kwargs.get("ExpressionAttributeValues", {})
+        pk_value = values[":active"]
+        now = values[":now"]
+        matched = [
+            item
+            for (pk, _sk), item in self._items.items()
+            if pk == pk_value and item.get("expires_at", 0) > now
+        ]
+        if kwargs.get("Select") == "COUNT":
+            return {"Count": len(matched)}
+        return {"Items": matched}
+
+
+def _metadata_item(connection_id: str, expires_at: int) -> dict:
+    return {"PK": "ACTIVE", "SK": connection_id, "expires_at": expires_at}
+
+
+def _frame_item(connection_id: str, seq: int, expires_at: int) -> dict:
+    return {
+        "PK": f"SESSION#{connection_id}",
+        "SK": f"FRAME#{seq:013d}#deadbeef",
+        "body": "audio-bytes",
+        "expires_at": expires_at,
+    }
+
+
+def test_count_active_queries_the_constant_pk_and_ignores_frame_items() -> None:
+    """The Qodo fix: count_active must Query PK=ACTIVE, never Scan the table.
+
+    Seeds three active session-metadata items alongside a thousand frame
+    items belonging to those same sessions (the hot path this bug made
+    every $connect pay for). The count must equal exactly the metadata
+    count, the access path must be a Query keyed on the constant partition,
+    and Scan must never be called at all.
+    """
+    table = FakeDynamoTable()
+    store = handler.DynamoSessionStore(table)
+    for i in range(3):
+        table.seed(_metadata_item(f"conn-{i}", expires_at=NOW + 3600))
+    for i in range(1000):
+        table.seed(_frame_item(f"conn-{i % 3}", seq=i, expires_at=NOW + 120))
+
+    count = store.count_active(NOW)
+
+    assert count == 3
+    assert table.scan_calls == []
+    assert len(table.query_calls) == 1
+    call = table.query_calls[0]
+    assert call["Select"] == "COUNT"
+    assert call["ExpressionAttributeValues"][":active"] == "ACTIVE"
+    assert "PK" in call["KeyConditionExpression"]
+    assert "SK" not in call["KeyConditionExpression"]
+
+
+def test_count_active_excludes_ttl_expired_metadata() -> None:
+    """A crashed session's metadata row must stop pinning the concurrency cap."""
+    table = FakeDynamoTable()
+    store = handler.DynamoSessionStore(table)
+    table.seed(_metadata_item("conn-live", expires_at=NOW + 3600))
+    table.seed(_metadata_item("conn-expired", expires_at=NOW - 1))
+
+    assert store.count_active(NOW) == 1
+
+
+def test_put_get_delete_session_round_trip_under_the_constant_pk() -> None:
+    """put_session/get_session/delete_session all key off PK=ACTIVE, SK=connection."""
+    table = FakeDynamoTable()
+    store = handler.DynamoSessionStore(table)
+    store.put_session("conn-1", {"uid": "20955789", "connected_at": NOW, "deadline": NOW + 300})
+
+    stored = table._items[("ACTIVE", "conn-1")]
+    assert stored["uid"] == "20955789"
+    assert store.get_session("conn-1")["uid"] == "20955789"
+
+    store.delete_session("conn-1")
+
+    assert store.get_session("conn-1") is None
+    assert ("ACTIVE", "conn-1") not in table._items
+
+
+def test_store_frame_keeps_the_per_connection_partition_key() -> None:
+    """Frames must stay under PK=SESSION#<connection> — only metadata moved."""
+    table = FakeDynamoTable()
+    store = handler.DynamoSessionStore(table)
+
+    store.store_frame("conn-1", "audio-bytes")
+
+    ((pk, sk),) = table._items.keys()
+    assert pk == "SESSION#conn-1"
+    assert sk.startswith("FRAME#")
