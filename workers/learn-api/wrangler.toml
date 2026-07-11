@@ -35,9 +35,11 @@ routes = [
 # (an OpenAI-shaped HTTP API), NEVER a bespoke provider SDK. The broker only
 # ever POSTs JSON to this URL. Leave it unset to disable tutoring (broker 503s).
 [vars]
-# GITHUB_CLIENT_ID is public (the OAuth/GitHub-App client id). The matching
-# GITHUB_CLIENT_SECRET is set via `wrangler secret put`, never committed.
-GITHUB_CLIENT_ID = "Ov23liX8uNduVkEqVeQB"
+# GITHUB_CLIENT_ID (the OAuth/GitHub-App client id) is technically public but
+# deliberately NOT committed here: like GITHUB_CLIENT_SECRET it is set via
+# `wrangler secret put GITHUB_CLIENT_ID`, sourced from the repo-root .env
+# (GITHUB_APP_CLIENT_ID). Out of [vars], a plain `wrangler deploy` never
+# overwrites it and no environment-specific id is hardcoded in the repo.
 PUBLIC_URL   = "https://agentculture.org"          # origin used to build the OAuth callback
 APP_URL      = "https://agentculture.org/learn/"   # where the web callback redirects post-login
 CORS_ORIGIN  = "https://agentculture.org"          # allow the /learn site to call the API with creds
@@ -47,6 +49,7 @@ PAGES_ORIGIN = "https://agentculture-learn.pages.dev"  # static-site origin the 
 # --- Secrets (NEVER committed) ---------------------------------------------
 # Set with: wrangler secret put <NAME>
 #   SESSION_SECRET        random >=32 bytes; signs session tokens (HMAC-SHA256)
+#   GITHUB_CLIENT_ID      the GitHub-App client id (.env GITHUB_APP_CLIENT_ID)
 #   GITHUB_CLIENT_SECRET  from the GitHub OAuth app
 #   INFERENCE_TOKEN       bearer token for the served inference endpoint
 

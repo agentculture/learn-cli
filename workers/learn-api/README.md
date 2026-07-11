@@ -117,10 +117,11 @@ wrangler d1 execute learn-ledger --file schema.sql
 ```
 
 Copy the returned ids into `wrangler.toml` (replace the `REPLACE_ME_*`
-placeholders for `id`, `preview_id`, and `database_id`), and set
-`GITHUB_CLIENT_ID` there too (it is public). The route + `PUBLIC_URL` /
-`APP_URL` / `CORS_ORIGIN` / `PAGES_ORIGIN` vars are already filled in
-`wrangler.toml` from the live Phase-1 deploy.
+placeholders for `id`, `preview_id`, and `database_id`). The route +
+`PUBLIC_URL` / `APP_URL` / `CORS_ORIGIN` / `PAGES_ORIGIN` vars are already
+filled in `wrangler.toml` from the live Phase-1 deploy. `GITHUB_CLIENT_ID`
+is NOT committed — it is set as a secret in step 3 (sourced from the
+repo-root `.env` `GITHUB_APP_CLIENT_ID`).
 
 Apply the schema to the **remote** D1 (the `--local` form only touches the
 `wrangler dev` SQLite):
@@ -133,6 +134,7 @@ wrangler d1 execute learn-ledger --remote --file schema.sql
 
 ```bash
 wrangler secret put SESSION_SECRET        # random >= 32 bytes (e.g. openssl rand -base64 48)
+wrangler secret put GITHUB_CLIENT_ID      # GitHub-App client id (.env GITHUB_APP_CLIENT_ID; public but not committed)
 wrangler secret put GITHUB_CLIENT_SECRET  # from the OAuth app
 wrangler secret put INFERENCE_TOKEN       # bearer for the served inference endpoint
 ```
