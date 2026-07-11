@@ -1,0 +1,263 @@
+---
+// The consent notice — t10, spec c9/c19 ("the consent UX shape"). An
+// unconsented sign-in (web callback) 302s here carrying a short-lived
+// pending-consent `session` cookie (10 min TTL); see
+// ../../../../workers/learn-api/README.md's "For t10" section for the exact
+// contract this page drives (GET /api/me, GET /api/consent, POST
+// /api/consent/accept, POST /api/consent/decline).
+//
+// Same Layout/PageHero shell as every other page here, zero new design
+// tokens — the notice content below is static prose (visible with no JS at
+// all, like the Terms/Privacy pages), and src/scripts/consent.js only
+// toggles which [data-state] block is shown and wires the Accept/Decline
+// buttons once it has confirmed a pending session. TERMS_VERSION/
+// TERMS_EFFECTIVE_DATE come from src/lib/terms.ts (the same shared source
+// terms/index.astro and privacy/index.astro import) as the build-time
+// fallback; consent.js overwrites the [data-field] spans/links with the
+// LIVE GET /api/consent response at runtime, which is the authoritative
+// value (it's what actually gets recorded on accept). tests/test_consent_page.py
+// (repo root) locks this page's key claims and its import-not-hardcode wiring.
+import Layout from "../../layouts/Layout.astro";
+import PageHero from "../../components/PageHero.astro";
+import site from "../../data/site";
+import { API_BASE } from "../../lib/api";
+import { TERMS_VERSION, TERMS_EFFECTIVE_DATE } from "../../lib/terms";
+
+const description = `Review what ${site.title} stores, why, for how long, and who can see it — nothing is saved until you accept.`;
+---
+
+<Layout
+  title={`Consent · ${site.title} · ${site.orgTitle}`}
+  description={description}
+  homeHref="../"
+>
+  <PageHero
+    title="Before we save anything"
+    intro={[
+      "You've signed in with GitHub, but nothing is written to your account until you accept the Terms of Use and Privacy Policy below. Decline and we keep nothing at all.",
+    ]}
+  />
+
+  <section class="section breadcrumb-section" aria-label="Wayfinding">
+    <div class="container">
+      <a class="breadcrumb" href="../">← Learn</a>
+    </div>
+  </section>
+
+  <section class="section consent-section" aria-label="Consent" data-consent-root>
+    <div class="container prose">
+      <div data-state="notice">
+        <p class="policy-meta" data-reveal>
+          Version <strong data-field="version">{TERMS_VERSION}</strong>
+          <span class="sep" aria-hidden="true">·</span>
+          Effective <strong data-field="effective-date">{TERMS_EFFECTIVE_DATE}</strong>
+        </p>
+
+        <h2 data-reveal>What we store</h2>
+        <p data-reveal>Accepting stores exactly:</p>
+        <ul data-reveal>
+          <li>your <strong>GitHub numeric id</strong> and your <strong>public GitHub
+            display name</strong> — the identity GitHub hands us during sign-in;</li>
+          <li>an <strong>append-only learning ledger</strong>: the activities you
+            complete, their results, and the mastery they produce, across every
+            subject; and</li>
+          <li>a <strong>session cookie</strong> that keeps you signed in between
+            visits.</li>
+        </ul>
+        <p data-reveal>
+          <strong>We do not collect or store your email address</strong>, and
+          <strong>we do not collect or store a password</strong> — there is no
+          Learn-specific password at all; sign-in runs entirely through GitHub's
+          own OAuth flow.
+        </p>
+
+        <h2 data-reveal>Why</h2>
+        <p data-reveal>
+          To <strong>authenticate</strong> you when you come back, to
+          <strong>track your progress across subjects</strong> under one profile,
+          and to <strong>personalize</strong> your next step (and, if you're later
+          approved, what the tutoring tier generates for you).
+        </p>
+
+        <h2 data-reveal>Retention</h2>
+        <p data-reveal>
+          Kept for as long as your account exists — there's no separate expiry
+          timer. If you withdraw — decline below, or delete your account later —
+          everything tied to it is <strong>hard-deleted, in full</strong>: your
+          profile row, your entire ledger, and the consent record itself. No soft
+          delete, no grace period.
+        </p>
+
+        <h2 data-reveal>Who can see it</h2>
+        <p data-reveal>
+          <strong>Private by default</strong> — visible only to you. The admin can
+          see learner data for support and moderation of the service. Per-learner
+          visibility controls (choosing to share your own progress with others)
+          are coming later in this same uplift; until then, nothing you do here is
+          shown to any other learner.
+        </p>
+
+        <p class="muted" data-reveal>
+          This is a summary — read the full
+          <a data-field="terms-link" href="../terms/">Terms of Use</a> and
+          <a data-field="privacy-link" href="../privacy/">Privacy Policy</a> for
+          the complete picture; they govern if anything here reads differently.
+        </p>
+
+        <div class="consent-actions" data-reveal>
+          <button type="button" class="btn-accept" data-consent-accept>
+            Accept &amp; continue
+          </button>
+          <button type="button" class="btn-decline" data-consent-decline>
+            Decline
+          </button>
+        </div>
+        <p class="consent-status muted" data-consent-status role="status" aria-live="polite"></p>
+      </div>
+
+      <div data-state="expired" hidden>
+        <h2 data-reveal>Your session expired</h2>
+        <p data-reveal>
+          More than 10 minutes passed since you signed in, so the temporary
+          session used to show you this notice has expired. Nothing was stored —
+          sign in again to see it fresh.
+        </p>
+        <a class="btn-accept" href={`${API_BASE}/auth/login`}>Sign in again</a>
+      </div>
+
+      <div data-state="already-in" hidden>
+        <h2 data-reveal>You're already signed in</h2>
+        <p data-reveal>
+          You've already consented. Taking you back to Learn…
+        </p>
+      </div>
+
+      <div data-state="declined" hidden>
+        <h2 data-reveal>Nothing was stored</h2>
+        <p data-reveal>
+          You declined, so no account was created and nothing about you was
+          saved — not your GitHub id, not a ledger row, nothing at all. You can
+          sign in again any time to see this notice fresh.
+        </p>
+        <a class="breadcrumb" href="../">← Back to Learn</a>
+      </div>
+
+      <div data-state="error" hidden>
+        <h2 data-reveal>Something went wrong</h2>
+        <p data-reveal>
+          We couldn't check your session just now. <a href="../">Return to
+          Learn</a> and try signing in again.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    import "../../scripts/consent.js";
+  </script>
+</Layout>
+
+<style>
+  .breadcrumb-section {
+    padding-block: 0 0.5rem;
+  }
+
+  .breadcrumb {
+    font-size: 0.92rem;
+    font-weight: 500;
+  }
+
+  .consent-section {
+    padding-top: 0.5rem;
+  }
+
+  .policy-meta {
+    font-size: 1rem;
+    color: var(--ink);
+    margin-bottom: 1.4rem;
+  }
+
+  .policy-meta .sep {
+    margin-inline: 0.5rem;
+    color: var(--ink-soft);
+  }
+
+  .consent-section h2 {
+    margin-top: 2rem;
+  }
+
+  .consent-section [data-state] > h2:first-child {
+    margin-top: 0;
+  }
+
+  .consent-section p {
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  .consent-section ul {
+    list-style: disc;
+    padding-left: 1.4rem;
+    display: grid;
+    gap: 0.5rem;
+    margin: 0 0 1.1em;
+    font-size: 1rem;
+    line-height: 1.65;
+  }
+
+  .consent-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    margin-top: 1.6rem;
+  }
+
+  .btn-accept {
+    display: inline-block;
+    padding: 0.6rem 1.3rem;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--on-accent);
+    border: none;
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .btn-accept:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .btn-decline {
+    display: inline-block;
+    padding: 0.6rem 1.3rem;
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+
+  .btn-decline:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+    color: var(--accent-strong);
+  }
+
+  .btn-decline:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .consent-status {
+    margin-top: 0.8rem;
+    font-size: 0.88rem;
+    font-style: italic;
+    min-height: 1.2em;
+  }
+</style>
