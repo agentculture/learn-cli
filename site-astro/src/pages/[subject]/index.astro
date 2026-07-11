@@ -6,6 +6,7 @@
 import Layout from "../../layouts/Layout.astro";
 import PageHero from "../../components/PageHero.astro";
 import LearnerPanelSubject from "../../components/LearnerPanelSubject.astro";
+import TutorPanel from "../../components/TutorPanel.astro";
 import site from "../../data/site";
 import { getSubjects, getStories, levelRank, type Subject, type Story } from "../../lib/content";
 
@@ -59,6 +60,7 @@ if (!subject.available) {
   <section class="section learner-section" aria-label="Your progress">
     <div class="container">
       <LearnerPanelSubject subject={subject} />
+      <TutorPanel subject={subject} />
     </div>
   </section>
 

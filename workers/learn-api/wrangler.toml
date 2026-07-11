@@ -31,9 +31,9 @@ routes = [
 ]
 
 # --- Non-secret vars -------------------------------------------------------
-# INFERENCE_URL points at the cloudai-cli / ec2bedrock-cli SERVED endpoint
-# (an OpenAI-shaped HTTP API), NEVER a bespoke provider SDK. The broker only
-# ever POSTs JSON to this URL. Leave it unset to disable tutoring (broker 503s).
+# INFERENCE_URL points at a plain HTTPS inference endpoint the broker POSTs
+# JSON to — NEVER a bespoke provider SDK. Leave it unset to disable tutoring
+# (broker 503s). The production target is Bedrock-direct (t15, below).
 [vars]
 # GITHUB_CLIENT_ID (the OAuth/GitHub-App client id) is technically public but
 # deliberately NOT committed here: like GITHUB_CLIENT_SECRET it is set via
@@ -44,7 +44,28 @@ PUBLIC_URL   = "https://agentculture.org"          # origin used to build the OA
 APP_URL      = "https://agentculture.org/learn/"   # where the web callback redirects post-login
 CORS_ORIGIN  = "https://agentculture.org"          # allow the /learn site to call the API with creds
 PAGES_ORIGIN = "https://agentculture-learn.pages.dev"  # static-site origin the /learn zone mount proxies to
-# INFERENCE_URL = "https://<cloudai-or-ec2bedrock-served-endpoint>/v1/messages"  # unset ⇒ tutoring 503s
+
+# Tutoring inference (t15, spec c24/h11) — Bedrock-direct, CONFIG ONLY (the
+# broker code is untouched; see test/tutor-converse.test.js):
+#   model:   us.amazon.nova-pro-v1:0   (Nova Pro, cross-region inference profile)
+#   region:  us-east-1
+#   INFERENCE_TOKEN: a Bedrock API key — set with
+#     `wrangler secret put INFERENCE_TOKEN`, sourced from the repo-root .env
+#     (AWS_BEDROCK_API_KEY_SECRET). Never committed, never a [vars] entry.
+#   cost-when-busy: per-token Nova Pro spend ONLY — no model host, no
+#     provisioned throughput, zero idle cost.
+# Probe record (2026-07-11, live): Bedrock's OpenAI-compatible chat-completions
+# surface does NOT serve Nova Pro in any probed region (model_not_found in
+# us-east-1 / us-west-2 / eu-west-1 / eu-central-1; /openai/v1/models is not
+# even an operation) — the native Converse API below is the live-verified
+# target (HTTP 200, real completions, ~0.5-1s round trip). Payloads are
+# Converse-shaped: {system:[{text}], messages:[{role, content:[{text}]}],
+# inferenceConfig:{maxTokens, temperature}}; responses
+# {output:{message:{content:[{text}]}}, stopReason, usage}. Converse tolerates
+# the broker's `learner` stamp as an extra top-level field (also
+# live-verified), so the forward stays verbatim. Uncomment to enable tutoring
+# (t17's launch gate drives the live flip):
+# INFERENCE_URL = "https://bedrock-runtime.us-east-1.amazonaws.com/model/us.amazon.nova-pro-v1:0/converse"
 
 # ADMIN_GITHUB_IDS (spec c12/h4, task t8): comma-separated GitHub NUMERIC ids
 # allow-listed for the admin surface (GET /api/admin/learners today; the
@@ -72,7 +93,7 @@ ADMIN_GITHUB_IDS = "20955789"
 #   SESSION_SECRET        random >=32 bytes; signs session tokens (HMAC-SHA256)
 #   GITHUB_CLIENT_ID      the GitHub-App client id (.env GITHUB_APP_CLIENT_ID)
 #   GITHUB_CLIENT_SECRET  from the GitHub OAuth app
-#   INFERENCE_TOKEN       bearer token for the served inference endpoint
+#   INFERENCE_TOKEN       Bedrock API key (t15 — .env AWS_BEDROCK_API_KEY_SECRET)
 #   VOICE_TOKEN_SECRET    signs voice tokens (t16); MUST equal the SAM stack's
 #                         VoiceTokenSecretValue parameter — the bridge verifies
 #                         with the same shared secret (infra/voice_bridge/tokens.py)

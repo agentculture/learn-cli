@@ -165,7 +165,7 @@ No third-party runtime deps: the Worker uses only Web-standard APIs (`fetch`,
 | POST | `/api/record` | consented | Validate the `recorded` shape and append it to the ledger. Pending OR stale-version session: `403 consent_required`. |
 | GET | `/api/export` | consented | Self-serve data export: the learner's identity row, every recorded result across **every subject**, and their full consent history, as one JSON document (t7). Pending OR stale-version session: `403 consent_required` — same gate as progress/record/tutor. |
 | POST | `/api/delete` | session or pending | Self-serve whole-learner erasure — consent withdrawal (t7). Requires `{ "confirm": "<your github_user_id>" }` in the body. Deletes the learners/records/consents rows, revokes the **current** session (KV tombstone), clears the cookie. Deliberately reachable from a stale-consent (and even pending-consent) session — see "Endpoint shapes" below for why. |
-| POST | `/api/tutor` | approved | Broker: forward to `INFERENCE_URL` (a served inference endpoint). Pending OR stale-version session: `403 consent_required`; consented but not admin-approved: `403 approval_required` (t9) — zero inference calls either way. |
+| POST | `/api/tutor` | approved | Broker: forward to `INFERENCE_URL` (Bedrock Converse in production — see "For t15"). Pending OR stale-version session: `403 consent_required`; consented but not admin-approved: `403 approval_required` (t9) — zero inference calls either way. |
 | POST | `/api/voice/token` | approved | Mint a short-lived voice token for the serverless bridge (t16) — same learner-side gates as `/api/tutor`, in the same order, plus the per-learner monthly voice budget (`429 voice_budget_exhausted`). `503 not_configured` until `VOICE_BRIDGE_URL` + `VOICE_TOKEN_SECRET` are set. See "For t16" below. |
 | POST | `/api/me/visibility` | consented | Set the caller's OWN `visibility` (`private` \| `public`) in their `state` blob (t8). `400 invalid_visibility` for anything else. Pending OR stale-version session: `403 consent_required` — same gate as progress/record/export. |
 | GET | `/api/admin/learners` | admin | List every learner + a per-subject record-count summary and their tutoring-tier `approved` state, admin-only (t8, t9). Consented but non-allow-listed: `403 admin_required`. See "Roles + visibility" below. |
@@ -306,22 +306,26 @@ wrangler d1 execute learn-ledger --remote --file schema.sql
 wrangler secret put SESSION_SECRET        # random >= 32 bytes (e.g. openssl rand -base64 48)
 wrangler secret put GITHUB_CLIENT_ID      # GitHub-App client id (.env GITHUB_APP_CLIENT_ID; public but not committed)
 wrangler secret put GITHUB_CLIENT_SECRET  # from the OAuth app
-wrangler secret put INFERENCE_TOKEN       # bearer for the served inference endpoint
+wrangler secret put INFERENCE_TOKEN       # Bedrock API key (.env AWS_BEDROCK_API_KEY_SECRET) — t15
 ```
 
-Set the tutoring endpoint URL as a var (it is not secret) in `wrangler.toml`:
+Set the tutoring endpoint URL as a var (it is not secret) in `wrangler.toml` —
+the exact production value ships there commented out (t15; uncomment to
+enable, t17's launch gate drives the live flip):
 
 ```toml
 [vars]
-INFERENCE_URL = "https://<cloudai-or-ec2bedrock-served-endpoint>/v1/messages"
+INFERENCE_URL = "https://bedrock-runtime.us-east-1.amazonaws.com/model/us.amazon.nova-pro-v1:0/converse"
 PUBLIC_URL    = "https://agentculture.org"
 APP_URL       = "https://agentculture.org/learn/"
 CORS_ORIGIN   = "https://agentculture.org"
 ```
 
-`INFERENCE_URL` must be a **served** endpoint from `cloudai-cli` or
-`ec2bedrock-cli` (an OpenAI-shaped HTTP API). The broker only POSTs JSON to it —
-there is no bespoke provider SDK anywhere in this Worker.
+`INFERENCE_URL` is **Bedrock-direct** (spec decision: AWS Bedrock is the only
+service that serves AWS Nova models) — the native Converse API, not an SDK
+integration and not a sibling-hosted model server. The broker only POSTs JSON
+to it — there is no bespoke provider SDK anywhere in this Worker. See "For
+t15" below for the probe results behind the URL choice.
 
 For local dev, mirror the secrets into a git-ignored `.dev.vars`:
 
@@ -606,20 +610,70 @@ POST /api/admin/revoke                (requireAdmin)
 tutor gate itself lives in `handleTutor` and 403s `approval_required`
 before the `INFERENCE_URL` check — see "The approval-gate invariant" above.
 
-### For t15 (Nova Pro wiring) and t16 (voice tokens)
+### For t15 (Nova Pro wiring) — SHIPPED, config only
 
-- **t15 changes config only.** The four-level gate (auth → consent →
-  approval → `INFERENCE_URL` presence) is entirely inside `handleTutor`
-  (`src/index.js`) and its helpers — pointing `INFERENCE_URL` at Bedrock's
-  OpenAI-compatible endpoint and setting `INFERENCE_TOKEN` to a Bedrock API
-  key changes no gate code, and the broker forwards the JSON body unchanged
-  (plus the `learner` stamp), so no provider SDK is needed (h11). Record
-  the region + model id + cost-when-busy note here when wiring it.
-- **t16's hook point — now built.** `POST /api/voice/token` is exactly the
-  route this note described: `requireConsented` then the same `approvedOf`
-  check `handleTutor` reads (both live in `index.js`, so the helper is
-  reused in place, not exported or duplicated), THEN the config check, then
-  the budget. Full contract in "For t16" directly below.
+**h11 holds literally: the Worker diff for t15 is zero lines of code.** The
+four-level gate (auth → consent → approval → `INFERENCE_URL` presence) and
+the forward-verbatim broker are entirely inside `handleTutor` (`src/index.js`),
+unchanged since t9 — t15 ships as a `wrangler.toml` comment block (the exact
+URL, ready to uncomment), an `INFERENCE_TOKEN` secret recipe, and the client
+surface in `site-astro/` (below). `test/tutor-converse.test.js` (additive)
+proves the unchanged broker carries a native Converse payload verbatim and
+relays the Converse response and error statuses untranslated.
+
+**Probe results (live, 2026-07-11) — how the URL was chosen:**
+
+- **OpenAI-compat NO-GO.** Bedrock's OpenAI-compatible chat-completions
+  surface (`bedrock-runtime.<region>.amazonaws.com/openai/v1/...`) does
+  **not** serve Nova Pro: `model_not_found` in every probed region
+  (us-east-1, us-west-2, eu-west-1, eu-central-1), and `/openai/v1/models`
+  is not even an operation. This supersedes the spec's and this README's
+  earlier "OpenAI-compatible endpoint" wording.
+- **Converse GO.** The native Converse API returns real Nova Pro
+  completions with a plain Bedrock API key as the Bearer token:
+
+  ```text
+  POST https://bedrock-runtime.us-east-1.amazonaws.com/model/us.amazon.nova-pro-v1:0/converse
+  Authorization: Bearer <Bedrock API key>     (.env AWS_BEDROCK_API_KEY_SECRET)
+  ```
+
+  Re-verified from this task (2026-07-11, sanitized): `HTTP 200 in 0.95s`,
+  body `{"metrics":{"latencyMs":491},"output":{"message":{"content":
+  [{"text":"OK"}],"role":"assistant"}},"stopReason":"end_turn","usage":
+  {"inputTokens":11,"outputTokens":2,...}}`.
+
+- **The learner stamp needs no change.** Converse tolerates the broker's
+  `learner` field both as an extra top-level field and under
+  `requestMetadata` (live-verified) — `handleTutor`'s existing
+  spread-then-stamp forward works as-is.
+
+**Wiring facts** (also recorded next to the commented-out var in
+`wrangler.toml`): model `us.amazon.nova-pro-v1:0`, region `us-east-1`,
+`INFERENCE_TOKEN` = a Bedrock API key set via
+`wrangler secret put INFERENCE_TOKEN` (sourced from the repo-root `.env`
+`AWS_BEDROCK_API_KEY_SECRET`). **Cost-when-busy: per-token Nova Pro spend
+only — no model host, no provisioned throughput, zero idle cost.**
+
+**Request/response shapes** the client builds and parses (Converse, not
+chat-completions — `site-astro/src/scripts/tutor-core.js` is the one
+builder/parser, unit-tested by `site-astro/scripts/check-tutor-logic.mjs`):
+
+```text
+request:  { system: [{text}], messages: [{role, content: [{text}]}],
+            inferenceConfig: {maxTokens, temperature} }
+response: { output: {message: {content: [{text}]}}, stopReason, usage }
+```
+
+**The tutor surface** (site-astro, approved learners only — the gate note
+renders for everyone else): `TutorPanel.astro` + `src/scripts/tutor.js`
+drive three flows through this broker — exercise **grading**
+(pass/partial/fail + explanation, rubric pinned in the system prompt),
+adaptive **next-step** (from `GET /api/progress/:subject`, targeting the
+weakest items), and personalized **cloze-story generation**
+(contract-§3.6.1-validated client-side, `item_id` reused verbatim from a
+weak item as the stable join key; the played result records through the
+existing `POST /api/record` with `correct`/`total` tallies — no new record
+fields, no new routes).
 
 ### For t16 (voice sessions) — SHIPPED (live bridge deploy deferred)
 
@@ -716,7 +770,7 @@ until the supervised deploy. Operator runbook for that step:
 node --test
 ```
 
-166 tests cover session sign/verify/expiry, `recorded` validation (including the
+168 tests cover session sign/verify/expiry, `recorded` validation (including the
 `score`/`grade`/`points` rejection), the full record round-trip, per-learner
 ledger isolation, web + device OAuth flows, the consent gate (zero D1 writes on
 both unconsented sign-in paths, the pending-session 403 wall, accept ordering —
@@ -760,7 +814,11 @@ fires before the config 503, the happy-path token's claim set and signature
 are pinned to `infra/voice_bridge/tokens.py`'s contract (including the
 committed cross-language fixture, byte-for-byte), and the monthly budget
 books per mint, refuses without overshoot, rolls over by month, and merges
-into `learners.state` without clobbering other keys. Tests invoke the Worker's
+into `learners.state` without clobbering other keys. The Converse
+pass-through (`test/tutor-converse.test.js`, t15, additive) proves the
+unchanged broker carries a native Bedrock Converse payload verbatim — plus
+exactly the `learner` stamp — and relays the Converse response shape and
+upstream error statuses untranslated. Tests invoke the Worker's
 `fetch` handler directly with in-memory KV/D1 stubs (the D1 stub logs every
 write statement, making "zero writes" literal); no network and no wrangler
 are needed. A published-version bump is simulated with

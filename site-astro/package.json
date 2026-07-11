@@ -10,9 +10,10 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "check": "npm run check:pages && npm run check:static-auth",
+    "check": "npm run check:pages && npm run check:static-auth && npm run check:tutor-logic",
     "check:pages": "node scripts/check-export-pages.mjs",
     "check:static-auth": "node scripts/check-static-auth.mjs",
+    "check:tutor-logic": "node scripts/check-tutor-logic.mjs",
     "test:static": "node scripts/check-static-auth.mjs"
   },
   "dependencies": {

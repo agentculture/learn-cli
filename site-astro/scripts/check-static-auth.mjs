@@ -243,6 +243,15 @@ const CONSENT_ALLOWED_SUFFIX_RE = /^(\/me|\/consent$|\/consent\/accept$|\/consen
 // `new WebSocket(` in the file, reachable only AFTER the mint succeeded).
 const VOICE_ALLOWED_SUFFIX_RE = /^(\/me$|\/voice\/token$)/;
 
+// t15's tutor.js is a FOURTH separately-loaded script (only via
+// TutorPanel.astro's own import, never Layout.astro) with its own exact
+// whitelist: the model-spending broker route (anchored — no sub-routes ride
+// in under it), the per-subject progress read that feeds next-step/cloze
+// personalization, and the existing record route the played story's tally
+// goes to. No /me (learner.js publishes its already-fetched payload — see
+// the learn:me hook in bootstrap()), no /auth, no admin/export/delete.
+const TUTOR_ALLOWED_SUFFIX_RE = /^(\/tutor$|\/progress\/|\/record$)/;
+
 check("learner.js imports the single API_BASE constant (no hardcoded alternate host)", () => {
   assert.match(learnerJs, /import\s*\{\s*API_BASE\s*\}\s*from\s*["']\.\.\/lib\/api\.js["']/);
 });
@@ -262,14 +271,30 @@ check("every fetch() call in learner.js targets ${API_BASE} plus a whitelisted s
   assert.deepEqual(offenders, [], `non-whitelisted fetch target(s): ${offenders.join(", ")}`);
 });
 
-check("no reference to the model-spending /tutor route anywhere in site-astro (src or built)", () => {
-  // Deliberately searches for the bare "/tutor" suffix, not "/api/tutor": in
-  // both source (`${API_BASE}/tutor`) and the minified build (`${e}/tutor`),
-  // the "/api" prefix only ever exists inside the API_BASE variable, never
-  // concatenated into a literal string — so "/tutor" is the substring that
-  // would actually survive minification if this route were ever wired up,
-  // and is specific enough not to false-positive on anything else in this
-  // codebase.
+check("the model-spending /tutor route is referenced ONLY through whitelisted fetch templates", () => {
+  // t15 retires the pre-t15 blanket rule ("referenced nowhere in this
+  // site"): the approved-tier tutor surface (src/scripts/tutor.js) is now
+  // the ONE legitimate caller of POST /api/tutor. This stays precise, not
+  // loosened — strip exactly the three accounted-for forms, then ANY
+  // surviving "/tutor" substring (a hardcoded URL, a second call site, a
+  // string a whitelist check can't see) still fails the build:
+  //   1. fetch() template literals — every one is independently validated
+  //      against the per-script suffix whitelists (tutor.js's own source
+  //      check below; the built-bundle union check further down), so they
+  //      are accounted for, not ignored;
+  //   2. quoted module/asset paths that merely NAME the tutor scripts or
+  //      their built chunk ("../scripts/tutor.js", "./tutor-core.js",
+  //      <script src=".../_astro/tutor.HASH.js">) — paths, not calls;
+  //   3. `//` comment lines (prose about the route is not a call; same
+  //      comment-stripping tests/test_consent_page.py uses).
+  // Searches the bare "/tutor" suffix, not "/api/tutor", for the same
+  // minification reason as before: the "/api" prefix only ever exists
+  // inside the API_BASE variable, never concatenated into a literal.
+  const stripAccounted = (text) =>
+    text
+      .replace(/fetch\(\s*`[^`]*`/g, "fetch(`")
+      .replace(/["'`][^"'`\n]*tutor[^"'`\n]*\.m?js["'`]/g, '""')
+      .replace(/^\s*\/\/[^\n]*$/gm, "");
   const offenders = [];
   const scan = (dir, extRe) => {
     if (!existsSync(dir)) return;
@@ -277,14 +302,21 @@ check("no reference to the model-spending /tutor route anywhere in site-astro (s
       if (entry.name === "node_modules") continue;
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) scan(full, extRe);
-      else if (extRe.test(entry.name) && readFileSync(full, "utf8").includes("/tutor")) {
+      else if (
+        extRe.test(entry.name) &&
+        stripAccounted(readFileSync(full, "utf8")).includes("/tutor")
+      ) {
         offenders.push(path.relative(siteRoot, full));
       }
     }
   };
   scan(srcDir, /\.(js|ts|astro|mjs)$/);
   scan(distDir, /\.(js|html)$/);
-  assert.deepEqual(offenders, [], `/tutor referenced in: ${offenders.join(", ")}`);
+  assert.deepEqual(
+    offenders,
+    [],
+    `/tutor referenced outside whitelisted fetch templates in: ${offenders.join(", ")}`,
+  );
 });
 
 check(
@@ -355,9 +387,10 @@ check("the two failure branches return before reaching the happy path", () => {
 // one of those aliases (or the literal value directly, in case a future
 // build inlines it instead of aliasing it). This scans EVERY built .js
 // asset regardless of which source script produced it, so it checks the
-// UNION of both per-file whitelists (ALLOWED_SUFFIX_RE for learner.js,
-// CONSENT_ALLOWED_SUFFIX_RE for consent.js) — the two source-level checks
-// above/below are what keep each script's OWN surface precise.
+// UNION of the per-file whitelists (ALLOWED_SUFFIX_RE for learner.js,
+// CONSENT_ALLOWED_SUFFIX_RE for consent.js, TUTOR_ALLOWED_SUFFIX_RE for
+// tutor.js) — the per-script source-level checks above/below are what keep
+// each script's OWN surface precise.
 
 check("the built JS bundle's fetch() calls stay inside the same whitelist", () => {
   const apiSrc = readFileSync(path.join(srcDir, "lib", "api.ts"), "utf8");
@@ -405,7 +438,8 @@ check("the built JS bundle's fetch() calls stay inside the same whitelist", () =
         suffix !== null &&
         (ALLOWED_SUFFIX_RE.test(suffix) ||
           CONSENT_ALLOWED_SUFFIX_RE.test(suffix) ||
-          VOICE_ALLOWED_SUFFIX_RE.test(suffix));
+          VOICE_ALLOWED_SUFFIX_RE.test(suffix) ||
+          TUTOR_ALLOWED_SUFFIX_RE.test(suffix));
       if (!inWhitelist) offenders.push(template);
     }
   }
@@ -565,6 +599,74 @@ check("voice.js drives all five gate states", () => {
   }
 });
 
+// --- 6. tutor.js: the approved-tier surface's precise whitelist (t15) ------
+//
+// tutor.js is loaded only via TutorPanel.astro's own import (subject pages),
+// never through Layout.astro. Same technique as consent.js's checks: its own
+// exact whitelist (TUTOR_ALLOWED_SUFFIX_RE, defined above), plus the gate
+// discipline check — the file wires nothing and fetches nothing unless the
+// published /api/me payload says the learner is admin-approved.
+
+const tutorJsPath = path.join(srcDir, "scripts", "tutor.js");
+
+check("tutor.js exists and imports the single API_BASE constant (no hardcoded alternate host)", () => {
+  assert.ok(existsSync(tutorJsPath), "expected src/scripts/tutor.js to exist");
+  const tutorJs = readFileSync(tutorJsPath, "utf8");
+  assert.match(tutorJs, /import\s*\{\s*API_BASE\s*\}\s*from\s*["']\.\.\/lib\/api\.js["']/);
+});
+
+check("every fetch() call in tutor.js targets ${API_BASE} plus a whitelisted tutor suffix", () => {
+  const tutorJs = readFileSync(tutorJsPath, "utf8");
+  const fetchCalls = [...tutorJs.matchAll(/fetch\(\s*`([^`]*)`/g)];
+  assert.ok(fetchCalls.length >= 3, `expected >= 3 fetch() calls in tutor.js, found ${fetchCalls.length}`);
+  const offenders = [];
+  for (const [, template] of fetchCalls) {
+    if (!template.startsWith("${API_BASE}")) {
+      offenders.push(template);
+      continue;
+    }
+    const suffix = template.slice("${API_BASE}".length).split("$")[0];
+    if (!TUTOR_ALLOWED_SUFFIX_RE.test(suffix)) offenders.push(template);
+  }
+  assert.deepEqual(offenders, [], `non-whitelisted fetch target(s) in tutor.js: ${offenders.join(", ")}`);
+});
+
+check("tutor.js's hydrateTutorPanel() bails out before ANY wiring unless the learner is approved", () => {
+  const tutorJs = readFileSync(tutorJsPath, "utf8");
+  const start = tutorJs.indexOf("function hydrateTutorPanel");
+  assert.ok(start >= 0, "could not find `function hydrateTutorPanel` in tutor.js");
+  // Balanced-brace extraction, same as bootstrap()'s check above.
+  const openBrace = tutorJs.indexOf("{", start);
+  let depth = 0;
+  let end = -1;
+  for (let i = openBrace; i < tutorJs.length; i += 1) {
+    if (tutorJs[i] === "{") depth += 1;
+    else if (tutorJs[i] === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        end = i;
+        break;
+      }
+    }
+  }
+  assert.ok(end > openBrace, "unbalanced braces while extracting hydrateTutorPanel()'s body");
+  const body = tutorJs.slice(openBrace, end + 1);
+
+  assert.match(body, /me\.learner\.approved/, "the gate must read me.learner.approved");
+  const bailIdx = body.indexOf("if (!approved)");
+  assert.ok(bailIdx >= 0, "expected an `if (!approved)` early return");
+  assert.match(
+    body.slice(bailIdx, bailIdx + 300),
+    /return;/,
+    "the unapproved branch must return before wiring",
+  );
+  for (const fn of ["wireGrade(", "wireNextStep(", "wireClozeGen("]) {
+    const idx = body.indexOf(fn);
+    assert.ok(idx >= 0, `hydrateTutorPanel() must call ${fn}`);
+    assert.ok(idx > bailIdx, `${fn} must come after the approved gate`);
+  }
+});
+
 if (problems.length > 0) fail();
 
 console.log(
@@ -573,5 +675,7 @@ console.log(
     "/api/auth/* whitelist and gated behind a confirmed session; consent.js's fetch surface " +
     "is confined to the /api/me | /api/consent | /api/consent/accept | /api/consent/decline " +
     "whitelist; voice.js's fetch surface is confined to /api/me | /api/voice/token, and its " +
-    "single WebSocket is reachable only after a successful token mint.",
+    "single WebSocket is reachable only after a successful token mint; tutor.js's fetch " +
+    "surface is confined to the /api/tutor | /api/progress/ | /api/record whitelist and " +
+    "gated behind the admin-approved flag.",
 );

@@ -555,6 +555,11 @@ async function bootstrap() {
   }
 
   setAuthState("in");
+  // t15 hook (the ONLY tutor-related line here): publish the /api/me payload
+  // for sibling scripts — src/scripts/tutor.js gates its approved-only
+  // surface on this instead of fetching /api/me a second time.
+  window.__learnMe = me;
+  document.dispatchEvent(new CustomEvent("learn:me", { detail: me }));
   const name = (me.learner && me.learner.display_name) || "your account";
   document.querySelectorAll("[data-auth-name]").forEach((el) => {
     el.textContent = name;
