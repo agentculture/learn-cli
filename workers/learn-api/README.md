@@ -27,6 +27,32 @@ pending session — nothing was ever written. Proven by `test/consent.test.js`,
 which asserts **zero D1 write statements** on both paths via a write log in
 the D1 stub.
 
+The re-consent invariant (spec c10/h2, task t6) extends the SAME gate to a
+**published version bump**: "consented" means `consent.terms_version` equals
+the *currently* published `TERMS_VERSION` exactly
+(`src/consent.js#consentSatisfiesCurrentTerms`), not merely "a consent row
+exists." Bumping the published version therefore:
+
+- routes a previously-consented learner's **next sign-in** (either path) back
+  to a pending-consent session, with the same zero-new-D1-writes guarantee as
+  a first-time sign-in;
+- walls off an **existing, still-unexpired full-session token** at every
+  `requireConsented`-gated route (`/api/progress/:subject`, `/api/record`,
+  `/api/tutor`) with a structured `403 consent_required` — the token doesn't
+  need to expire or be re-issued for the gate to take effect;
+- leaves `POST /api/consent/accept` reachable throughout (it runs on
+  `requireAuth`, not `requireConsented`), so re-accepting is always possible,
+  and re-accepting records a **new** consent row for the new version
+  (`consents` keeps one row per accepted version — see "Storage" below) and
+  restores access immediately.
+
+`GET /api/me` never 403s for a stale-consent full session — it *reports* the
+requirement via an additive `reconsent_required` field (see "Endpoint shapes"
+below) so a client can explain why other routes started rejecting, without
+losing the ability to check who's signed in. Proven by `test/reconsent.test.js`
+(the version-bump paths, the live-token wall, the accept-restores-access full
+cycle, and the `/api/me` additive shape).
+
 No third-party runtime deps: the Worker uses only Web-standard APIs (`fetch`,
 `Request`/`Response`, `crypto.subtle`, `btoa`/`atob`), so the same code runs in
 `wrangler dev`, in production, and under `node --test`.
@@ -40,13 +66,13 @@ No third-party runtime deps: the Worker uses only Web-standard APIs (`fetch`,
 | GET | `/api/auth/callback` | public | Web OAuth: exchange code. Consented user: upsert learner, set full `session` cookie, redirect to the site. Unconsented: set a pending-consent cookie, redirect to `/learn/consent/`, **zero D1 writes**. |
 | POST | `/api/auth/device` | public | Device flow `start` / `poll` for the CLI + MCP (wave-3 t12). Unconsented poll returns `status: "consent_required"` + a pending Bearer token, zero D1 writes. |
 | GET | `/api/consent` | public | What consent is currently required: `terms_version`, `effective_date`, policy links. |
-| POST | `/api/consent/accept` | session or pending | Record consent for the exact current `TERMS_VERSION`, **then** upsert the learner, upgrade to a full session (cookie + body token). |
+| POST | `/api/consent/accept` | session or pending | Record consent for the exact **currently published** `TERMS_VERSION` (t6: not necessarily the version last consented to), **then** upsert the learner, upgrade to a full session (cookie + body token). Reachable even from a stale-consent full session — this is the re-consent route. |
 | POST | `/api/consent/decline` | pending only | Revoke the pending session, clear the cookie, nothing ever written. Full session gets `409 already_consented`. |
 | POST | `/api/auth/logout` | session or pending | Revoke the current session (KV tombstone) and clear the cookie. |
-| GET | `/api/me` | session or pending | Identity + session expiry; auto-refreshes a near-stale full session. Pending session: reports `pending_consent: true` + `consent_required`, never refreshes. |
-| GET | `/api/progress/:subject` | consented | Ledger-derived `progress.json`-shaped payload. Pending session: `403 consent_required`. |
-| POST | `/api/record` | consented | Validate the `recorded` shape and append it to the ledger. Pending session: `403 consent_required`. |
-| POST | `/api/tutor` | consented | Broker: forward to `INFERENCE_URL` (a served inference endpoint). Pending session: `403 consent_required`, zero inference calls. |
+| GET | `/api/me` | session or pending | Identity + session expiry; auto-refreshes a near-stale full session. Pending session: reports `pending_consent: true` + `consent_required`. Full session (t6): reports `reconsent_required` (+ `consent_required` when true) instead of 403ing. Never refreshes a pending session. |
+| GET | `/api/progress/:subject` | consented | Ledger-derived `progress.json`-shaped payload. Pending OR stale-version session: `403 consent_required` (t6 adds `reason` + `consent_required` to the body — see "Endpoint shapes"). |
+| POST | `/api/record` | consented | Validate the `recorded` shape and append it to the ledger. Pending OR stale-version session: `403 consent_required`. |
+| POST | `/api/tutor` | consented | Broker: forward to `INFERENCE_URL` (a served inference endpoint). Pending OR stale-version session: `403 consent_required`, zero inference calls. |
 
 Sessions are stateless HMAC-signed tokens (short TTL, ~1h; pending-consent
 tokens 10 min) accepted either as an `Authorization: Bearer <token>` header
@@ -70,6 +96,26 @@ them, which is how sign-in stays write-free until consent.
     accepted terms version. Deliberately **no FK to `learners`**: the consent
     row is recorded *before* the learner row exists (accept-order contract).
     For any learner, this is the first row that ever exists for them.
+
+**Stale-consent detection cost (t6, spec c10/h2):** `requireConsented`
+(`src/auth.js`) does one extra `getConsent` D1 read per request to
+`/api/progress/:subject`, `/api/record`, and `/api/tutor`, to re-check the
+learner's *stored* consent against the *currently published* `TERMS_VERSION`
+on every call — not just at token-issue time. `GET /api/me` does the same for
+a full session (on top of its existing `getLearner` read) so it can report
+`reconsent_required`. This was chosen over a claims-based design (stamp the
+accepted version into the session token's signed payload at issue time,
+compare claim-to-current with **zero** D1 reads) for one reason: correctness
+now, at the cost of one indexed `SELECT ... WHERE github_user_id = ?` read per
+protected request. The claims alternative would need every session-issuing
+call site (web callback, device poll, consent accept, **and** the
+sliding-refresh re-issue inside `handleMe`) to correctly propagate the
+version claim — a single missed call site would silently under- or
+over-grant access, and that failure mode is worse than a few extra reads on
+D1 (Cloudflare's globally-replicated SQLite, not a cross-region round trip).
+Revisit only if this becomes a measured hot spot; a claims-based cache would
+still need a D1 fallback path to catch tokens issued before the cache was
+introduced.
 
 ## Local development
 
@@ -273,7 +319,12 @@ Signed-in panels hydrate client-side by calling this API with credentials
 
 ```text
 GET /api/me
-  -> 200 { authenticated: true, pending_consent: false,
+  -> 200 { authenticated: true, pending_consent: false, reconsent_required: false,
+           learner: { github_user_id, display_name },
+           session: { expires_at, refreshed } }
+  -> 200 { authenticated: true, pending_consent: false, reconsent_required: true,
+           consent_required: { terms_version, effective_date,
+                               terms_url, privacy_url },
            learner: { github_user_id, display_name },
            session: { expires_at, refreshed } }
   -> 200 { authenticated: true, pending_consent: true,
@@ -284,8 +335,40 @@ GET /api/me
   -> 401 (not signed in) — render the signed-out state, make NO further calls
 ```
 
+`reconsent_required` (t6, spec c10/h2) is **additive**: it is always present
+on a full session (`pending_consent: false`), defaulting to `false`; the
+sibling `consent_required` field appears **only** when it's `true` — same
+shape as the pending-session `consent_required`, so one notice component
+renders both "first consent" and "re-consent" cases. Unlike the
+`requireConsented`-gated routes below, `/api/me` never 403s for stale
+consent — it keeps reporting identity/session so the client can explain
+*why* everything else just started rejecting.
+
 Sign-in button: link to `GET /api/auth/login`. Sign-out: `POST /api/auth/logout`.
 Progress/record shapes are identical to the CLI's above.
+
+### For t6 (re-consent on a published version bump)
+
+`GET /api/progress/:subject`, `POST /api/record`, and `POST /api/tutor` all
+go through `requireConsented`, which now rejects TWO distinct situations with
+the same `403 consent_required` status but a distinguishing `reason`:
+
+```text
+403 { error: "consent_required", message, hint,
+      reason: "pending",                 // never consented (or declined) yet
+      consent_required: { terms_version, effective_date, terms_url, privacy_url } }
+
+403 { error: "consent_required", message, hint,
+      reason: "stale_version",           // consented, but to a superseded version
+      consent_required: { terms_version, effective_date, terms_url, privacy_url } }
+```
+
+Either way, the client's recovery is identical: send the learner through the
+consent notice (or straight to `POST /api/consent/accept` if it already has
+their acknowledgement) — `consent_required.terms_version` is always the
+version to accept. `POST /api/consent/accept` itself never 403s this way: it
+runs on `requireAuth` (any valid, unexpired session, pending or full), so it
+stays reachable specifically to recover from `reason: "stale_version"`.
 
 ### For t10 (the consent page, `/learn/consent/`)
 
@@ -310,12 +393,20 @@ carrying a pending-consent `session` cookie (10 min TTL). The page:
 node --test
 ```
 
-74 tests cover session sign/verify/expiry, `recorded` validation (including the
+84 tests cover session sign/verify/expiry, `recorded` validation (including the
 `score`/`grade`/`points` rejection), the full record round-trip, per-learner
 ledger isolation, web + device OAuth flows, the consent gate (zero D1 writes on
 both unconsented sign-in paths, the pending-session 403 wall, accept ordering —
-consent row before learner row — and write-free decline), and — critically —
-that a signed-out `/api/tutor` request returns `401` with **zero** inference
-calls. Tests invoke the Worker's `fetch` handler directly with in-memory KV/D1
-stubs (the D1 stub logs every write statement, making "zero writes" literal);
-no network and no wrangler are needed.
+consent row before learner row — and write-free decline), the re-consent gate
+(`test/reconsent.test.js`: a simulated `TERMS_VERSION` bump re-routes a
+previously-consented learner's next sign-in to pending-consent with zero new
+writes, walls off a live full-session token at every `requireConsented`
+route with `reason: "stale_version"`, the full consent-v1 → bump → 403 →
+re-accept → 200 cycle, and `/api/me`'s additive `reconsent_required`
+reporting), and — critically — that a signed-out `/api/tutor` request returns
+`401` with **zero** inference calls. Tests invoke the Worker's `fetch` handler
+directly with in-memory KV/D1 stubs (the D1 stub logs every write statement,
+making "zero writes" literal); no network and no wrangler are needed. A
+published-version bump is simulated with `env.TERMS_VERSION_OVERRIDE` (see
+`src/consent.js#currentTermsVersion`) — the real published version in
+`shared/terms-version.mjs` is never edited by a test.

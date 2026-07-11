@@ -73,6 +73,7 @@ test("signed-in POST /api/tutor brokers to INFERENCE_URL exactly once", async ()
     [INFERENCE_URL]: () => jsonResp({ reply: "Bonjour !", tokens: 12 }),
   });
   const env = makeEnv({ INFERENCE_URL, INFERENCE_TOKEN: "infer-token", FETCH: fetchStub });
+  seedConsent(env, "42", TERMS_VERSION); // a returning, currently-consented learner (t6)
   const { token } = await mintToken(env, { uid: "42", name: "Ada" });
 
   const res = await call(
@@ -99,6 +100,7 @@ test("signed-in POST /api/tutor brokers to INFERENCE_URL exactly once", async ()
 
 test("broker returns 503 when INFERENCE_URL is unset (still auth-gated first)", async () => {
   const env = makeEnv(); // no INFERENCE_URL
+  seedConsent(env, "42", TERMS_VERSION); // default mintToken() learner (t6)
   const { token } = await mintToken(env);
   const res = await call(
     env,
@@ -115,6 +117,7 @@ test("broker returns 503 when INFERENCE_URL is unset (still auth-gated first)", 
 
 test("record round-trip: POST /api/record then GET /api/progress reflects it", async () => {
   const env = makeEnv();
+  seedConsent(env, "42", TERMS_VERSION); // a returning, currently-consented learner (t6)
   const { token } = await mintToken(env, { uid: "42", name: "Ada" });
 
   const recorded = {
@@ -159,6 +162,8 @@ test("record round-trip: POST /api/record then GET /api/progress reflects it", a
 
 test("ledger is append-only and per-learner isolated", async () => {
   const env = makeEnv();
+  seedConsent(env, "42", TERMS_VERSION); // both are returning, currently-consented learners (t6)
+  seedConsent(env, "99", TERMS_VERSION);
   const { token: adaTok } = await mintToken(env, { uid: "42", name: "Ada" });
   const { token: linusTok } = await mintToken(env, { uid: "99", name: "Linus" });
 
@@ -199,6 +204,7 @@ test("ledger is append-only and per-learner isolated", async () => {
 
 test("POST /api/record rejects a score field with 400", async () => {
   const env = makeEnv();
+  seedConsent(env, "42", TERMS_VERSION); // default mintToken() learner (t6)
   const { token } = await mintToken(env);
   const res = await call(
     env,

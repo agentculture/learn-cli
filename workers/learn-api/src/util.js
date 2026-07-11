@@ -63,13 +63,22 @@ export function nowSeconds() {
   return Math.floor(Date.now() / 1000);
 }
 
-/** A structured HTTP error that the router turns into a JSON response. */
+/**
+ * A structured HTTP error that the router turns into a JSON response.
+ * `extra` (task t6) merges additional fields into the body — e.g. the
+ * consent-gate 403s attach `{ reason, consent_required }` so a client can
+ * tell "never consented" apart from "consented to a since-superseded
+ * version" and render the current requirement without a second round trip.
+ * Additive only: every pre-existing call site (no 5th argument) is
+ * unaffected — `extra` defaults to `{}`.
+ */
 export class HttpError extends Error {
-  constructor(status, code, message, hint = "") {
+  constructor(status, code, message, hint = "", extra = {}) {
     super(message);
     this.status = status;
     this.code = code;
     this.hint = hint;
+    this.extra = extra;
   }
 
   toResponse() {
@@ -77,6 +86,7 @@ export class HttpError extends Error {
       error: this.code,
       message: this.message,
       hint: this.hint,
+      ...this.extra,
     });
   }
 }
