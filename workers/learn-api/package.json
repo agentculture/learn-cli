@@ -1,0 +1,20 @@
+{
+  "name": "learn-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "learn API — Cloudflare Worker: GitHub OAuth sessions, learner ledger, tutoring broker for agentculture.org/learn",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute learn-ledger --file schema.sql"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "wrangler": ">=3"
+  }
+}
