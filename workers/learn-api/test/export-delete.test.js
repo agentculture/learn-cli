@@ -18,6 +18,7 @@ import assert from "node:assert/strict";
 import worker from "../src/index.js";
 import { GH } from "../src/github.js";
 import { TERMS_VERSION } from "../src/terms.js";
+import { nowSeconds } from "../src/util.js";
 import {
   makeEnv,
   makeFetchStub,
@@ -224,6 +225,74 @@ test("delete: a stale-consent (reconsent_required) session can STILL erase its d
   assert.equal(res.status, 200);
   assert.equal(env.DB.learners.has("42"), false);
   assert.equal(env.DB.consents.some((c) => c.github_user_id === "42"), false);
+});
+
+test("delete: revokes EVERY session for the uid, not just the one that called delete (Qodo BUG 1)", async () => {
+  const env = makeEnv();
+  seedConsent(env, "42", TERMS_VERSION);
+  env.DB.learners.set("42", { github_user_id: "42", display_name: "Ada", state: "{}" });
+  // Minted with an `iat` a few seconds in the past (relative to the delete
+  // call below, which stamps revoked_uid with the REAL current second) —
+  // deliberately, so this test's before/after ordering is not left to
+  // real-wall-clock luck: two mints and a delete inside one fast test
+  // function virtually always land in the SAME floored epoch-second, and
+  // requireAuth's strict `<` (see auth.js's own comment on why it must be
+  // strict, not `<=`) treats equal-second tokens as NOT revoked. A handful
+  // of seconds of separation makes this test exercise the actual
+  // before-the-marker case deterministically instead of by chance.
+  const past = nowSeconds() - 5;
+  const { token: tokenA } = await mintToken(env, { uid: "42", name: "Ada" }, 3600, { now: past });
+  // A second, independent session for the SAME learner — another device,
+  // browser tab, or a CLI token minted separately. Stateless tokens mean
+  // both are simultaneously valid; the bug was that only tokenA (the one
+  // used to call delete) got revoked.
+  const { token: tokenB } = await mintToken(env, { uid: "42", name: "Ada" }, 3600, { now: past });
+
+  assert.equal((await call(env, authedRequest(`${BASE}/api/me`, tokenA))).status, 200);
+  assert.equal((await call(env, authedRequest(`${BASE}/api/me`, tokenB))).status, 200);
+
+  const del = await call(env, deleteReq(tokenA, "42"));
+  assert.equal(del.status, 200);
+
+  // The session that called delete is rejected (pre-existing per-sid behavior)...
+  assert.equal((await call(env, authedRequest(`${BASE}/api/me`, tokenA))).status, 401);
+  // ...and so is the OTHER, still-unexpired session for the same uid — the
+  // whole point of this fix: delete logs the learner out everywhere, not
+  // just on the device that clicked delete.
+  const other = await call(env, authedRequest(`${BASE}/api/me`, tokenB));
+  assert.equal(other.status, 401);
+  assert.equal((await other.json()).error, "session_revoked");
+});
+
+test("delete: a DIFFERENT learner's session is unaffected — per-uid revocation is per-uid, not global", async () => {
+  const env = makeEnv();
+  seedConsent(env, "42", TERMS_VERSION);
+  seedConsent(env, "99", TERMS_VERSION);
+  env.DB.learners.set("42", { github_user_id: "42", display_name: "Ada", state: "{}" });
+  env.DB.learners.set("99", { github_user_id: "99", display_name: "Linus", state: "{}" });
+  const { token: adaTok } = await mintToken(env, { uid: "42", name: "Ada" });
+  const { token: linusTok } = await mintToken(env, { uid: "99", name: "Linus" });
+
+  const del = await call(env, deleteReq(adaTok, "42"));
+  assert.equal(del.status, 200);
+
+  assert.equal((await call(env, authedRequest(`${BASE}/api/me`, linusTok))).status, 200);
+});
+
+test("delete: a DIFFERENT (non-deleted) learner's session minted AFTER the delete still works — refresh/resignup is unaffected", async () => {
+  const env = makeEnv();
+  seedConsent(env, "42", TERMS_VERSION);
+  seedConsent(env, "99", TERMS_VERSION);
+  env.DB.learners.set("42", { github_user_id: "42", display_name: "Ada", state: "{}" });
+  env.DB.learners.set("99", { github_user_id: "99", display_name: "Linus", state: "{}" });
+  const { token: adaTok } = await mintToken(env, { uid: "42", name: "Ada" });
+
+  await call(env, deleteReq(adaTok, "42"));
+
+  // Linus signs in fresh AFTER Ada's delete — his brand-new session (fresh
+  // iat) must not be touched by Ada's revoked_uid marker.
+  const { token: linusTok } = await mintToken(env, { uid: "99", name: "Linus" });
+  assert.equal((await call(env, authedRequest(`${BASE}/api/me`, linusTok))).status, 200);
 });
 
 test("delete: a pending-consent session is a documented no-op (nothing was ever written) and still revokes", async () => {

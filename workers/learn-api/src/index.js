@@ -602,6 +602,7 @@ async function handleDelete(request, env) {
   }
   const deleted = await deleteLearnerData(env, session.uid);
   await revokeSession(env, session);
+  await revokeAllSessionsForUid(env, session.uid);
   return jsonResponse(
     200,
     { ok: true, status: "deleted", deleted },
@@ -688,9 +689,19 @@ async function handleTutor(request, env, ctx) {
 // fully used — not actual streamed seconds; per-session length and global
 // concurrency are enforced by the bridge itself, and tightening this meter
 // to actual usage needs bridge->worker usage reporting (a follow-up, see
-// README). Read-then-write like every state-blob update; a lost race between
-// two concurrent mints can under-count by one booking at worst, acceptable
-// for a budget whose real backstop is the bridge's own caps + AWS Budgets.
+// README).
+//
+// Atomic booking (Qodo review finding, BUG 3): a plain read-then-write here
+// let two concurrent mints both read the same `used`, both pass the cap
+// check, and both write — silently exceeding the cap (not just an
+// under-count: TWO full sessions could be minted against ONE booking's
+// headroom). bookVoiceUsage below closes that with a compare-and-swap on
+// the learner row's `updated_at` (db.js#setLearnerVoiceUsage) plus bounded
+// retries: a lost CAS means another mint booked first, so it re-reads and
+// re-checks the cap against the fresh total rather than retrying the stale
+// write. If it still can't secure a booking after retrying, the mint is
+// refused — the real backstop for genuine abuse stays the bridge's own
+// per-session/concurrency caps plus the AWS Budgets alarm, same as before.
 async function handleVoiceToken(request, env) {
   const session = await requireConsented(request, env);
   const learner = await getLearner(env, session.uid);
@@ -728,10 +739,29 @@ async function handleVoiceToken(request, env) {
   }
 
   const { token, payload } = await mintVoiceToken(env, session.uid, { now });
-  // Book AFTER the mint succeeded, BEFORE the token leaves the Worker — a
-  // failed write must not hand out unmetered tokens.
-  const secondsMinted = used + maxSessionSeconds;
-  await setLearnerVoiceUsage(env, session.uid, { month, seconds_minted: secondsMinted });
+  // Book AFTER the mint succeeded, BEFORE the token leaves the Worker —
+  // ATOMICALLY. bookVoiceUsage re-validates the cap against a fresh read on
+  // every retry, so this can only succeed at most once per booking's worth
+  // of headroom no matter how many requests race here. A failed booking
+  // (contention exhausted the retries, or the cap turned out to already be
+  // gone by the time this mint's turn came) must not hand out an unmetered
+  // token — the token minted above is simply never returned below.
+  const booking = await bookVoiceUsage(env, session.uid, {
+    month,
+    maxSessionSeconds,
+    monthlyCap,
+    learner,
+    used,
+  });
+  if (!booking.ok) {
+    throw new HttpError(
+      429,
+      "voice_budget_exhausted",
+      "Your monthly voice allowance is used up.",
+      "The meter resets at the start of next month (UTC). Text tutoring is unaffected.",
+      { month, monthly_seconds_cap: monthlyCap, monthly_seconds_used: booking.used },
+    );
+  }
 
   return jsonResponse(200, {
     token,
@@ -742,10 +772,50 @@ async function handleVoiceToken(request, env) {
     limits: {
       max_session_seconds: maxSessionSeconds,
       monthly_seconds_cap: monthlyCap,
-      monthly_seconds_used: secondsMinted,
-      monthly_seconds_remaining: monthlyCap - secondsMinted,
+      monthly_seconds_used: booking.secondsMinted,
+      monthly_seconds_remaining: monthlyCap - booking.secondsMinted,
     },
   });
+}
+
+// Bounded retries for the atomic cap-check-and-increment (Qodo review
+// finding, BUG 3). Each attempt re-reads the learner (after the first, which
+// reuses the caller's already-fresh read to avoid a redundant D1 hit in the
+// common uncontended case), rechecks the cap against THAT read, and only
+// then attempts the compare-and-swap write — so a lost race always retries
+// against up-to-date data instead of blindly re-sending a now-stale write.
+// 3 attempts is generous for this route's actual concurrency (one learner
+// rarely mints two tokens within milliseconds of each other) while still
+// bounding the work one request will do under contention; exhausting all 3
+// without a booking refuses the mint rather than risk an unmetered token.
+const MAX_VOICE_BOOKING_ATTEMPTS = 3;
+
+async function bookVoiceUsage(env, uid, { month, maxSessionSeconds, monthlyCap, learner, used }) {
+  let currentLearner = learner;
+  let currentUsed = used;
+  for (let attempt = 1; attempt <= MAX_VOICE_BOOKING_ATTEMPTS; attempt += 1) {
+    if (attempt > 1) {
+      currentLearner = await getLearner(env, uid);
+      currentUsed = voiceSecondsUsed(currentLearner, month);
+    }
+    if (currentUsed + maxSessionSeconds > monthlyCap) {
+      return { ok: false, used: currentUsed };
+    }
+    const secondsMinted = currentUsed + maxSessionSeconds;
+    const result = await setLearnerVoiceUsage(
+      env,
+      uid,
+      { month, seconds_minted: secondsMinted },
+      currentLearner ? currentLearner.state : {},
+      currentLearner ? currentLearner.updated_at : undefined,
+    );
+    if (result.ok) {
+      return { ok: true, secondsMinted };
+    }
+    // CAS lost — another mint's booking won the row first; loop back and
+    // re-read so the next attempt's cap check sees its effect.
+  }
+  return { ok: false, used: currentUsed };
 }
 
 // --- roles + visibility (spec c12/h4, task t8) ------------------------------
@@ -918,6 +988,25 @@ function requireConfig(env, key) {
 async function revokeSession(env, session) {
   if (env.SESSIONS && session.sid) {
     await env.SESSIONS.put(`revoked:${session.sid}`, "1", {
+      expirationTtl: DEFAULT_TTL_SECONDS * 2,
+    });
+  }
+}
+
+// Per-uid revocation marker (Qodo review finding, BUG 1): "delete logs me
+// out everywhere," not just on the session that clicked delete. Stamps
+// `revoked_uid:<uid>` with the CURRENT epoch second; auth.js#requireAuth
+// rejects any token for this uid whose `iat` predates it (strict `<` — see
+// that function's own comment for why equal-second tokens, e.g. an
+// immediate resignup, must survive). TTL mirrors revokeSession's own
+// per-sid tombstone margin (DEFAULT_TTL_SECONDS * 2) — comfortably past the
+// longest TTL any session for this uid could have carried, so the marker
+// outlives every token it needs to catch. Called ONLY from handleDelete —
+// an ordinary logout/consent-decline still revokes just its own sid, so a
+// learner's other sessions are unaffected by an everyday sign-out.
+async function revokeAllSessionsForUid(env, uid) {
+  if (env.SESSIONS && uid) {
+    await env.SESSIONS.put(`revoked_uid:${uid}`, String(nowSeconds()), {
       expirationTtl: DEFAULT_TTL_SECONDS * 2,
     });
   }

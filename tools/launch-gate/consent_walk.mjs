@@ -24,7 +24,7 @@
 //   their markers. Against TODAY's pre-uplift prod these FAIL (routes/pages
 //   404) — that failure IS the h17 baseline; after the supervised deploy the
 //   same probes pass. The authed flows stay proven by the LOCAL run above and
-//   by the Worker's own 168 unit tests (run as a separate run.sh step).
+//   by the Worker's own 183 unit tests (run as a separate run.sh step).
 //
 // Emits one NDJSON line {audience, check, status, detail} per check to
 // $LAUNCH_GATE_RESULTS (folded into report.py's table); exits non-zero on any

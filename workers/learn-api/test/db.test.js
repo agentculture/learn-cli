@@ -16,6 +16,7 @@ import {
   listConsents,
   listAllLearners,
   setLearnerVisibility,
+  setLearnerVoiceUsage,
   getLearner,
 } from "../src/db.js";
 import { makeEnv } from "./helpers.js";
@@ -324,6 +325,117 @@ test("setLearnerVisibility: is per-learner isolated", async () => {
   await setLearnerVisibility(env, "42", "public");
   const linus = await getLearner(env, "99");
   assert.equal(Object.prototype.hasOwnProperty.call(linus.state, "visibility"), false);
+});
+
+// --- getLearner: updated_at (t16 follow-up, Qodo BUG 3) --------------------
+
+test("getLearner exposes updated_at — the version stamp the voice-budget CAS write needs", async () => {
+  const env = makeEnv();
+  env.DB.learners.set("42", {
+    github_user_id: "42",
+    display_name: "Ada",
+    state: "{}",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  });
+  const learner = await getLearner(env, "42");
+  assert.equal(learner.updated_at, "2026-01-01T00:00:00.000Z");
+});
+
+// --- setLearnerVoiceUsage: compare-and-swap (Qodo BUG 3) --------------------
+//
+// The voice-budget race (index.js#handleVoiceToken read `used`, checked the
+// cap, then wrote via a plain read-then-write): two concurrent mints could
+// both pass the check and both write, exceeding VOICE_MONTHLY_SECONDS_CAP.
+// The fix makes the WRITE itself conditional on the row not having changed
+// since the caller read it — these tests drive that primitive directly,
+// independent of any real concurrency/timing, the same way session.test.js
+// drives session.js directly rather than through the route layer.
+
+test("setLearnerVoiceUsage: a matching expectedUpdatedAt writes and reports ok:true", async () => {
+  const env = makeEnv();
+  const stamp = "2026-07-01T00:00:00.000Z";
+  env.DB.learners.set("42", { github_user_id: "42", display_name: "Ada", state: "{}", updated_at: stamp });
+
+  const result = await setLearnerVoiceUsage(
+    env,
+    "42",
+    { month: "2026-07", seconds_minted: 300 },
+    {},
+    stamp,
+  );
+  assert.equal(result.ok, true);
+  const learner = await getLearner(env, "42");
+  assert.equal(learner.state.voice_usage.seconds_minted, 300);
+  assert.notEqual(learner.updated_at, stamp, "a successful write stamps a NEW updated_at");
+});
+
+test("setLearnerVoiceUsage: a stale expectedUpdatedAt is refused (ok:false) and writes NOTHING — the CAS primitive the race fix relies on", async () => {
+  const env = makeEnv();
+  const original = "2026-01-01T00:00:00.000Z";
+  env.DB.learners.set("42", { github_user_id: "42", display_name: "Ada", state: "{}", updated_at: original });
+
+  // Two concurrent bookers who both read the SAME `updated_at` — simulated
+  // directly, no timing/Promise.all needed: this IS the exact primitive
+  // index.js#bookVoiceUsage's retry loop depends on.
+  const first = await setLearnerVoiceUsage(
+    env,
+    "42",
+    { month: "2026-07", seconds_minted: 300 },
+    {},
+    original,
+  );
+  assert.equal(first.ok, true, "the first writer to reach D1 wins");
+
+  const second = await setLearnerVoiceUsage(
+    env,
+    "42",
+    { month: "2026-07", seconds_minted: 600 },
+    {},
+    original, // still holding the now-STALE updated_at
+  );
+  assert.equal(second.ok, false, "the second writer loses the race — its expected version is gone");
+
+  // The loser's write never landed: the learner reflects ONLY the winner's
+  // booking (300s), never the loser's (600s) and never both summed/clobbered.
+  const learner = await getLearner(env, "42");
+  assert.equal(learner.state.voice_usage.seconds_minted, 300);
+});
+
+test("setLearnerVoiceUsage: merges the usage write into the passed baseState, same merge contract as setLearnerVisibility/setLearnerApproved", async () => {
+  const env = makeEnv();
+  const stamp = "2026-07-01T00:00:00.000Z";
+  env.DB.learners.set("42", {
+    github_user_id: "42",
+    display_name: "Ada",
+    state: JSON.stringify({ approved: true, visibility: "public" }),
+    updated_at: stamp,
+  });
+  const learner = await getLearner(env, "42");
+
+  const result = await setLearnerVoiceUsage(
+    env,
+    "42",
+    { month: "2026-07", seconds_minted: 300 },
+    learner.state,
+    learner.updated_at,
+  );
+  assert.equal(result.ok, true);
+  const updated = await getLearner(env, "42");
+  assert.equal(updated.state.approved, true, "unrelated state fields survive the usage write");
+  assert.equal(updated.state.visibility, "public");
+  assert.equal(updated.state.voice_usage.seconds_minted, 300);
+});
+
+test("setLearnerVoiceUsage: is per-learner isolated", async () => {
+  const env = makeEnv();
+  const stamp = "2026-07-01T00:00:00.000Z";
+  env.DB.learners.set("42", { github_user_id: "42", display_name: "Ada", state: "{}", updated_at: stamp });
+  env.DB.learners.set("99", { github_user_id: "99", display_name: "Linus", state: "{}", updated_at: stamp });
+
+  await setLearnerVoiceUsage(env, "42", { month: "2026-07", seconds_minted: 300 }, {}, stamp);
+
+  const linus = await getLearner(env, "99");
+  assert.equal(Object.prototype.hasOwnProperty.call(linus.state, "voice_usage"), false);
 });
 
 test("getConsent: same-millisecond re-consent tie resolves to the newest row (rowid tiebreak)", async () => {
