@@ -18,14 +18,17 @@
 //   POST /api/tutor             consent  broker -> env.INFERENCE_URL (model call)
 //
 // auth*   = any valid session, INCLUDING pending-consent (requireAuth).
-// consent = full session only; pending-consent tokens get a structured 403
-//           (requireConsented) before the route body runs.
+// consent = full session AND its stored consent still matches the currently
+//           published terms version; pending-consent OR stale-version
+//           sessions get a structured 403 (requireConsented) before the
+//           route body runs.
 //
 // Resource-gate invariant: requireAuth()/requireConsented() runs before the
 // body of every auth route. POST /api/tutor is the only route that spends
-// model tokens, and it is unreachable without a valid CONSENTED session —
-// signed-out AND pending-consent traffic can NEVER trigger a model call.
-// Proven in worker.test.js + consent.test.js.
+// model tokens, and it is unreachable without a valid, CURRENTLY-CONSENTED
+// session — signed-out, pending-consent, AND stale-consent traffic can NEVER
+// trigger a model call. Proven in worker.test.js + consent.test.js +
+// reconsent.test.js.
 //
 // Consent-gate invariant (spec c9/h1, decision c19): NEITHER sign-in path
 // (web callback, device poll) writes to D1 unless a recorded consent already
@@ -34,6 +37,15 @@
 // viewing the consent requirement and accepting/declining it. Accept records
 // the consent row FIRST, then upserts the learner. Decline revokes the
 // session with nothing ever written. Proven in consent.test.js.
+//
+// Re-consent invariant (spec c10/h2, task t6): "satisfies the current terms"
+// means an EXACT terms_version match (consent.js#consentSatisfiesCurrentTerms)
+// — a version bump makes a previously-consented learner's NEXT sign-in land
+// pending-consent again (zero new D1 writes, same as a first-time sign-in),
+// and makes requireConsented reject their EXISTING live full-session token
+// with 403 consent_required until they re-accept via POST
+// /api/consent/accept (which is reachable throughout, since it runs on
+// requireAuth, not requireConsented). Proven in reconsent.test.js.
 
 import {
   HttpError,
@@ -51,8 +63,11 @@ import {
   DEFAULT_TTL_SECONDS,
   PENDING_CONSENT_TTL_SECONDS,
 } from "./session.js";
-import { consentSatisfiesCurrentTerms, consentRequirement } from "./consent.js";
-import { TERMS_VERSION } from "./terms.js";
+import {
+  consentSatisfiesCurrentTerms,
+  consentRequirement,
+  currentTermsVersion,
+} from "./consent.js";
 import {
   authorizeUrl,
   exchangeCode,
@@ -186,7 +201,7 @@ async function handleCallback(request, env) {
   // the consent page with a short-lived pending-consent cookie; the learner
   // row is only created by POST /api/consent/accept.
   const consent = await getConsent(env, user.uid);
-  if (!consentSatisfiesCurrentTerms(consent)) {
+  if (!consentSatisfiesCurrentTerms(consent, env)) {
     const { token } = await issueSession(env, user, PENDING_CONSENT_TTL_SECONDS, {
       pendingConsent: true,
     });
@@ -231,7 +246,7 @@ async function handleDevice(request, env) {
     // Bearer token plus the consent requirement so it can prompt; it then
     // drives POST /api/consent/accept (returns the full token) or /decline.
     const consent = await getConsent(env, user.uid);
-    if (!consentSatisfiesCurrentTerms(consent)) {
+    if (!consentSatisfiesCurrentTerms(consent, env)) {
       const { token, payload } = await issueSession(env, user, PENDING_CONSENT_TTL_SECONDS, {
         pendingConsent: true,
       });
@@ -240,7 +255,7 @@ async function handleDevice(request, env) {
         token,
         token_type: "Bearer",
         expires_at: payload.exp,
-        consent_required: consentRequirement(),
+        consent_required: consentRequirement(env),
         learner: { github_user_id: user.uid, display_name: user.name },
       });
     }
@@ -264,7 +279,7 @@ async function handleDevice(request, env) {
 // can render the notice — version, effective date, policy links — without a
 // session; a signed-out reader learns nothing personal here.
 function handleConsentGet(env) {
-  return jsonResponse(200, consentRequirement());
+  return jsonResponse(200, consentRequirement(env));
 }
 
 // Accept the current terms. Order is the contract (spec c9): the consent row
@@ -275,9 +290,15 @@ function handleConsentGet(env) {
 // the two faces stay symmetric with the sign-in paths.
 // Idempotent for an already-consented session: same-version re-accept just
 // refreshes granted_at (db.js recordConsent upserts).
+// t6 (spec c10/h2): this is ALSO the re-consent route. It deliberately runs
+// through requireAuth, not requireConsented — a full session whose stored
+// consent has gone stale must still be able to reach this route to fix
+// that, even though every requireConsented-gated route now rejects it.
+// currentTermsVersion(env), never a bare TERMS_VERSION import, so a
+// published bump is what gets stamped on re-accept.
 async function handleConsentAccept(request, env) {
   const session = await requireAuth(request, env); // pending-consent allowed — that's the point.
-  const consent = await recordConsent(env, session.uid, TERMS_VERSION);
+  const consent = await recordConsent(env, session.uid, currentTermsVersion(env));
   await upsertLearner(env, { uid: session.uid, name: session.name });
   await revokeSession(env, session); // the pending (or prior) token dies with the upgrade
   const { token, payload } = await issueSession(env, { uid: session.uid, name: session.name });
@@ -337,11 +358,22 @@ async function handleMe(request, env) {
     return jsonResponse(200, {
       authenticated: true,
       pending_consent: true,
-      consent_required: consentRequirement(),
+      consent_required: consentRequirement(env),
       learner: { github_user_id: session.uid, display_name: session.name },
       session: { expires_at: session.exp, refreshed: false },
     });
   }
+
+  // t6 (spec c10/h2, AC4): a full session never 403s at /api/me — unlike
+  // requireConsented-gated routes, this one REPORTS the re-consent
+  // requirement instead of walling the learner out of their own identity
+  // check. Additive only: `reconsent_required` is a NEW field (false in the
+  // common case); `consent_required` is included ONLY when it's true,
+  // mirroring the pending-session shape above so a client renders the same
+  // notice component either way. One extra D1 read (`getConsent`) alongside
+  // the existing `getLearner` read — see README "Storage" for the tradeoff.
+  const consent = await getConsent(env, session.uid);
+  const reconsentRequired = !consentSatisfiesCurrentTerms(consent, env);
 
   const learner = (await getLearner(env, session.uid)) || {
     github_user_id: session.uid,
@@ -358,6 +390,8 @@ async function handleMe(request, env) {
     {
       authenticated: true,
       pending_consent: false,
+      reconsent_required: reconsentRequired,
+      ...(reconsentRequired ? { consent_required: consentRequirement(env) } : {}),
       learner: {
         github_user_id: learner.github_user_id,
         display_name: learner.display_name,
