@@ -7,16 +7,33 @@
 //   GET  /api/auth/login        public   web OAuth: redirect to GitHub
 //   GET  /api/auth/callback     public   web OAuth: exchange code, set cookie
 //   POST /api/auth/device       public   device flow start/poll (CLI/MCP, t12)
-//   POST /api/auth/logout       auth     revoke the current session
-//   GET  /api/me                auth     who am I + session expiry (auto-refresh)
-//   GET  /api/progress/:subject auth     ledger-derived progress payload
-//   POST /api/record            auth     append a recorded result to the ledger
-//   POST /api/tutor             auth     broker -> env.INFERENCE_URL (model call)
+//   GET  /api/consent           public   what consent is currently required
+//   POST /api/consent/accept    auth*    record consent, THEN create the learner,
+//                                        upgrade pending -> full session
+//   POST /api/consent/decline   auth*    drop a pending session; zero rows written
+//   POST /api/auth/logout       auth*    revoke the current session
+//   GET  /api/me                auth*    who am I + session expiry (auto-refresh)
+//   GET  /api/progress/:subject consent  ledger-derived progress payload
+//   POST /api/record            consent  append a recorded result to the ledger
+//   POST /api/tutor             consent  broker -> env.INFERENCE_URL (model call)
 //
-// Resource-gate invariant: requireAuth() runs before the body of every auth
-// route. POST /api/tutor is the only route that spends model tokens, and it is
-// unreachable without a valid session — signed-out traffic can NEVER trigger a
-// model call. Proven in worker.test.js.
+// auth*   = any valid session, INCLUDING pending-consent (requireAuth).
+// consent = full session only; pending-consent tokens get a structured 403
+//           (requireConsented) before the route body runs.
+//
+// Resource-gate invariant: requireAuth()/requireConsented() runs before the
+// body of every auth route. POST /api/tutor is the only route that spends
+// model tokens, and it is unreachable without a valid CONSENTED session —
+// signed-out AND pending-consent traffic can NEVER trigger a model call.
+// Proven in worker.test.js + consent.test.js.
+//
+// Consent-gate invariant (spec c9/h1, decision c19): NEITHER sign-in path
+// (web callback, device poll) writes to D1 unless a recorded consent already
+// satisfies the current terms. An unconsented sign-in gets a short-lived
+// pending-consent session (see session.js) whose only capabilities are
+// viewing the consent requirement and accepting/declining it. Accept records
+// the consent row FIRST, then upserts the learner. Decline revokes the
+// session with nothing ever written. Proven in consent.test.js.
 
 import {
   HttpError,
@@ -26,8 +43,16 @@ import {
   cookie,
   outboundFetch,
 } from "./util.js";
-import { requireAuth } from "./auth.js";
-import { issueSession, needsRefresh, DEFAULT_TTL_SECONDS } from "./session.js";
+import { requireAuth, requireConsented } from "./auth.js";
+import {
+  issueSession,
+  needsRefresh,
+  isPendingConsent,
+  DEFAULT_TTL_SECONDS,
+  PENDING_CONSENT_TTL_SECONDS,
+} from "./session.js";
+import { consentSatisfiesCurrentTerms, consentRequirement } from "./consent.js";
+import { TERMS_VERSION } from "./terms.js";
 import {
   authorizeUrl,
   exchangeCode,
@@ -35,7 +60,14 @@ import {
   startDevice,
   pollDevice,
 } from "./github.js";
-import { upsertLearner, getLearner, insertRecord, listRecords } from "./db.js";
+import {
+  upsertLearner,
+  getLearner,
+  insertRecord,
+  listRecords,
+  getConsent,
+  recordConsent,
+} from "./db.js";
 import { deriveProgress } from "./progress.js";
 import {
   CONTRACT_VERSION,
@@ -82,6 +114,9 @@ async function route(request, env, ctx) {
   if (method === "GET" && path === "/api/auth/login") return handleLogin(request, env);
   if (method === "GET" && path === "/api/auth/callback") return handleCallback(request, env);
   if (method === "POST" && path === "/api/auth/device") return handleDevice(request, env);
+  if (method === "GET" && path === "/api/consent") return handleConsentGet(env);
+  if (method === "POST" && path === "/api/consent/accept") return handleConsentAccept(request, env);
+  if (method === "POST" && path === "/api/consent/decline") return handleConsentDecline(request, env);
   if (method === "POST" && path === "/api/auth/logout") return handleLogout(request, env);
   if (method === "GET" && path === "/api/me") return handleMe(request, env);
   if (method === "POST" && path === "/api/record") return handleRecord(request, env);
@@ -145,6 +180,22 @@ async function handleCallback(request, env) {
   }
   const accessToken = await exchangeCode(env, code);
   const user = await fetchUser(env, accessToken);
+
+  // CONSENT GATE (spec c9/c19): no satisfying consent -> NO D1 write. The
+  // OAuth redirect flow stays intact — the user lands signed-in-PENDING on
+  // the consent page with a short-lived pending-consent cookie; the learner
+  // row is only created by POST /api/consent/accept.
+  const consent = await getConsent(env, user.uid);
+  if (!consentSatisfiesCurrentTerms(consent)) {
+    const { token } = await issueSession(env, user, PENDING_CONSENT_TTL_SECONDS, {
+      pendingConsent: true,
+    });
+    const headers = new Headers({ Location: consentPageUrl(env, url) });
+    headers.append("Set-Cookie", cookie("session", token, { maxAge: PENDING_CONSENT_TTL_SECONDS }));
+    headers.append("Set-Cookie", cookie("oauth_state", "", { maxAge: 0 }));
+    return new Response(null, { status: 302, headers });
+  }
+
   await upsertLearner(env, user);
   const { token } = await issueSession(env, user);
   const dest = env.APP_URL || `${publicOrigin(env, url)}/learn/`;
@@ -174,6 +225,26 @@ async function handleDevice(request, env) {
     const r = await pollDevice(env, body.device_code);
     if (r.pending) return jsonResponse(200, { status: "pending", slow_down: !!r.slow_down });
     const user = await fetchUser(env, r.access_token);
+
+    // CONSENT GATE (spec c9/c19), device face: same rule as the web callback —
+    // no satisfying consent, no D1 write. The CLI gets a pending-consent
+    // Bearer token plus the consent requirement so it can prompt; it then
+    // drives POST /api/consent/accept (returns the full token) or /decline.
+    const consent = await getConsent(env, user.uid);
+    if (!consentSatisfiesCurrentTerms(consent)) {
+      const { token, payload } = await issueSession(env, user, PENDING_CONSENT_TTL_SECONDS, {
+        pendingConsent: true,
+      });
+      return jsonResponse(200, {
+        status: "consent_required",
+        token,
+        token_type: "Bearer",
+        expires_at: payload.exp,
+        consent_required: consentRequirement(),
+        learner: { github_user_id: user.uid, display_name: user.name },
+      });
+    }
+
     await upsertLearner(env, user);
     const { token, payload } = await issueSession(env, user);
     return jsonResponse(200, {
@@ -187,19 +258,91 @@ async function handleDevice(request, env) {
   throw new HttpError(400, "bad_action", "action must be 'start' or 'poll'.");
 }
 
+// --- consent routes (spec c9/c19, task t5) ----------------------------------
+
+// What consent is currently required. Public: the consent page (and any CLI)
+// can render the notice — version, effective date, policy links — without a
+// session; a signed-out reader learns nothing personal here.
+function handleConsentGet(env) {
+  return jsonResponse(200, consentRequirement());
+}
+
+// Accept the current terms. Order is the contract (spec c9): the consent row
+// is recorded FIRST (the consents table has no FK to learners precisely so it
+// can exist alone), and only THEN is the learner row created. The pending
+// session is revoked and a full session issued — returned BOTH as a
+// `Set-Cookie` (web) and in the JSON body as a Bearer token (device/CLI), so
+// the two faces stay symmetric with the sign-in paths.
+// Idempotent for an already-consented session: same-version re-accept just
+// refreshes granted_at (db.js recordConsent upserts).
+async function handleConsentAccept(request, env) {
+  const session = await requireAuth(request, env); // pending-consent allowed — that's the point.
+  const consent = await recordConsent(env, session.uid, TERMS_VERSION);
+  await upsertLearner(env, { uid: session.uid, name: session.name });
+  await revokeSession(env, session); // the pending (or prior) token dies with the upgrade
+  const { token, payload } = await issueSession(env, { uid: session.uid, name: session.name });
+  return jsonResponse(
+    200,
+    {
+      ok: true,
+      status: "consented",
+      consent: { terms_version: consent.terms_version, granted_at: consent.granted_at },
+      token,
+      token_type: "Bearer",
+      expires_at: payload.exp,
+      learner: { github_user_id: session.uid, display_name: session.name },
+    },
+    { "Set-Cookie": cookie("session", token, { maxAge: DEFAULT_TTL_SECONDS }) },
+  );
+}
+
+// Decline the current terms. Pending sessions only: the session is revoked,
+// the cookie cleared, and — because the sign-in paths wrote nothing — there is
+// nothing to erase. A FULL session declining is a different act (consent
+// withdrawal = data deletion, spec c11/t7), so it is refused here rather than
+// silently half-handled.
+async function handleConsentDecline(request, env) {
+  const session = await requireAuth(request, env);
+  if (!isPendingConsent(session)) {
+    throw new HttpError(
+      409,
+      "already_consented",
+      "This session already carries recorded consent; decline applies only before accepting.",
+      "To withdraw consent (which deletes your stored data), use the self-serve delete flow.",
+    );
+  }
+  await revokeSession(env, session);
+  return jsonResponse(
+    200,
+    { ok: true, status: "declined", stored: false },
+    { "Set-Cookie": cookie("session", "", { maxAge: 0 }) },
+  );
+}
+
 // --- auth routes -----------------------------------------------------------
 
 async function handleLogout(request, env) {
-  const session = await requireAuth(request, env);
-  if (env.SESSIONS && session.sid) {
-    // Tombstone until well past the token's own expiry.
-    await env.SESSIONS.put(`revoked:${session.sid}`, "1", { expirationTtl: DEFAULT_TTL_SECONDS * 2 });
-  }
+  const session = await requireAuth(request, env); // pending-consent sessions may log out too
+  await revokeSession(env, session);
   return jsonResponse(200, { ok: true }, { "Set-Cookie": cookie("session", "", { maxAge: 0 }) });
 }
 
 async function handleMe(request, env) {
   const session = await requireAuth(request, env);
+
+  // Pending-consent session (c19): report the state + what must be consented
+  // to. No D1 read (no learner row exists), no sliding refresh — a pending
+  // session stays short-lived and either upgrades via accept or expires.
+  if (isPendingConsent(session)) {
+    return jsonResponse(200, {
+      authenticated: true,
+      pending_consent: true,
+      consent_required: consentRequirement(),
+      learner: { github_user_id: session.uid, display_name: session.name },
+      session: { expires_at: session.exp, refreshed: false },
+    });
+  }
+
   const learner = (await getLearner(env, session.uid)) || {
     github_user_id: session.uid,
     display_name: session.name,
@@ -214,6 +357,7 @@ async function handleMe(request, env) {
     200,
     {
       authenticated: true,
+      pending_consent: false,
       learner: {
         github_user_id: learner.github_user_id,
         display_name: learner.display_name,
@@ -225,13 +369,13 @@ async function handleMe(request, env) {
 }
 
 async function handleProgress(request, env, subject) {
-  const session = await requireAuth(request, env);
+  const session = await requireConsented(request, env);
   const rows = await listRecords(env, session.uid, subject);
   return jsonResponse(200, deriveProgress(subject, session.uid, rows));
 }
 
 async function handleRecord(request, env) {
-  const session = await requireAuth(request, env);
+  const session = await requireConsented(request, env);
   const body = await readJson(request);
   const subject = body.subject;
   const recorded = body.recorded;
@@ -273,8 +417,10 @@ async function handleRecord(request, env) {
 }
 
 async function handleTutor(request, env, ctx) {
-  // AUTH FIRST — before any inference call. This ordering is the guarantee.
-  const session = await requireAuth(request, env);
+  // AUTH + CONSENT FIRST — before any inference call. This ordering is the
+  // guarantee: neither signed-out nor pending-consent traffic reaches the
+  // model endpoint.
+  const session = await requireConsented(request, env);
   if (!env.INFERENCE_URL) {
     throw new HttpError(
       503,
@@ -305,6 +451,24 @@ function requireConfig(env, key) {
   if (!env[key]) {
     throw new HttpError(503, "not_configured", `${key} is not configured on this Worker.`, "");
   }
+}
+
+// Tombstone a session id in KV until well past the token's own expiry.
+// Shared by logout, consent decline (drop the pending session), and consent
+// accept (the superseded pending token must not outlive its upgrade).
+async function revokeSession(env, session) {
+  if (env.SESSIONS && session.sid) {
+    await env.SESSIONS.put(`revoked:${session.sid}`, "1", {
+      expirationTtl: DEFAULT_TTL_SECONDS * 2,
+    });
+  }
+}
+
+// Where an unconsented web sign-in lands: the consent notice page (t10),
+// served by the static site under the /learn mount.
+function consentPageUrl(env, url) {
+  const base = (env.APP_URL || `${publicOrigin(env, url)}/learn/`).replace(/\/+$/, "");
+  return `${base}/consent/`;
 }
 
 function publicOrigin(env, url) {
