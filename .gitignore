@@ -235,3 +235,5 @@ skills.local.yaml
 
 # wrangler local state (created by `wrangler pages deploy` at repo root)
 .wrangler/
+
+.devague/questions/
