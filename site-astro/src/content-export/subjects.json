@@ -1,0 +1,76 @@
+[
+  {
+    "name": "french",
+    "display_name": "French",
+    "description": "Agent + CLI that turns Claude into a private French tutor: track progress, get an overview, get advice, read stories, and learn & practice French (written and spoken) online from your phone.",
+    "repo": "agentculture/french-cli",
+    "available": true,
+    "modules": [
+      {
+        "id": "premiers-pas",
+        "title": "Premiers pas",
+        "summary": "Greetings, introductions, numbers, and prices — the survival core.",
+        "lessons": 2
+      },
+      {
+        "id": "la-vie-quotidienne",
+        "title": "La vie quotidienne",
+        "summary": "Food and the market, ordering at a cafe, and daily-routine verbs.",
+        "lessons": 2
+      },
+      {
+        "id": "en-ville",
+        "title": "En ville",
+        "summary": "Getting around town: asking directions and taking public transport.",
+        "lessons": 1
+      }
+    ]
+  },
+  {
+    "name": "spanish",
+    "display_name": "Spanish",
+    "description": "Agent + CLI that turns Claude into a private Spanish tutor: track progress, get an overview, get advice, read stories, and learn & practice Spanish (written and spoken) online from your phone.",
+    "repo": "agentculture/spanish-cli",
+    "available": false,
+    "modules": []
+  },
+  {
+    "name": "culture-guide",
+    "display_name": "Culture Guide",
+    "description": "Workshop and scaffolding CLI for practical AI efficiency: learn core AI concepts, build your first agents, create useful CLIs, and adopt agent-first development patterns.",
+    "repo": "agentculture/culture-guide",
+    "available": true,
+    "modules": [
+      {
+        "id": "basics",
+        "title": "Part 1: Cover the basics",
+        "summary": "Cover the basics (~35 min)",
+        "lessons": 10
+      },
+      {
+        "id": "agents",
+        "title": "Part 2: Warm up to agents",
+        "summary": "Warm up to agents (~25 min)",
+        "lessons": 6
+      },
+      {
+        "id": "coders",
+        "title": "Part 3: Coder agents are here",
+        "summary": "Agents are here (~30 min)",
+        "lessons": 5
+      },
+      {
+        "id": "company",
+        "title": "Building a company of agents",
+        "summary": "Building a company of agents (~30 min)",
+        "lessons": 10
+      },
+      {
+        "id": "extra",
+        "title": "Additional lessons: agent-first work",
+        "summary": "Additional lessons (agent-first paradigm, tiers, CLI, company-scale)",
+        "lessons": 4
+      }
+    ]
+  }
+]

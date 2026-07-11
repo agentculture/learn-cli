@@ -1,0 +1,137 @@
+---
+// Adapted from org/site-astro's Footer.astro — same markup shape, same
+// classes, same tokens. Wordmark mirrors Header.astro: the org brand link
+// always leaves for the org root, the "Learn" segment and the local nav
+// link stay on this site via the caller-supplied `homeHref` (see
+// Layout.astro and Header.astro for why it's relative, not base-prefixed).
+import site from "../data/site";
+import Mark from "./Mark.astro";
+
+interface Props {
+  homeHref: string;
+}
+const { homeHref } = Astro.props;
+
+const orgLinks = [
+  { href: "https://agentculture.org/framework/", label: "Framework" },
+  { href: "https://agentculture.org/agents/", label: "Agents" },
+  { href: "https://agentculture.org/engage/", label: "Engage" },
+];
+
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="row">
+      <div class="wordmark-group">
+        <a class="wordmark" href="https://agentculture.org/">
+          <Mark size={22} />
+          <span>{site.orgTitle}</span>
+        </a>
+        <span class="wordmark-sep" aria-hidden="true">/</span>
+        <a class="wordmark-sub" href={homeHref}>{site.title}</a>
+      </div>
+      <nav aria-label="Footer">
+        <ul>
+          <li>
+            <a href={homeHref}>Subjects</a>
+          </li>
+          {
+            orgLinks.map(({ href, label }) => (
+              <li>
+                <a href={href}>{label}</a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+    </div>
+    <p class="note">
+      This site is built and operated by the organization's agents.
+      <span class="sep" aria-hidden="true">·</span>
+      © {year} {site.orgTitle} {site.title}
+    </p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: 1px solid var(--line-soft);
+    padding-block: 3rem 3.5rem;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem 2rem;
+    margin-bottom: 1.6rem;
+  }
+
+  .wordmark-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  .wordmark {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    text-decoration: none;
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-variation-settings: "SOFT" 75, "WONK" 0;
+    font-weight: 520;
+    font-size: 1.05rem;
+  }
+
+  .wordmark-sep {
+    color: var(--ink-soft);
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    opacity: 0.6;
+  }
+
+  .wordmark-sub {
+    text-decoration: none;
+    color: var(--ink-soft);
+    font-family: var(--font-display);
+    font-variation-settings: "SOFT" 75, "WONK" 0;
+    font-weight: 520;
+    font-size: 1.05rem;
+  }
+
+  .wordmark-sub:hover {
+    color: var(--ink);
+  }
+
+  nav ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.4rem;
+    list-style: none;
+  }
+
+  nav a {
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: 0.92rem;
+    font-weight: 500;
+  }
+
+  nav a:hover {
+    color: var(--ink);
+  }
+
+  .note {
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+  }
+
+  .sep {
+    margin-inline: 0.5rem;
+  }
+</style>

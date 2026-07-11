@@ -1,0 +1,163 @@
+---
+// Adapted from org/site-astro's Header.astro — same markup shape, same
+// classes, same tokens (zero new CSS). Two differences from the org header,
+// both from the brief (learn-cli is served under agentculture.org/learn and
+// must still read as the same site):
+//   1. The org wordmark ("AgentCulture") always points at the org root,
+//      even from here — clicking the brand name leaves this sub-site.
+//   2. A second, local wordmark segment ("Learn") plus a "Subjects" nav
+//      item both point back at *this* site's own landing page, via
+//      `homeHref` — a relative path computed by the calling page (see
+//      Layout.astro), since the base-path/domain mapping between the
+//      Pages preview and agentculture.org/learn isn't settled yet (README).
+import site from "../data/site";
+import Mark from "./Mark.astro";
+
+interface Props {
+  homeHref: string;
+}
+const { homeHref } = Astro.props;
+
+// The org-owned destinations always live at the domain root, regardless of
+// where this sub-site itself is mounted.
+const orgLinks = [
+  { href: "https://agentculture.org/framework/", label: "Framework" },
+  { href: "https://agentculture.org/agents/", label: "Agents" },
+  { href: "https://agentculture.org/engage/", label: "Engage" },
+];
+
+// `homeHref === "./"` only on the landing page itself (see Layout.astro).
+const onLanding = homeHref === "./";
+---
+
+<header class="site-header">
+  <div class="container bar">
+    <div class="wordmark-group">
+      <a class="wordmark" href="https://agentculture.org/">
+        <Mark />
+        <span>{site.orgTitle}</span>
+      </a>
+      <span class="wordmark-sep" aria-hidden="true">/</span>
+      <a class="wordmark-sub" href={homeHref} aria-current={onLanding ? "page" : undefined}>
+        {site.title}
+      </a>
+    </div>
+    <nav aria-label="Primary">
+      <ul>
+        <li>
+          <a href={homeHref} aria-current={onLanding ? "page" : undefined}>Subjects</a>
+        </li>
+        {
+          orgLinks.map(({ href, label }) => (
+            <li>
+              <a href={href}>{label}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    padding-block: 1.4rem;
+  }
+
+  .bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.5rem;
+  }
+
+  .wordmark-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .wordmark {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    text-decoration: none;
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-variation-settings: "SOFT" 75, "WONK" 0;
+    font-weight: 520;
+    font-size: 1.22rem;
+    letter-spacing: -0.01em;
+  }
+
+  .wordmark-sep {
+    color: var(--ink-soft);
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    opacity: 0.6;
+  }
+
+  .wordmark-sub {
+    text-decoration: none;
+    color: var(--ink-soft);
+    font-family: var(--font-display);
+    font-variation-settings: "SOFT" 75, "WONK" 0;
+    font-weight: 520;
+    font-size: 1.22rem;
+    letter-spacing: -0.01em;
+  }
+
+  .wordmark-sub:hover,
+  .wordmark-sub[aria-current="page"] {
+    color: var(--ink);
+  }
+
+  nav ul {
+    display: flex;
+    align-items: center;
+    gap: clamp(1.1rem, 3vw, 2.2rem);
+    list-style: none;
+  }
+
+  nav a {
+    position: relative;
+    display: inline-block;
+    padding-block: 0.35rem;
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+  }
+
+  nav a:hover {
+    color: var(--ink);
+  }
+
+  /* the current page carries its own small node on the thread */
+  nav a::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -0.2rem;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    transform: translateX(-50%) scale(0);
+  }
+
+  nav a[aria-current="page"] {
+    color: var(--ink);
+  }
+
+  nav a[aria-current="page"]::after {
+    transform: translateX(-50%) scale(1);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    nav a::after {
+      transition: transform 0.35s var(--ease-out);
+    }
+  }
+</style>
