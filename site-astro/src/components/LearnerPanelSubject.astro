@@ -1,0 +1,180 @@
+---
+// A subject page's learner panel — the signed-out/signed-in resource-gate
+// split (t14) for exactly one subject. Same `.card` in both states, so
+// there's no dramatic reflow when learner.js hydrates it: the invitation
+// and the stats both live inside from the first paint, one hidden by the
+// shared `.signedin-only` CSS default (global.css) until learner.js
+// confirms a session and stamps data-auth="in" on <html>.
+//
+// Numbers shown are honest about what workers/learn-api's
+// GET /api/progress/:subject actually reports: "mastered" and "touched"
+// are both LEDGER coverage (items this learner has recorded a result for),
+// not a fraction of the subject's full curriculum — the API doc says so
+// explicitly ("items_total here is ledger coverage; the authoritative
+// subject total comes from the subject CLI's own progress"), so this
+// panel never claims "X of Y modules done"; it says "N mastered of M
+// touched", which is exactly what the payload can support without
+// overclaiming.
+//
+// "Last active" (data-slot="last-active") is a deliberate substitute for a
+// true day-based streak count: the motivation layer's Streak
+// (learn/motivation/_streaks.py, current_days/longest_days/active_today)
+// is a Python-only, local-ledger concept — workers/learn-api's
+// deriveProgress() (src/progress.js) does not compute or expose it, only
+// `last_seen_at`. Rather than inventing a number the API can't back,
+// learner.js derives an honest "active today" / "active yesterday" /
+// "N days ago" line from that timestamp. If a future API wave adds a real
+// `streak` field to the progress payload, this is the one spot
+// (src/scripts/learner.js's hydrateSubjectPanel) that would read it.
+import type { Subject } from "../lib/content";
+import { API_BASE } from "../lib/api";
+
+interface Props {
+  subject: Subject;
+}
+const { subject } = Astro.props;
+---
+
+<div class="card learner-panel" data-learner-panel={subject.name}>
+  <div class="panel-out signedout-only">
+    <span class="eyebrow">Your progress</span>
+    <p class="lede">Sign in to track progress, streaks, and get your next lesson.</p>
+    <p class="muted">
+      See what you've mastered in {subject.display_name}, when you last studied it, and
+      what to try next — synced across every device you sign in on.
+    </p>
+    <a class="btn-signin" href={`${API_BASE}/auth/login`}>Sign in with GitHub</a>
+  </div>
+
+  <div class="panel-in signedin-only">
+    <span class="eyebrow">Welcome back, <span data-auth-name>your account</span></span>
+
+    <p class="panel-empty muted" data-slot="empty" hidden>
+      Nothing recorded here yet. Read a story below, or practice with the CLI
+      (<code>{subject.name} practice</code>) — your first result will show up here.
+    </p>
+
+    <div class="panel-stats" data-slot="stats" hidden>
+      <dl class="stat-row">
+        <div>
+          <dt>Mastered</dt>
+          <dd data-slot="mastered">0</dd>
+        </div>
+        <div>
+          <dt>Touched</dt>
+          <dd data-slot="touched">0</dd>
+        </div>
+      </dl>
+      <span class="progress-bar" aria-hidden="true">
+        <span class="progress-bar-fill" data-slot="progress-fill"></span>
+      </span>
+      <span class="streak-chip" data-slot="last-active">—</span>
+      <p class="next-line">
+        <span data-slot="next-text"></span>
+        <code data-slot="next-command"></code>
+      </p>
+    </div>
+  </div>
+</div>
+
+<style>
+  .learner-panel {
+    margin-bottom: 1.4rem;
+    /* Reserve roughly the taller (signed-in stats) height so the one-time
+       swap from the invitation copy doesn't jump by more than a line or
+       two once learner.js resolves. */
+    min-block-size: 11rem;
+  }
+
+  .panel-out .lede {
+    margin-bottom: 0.5em;
+  }
+
+  .btn-signin {
+    display: inline-block;
+    margin-top: 0.9rem;
+    padding: 0.55rem 1.2rem;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+    font-size: 0.92rem;
+    text-decoration: none;
+  }
+
+  :global(html[data-auth="in"]) .panel-out {
+    display: none;
+  }
+
+  :global(html[data-auth="in"]) .panel-in {
+    display: block;
+  }
+
+  .stat-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.6rem;
+    margin: 0.6rem 0 1rem;
+  }
+
+  .stat-row dt {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  .stat-row dd {
+    margin: 0.15rem 0 0;
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    color: var(--ink);
+  }
+
+  .streak-chip {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 640;
+    letter-spacing: 0.02em;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent-strong);
+    margin-bottom: 0.9rem;
+  }
+
+  .progress-bar {
+    display: block;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--line-soft);
+    overflow: hidden;
+    margin-bottom: 0.9rem;
+  }
+
+  .progress-bar-fill {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: inherit;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .progress-bar-fill {
+      transition: width 0.6s var(--ease-out);
+    }
+  }
+
+  .next-line {
+    margin: 0;
+    font-size: 0.95rem;
+  }
+
+  .next-line code {
+    display: block;
+    margin-top: 0.35rem;
+    color: var(--ink-soft);
+  }
+</style>

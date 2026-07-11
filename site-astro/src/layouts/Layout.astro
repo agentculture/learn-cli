@@ -6,6 +6,14 @@
 // own relative path back to the learn landing page and hands it down to
 // Header/Footer rather than hard-coding an absolute "/" (see README.md's
 // "Base path and relative links" note).
+//
+// t14 adds one more thing: `<script>` importing src/scripts/learner.js on
+// every page. Astro bundles a non-`is:inline` `<script>` through Vite like
+// it does the fonts above, so it comes out of `astro build` as a normal
+// hashed, base-prefixed asset — no relative-path bookkeeping needed here,
+// unlike the page-to-page links in Header/Footer. See that file and
+// README.md's "Auth" section for what it does and the zero-API-when-
+// signed-out guarantee it's required to keep.
 import "@fontsource-variable/albert-sans";
 import "@fontsource-variable/fraunces/full.css";
 import "../styles/global.css";
@@ -63,6 +71,9 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
       <slot />
     </main>
     <Footer homeHref={homeHref} />
+    <script>
+      import "../scripts/learner.js";
+    </script>
     <script is:inline>
       // Scroll reveals: observe [data-reveal] and settle each element in
       // once. Runs only when the visitor allows motion — otherwise the CSS

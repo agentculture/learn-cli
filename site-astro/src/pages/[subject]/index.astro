@@ -5,6 +5,7 @@
 // page, or a page here has no subject backing it.
 import Layout from "../../layouts/Layout.astro";
 import PageHero from "../../components/PageHero.astro";
+import LearnerPanelSubject from "../../components/LearnerPanelSubject.astro";
 import site from "../../data/site";
 import { getSubjects, getStories, levelRank, type Subject, type Story } from "../../lib/content";
 
@@ -52,6 +53,12 @@ if (!subject.available) {
   <section class="section breadcrumb-section" aria-label="Wayfinding">
     <div class="container">
       <a class="breadcrumb" href="../">← All subjects</a>
+    </div>
+  </section>
+
+  <section class="section learner-section" aria-label="Your progress">
+    <div class="container">
+      <LearnerPanelSubject subject={subject} />
     </div>
   </section>
 
@@ -139,6 +146,10 @@ if (!subject.available) {
   .breadcrumb {
     font-size: 0.92rem;
     font-weight: 500;
+  }
+
+  .learner-section {
+    padding-block: 0 1rem;
   }
 
   .modules {
