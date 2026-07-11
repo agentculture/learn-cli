@@ -32,6 +32,13 @@ test("GET /api/health is public and healthy", async () => {
 });
 
 // --- THE resource-gate invariant -------------------------------------------
+//
+// Ordering: signed-out < signed-in < consented < approved. This file proves
+// the base level (signed-out spends zero inference); consent.test.js /
+// reconsent.test.js prove the pending/stale levels; approval.test.js (t9)
+// extends the same proof one level further — consented-but-unapproved also
+// spends zero inference. The happy-path broker tests below therefore seed a
+// learner row with `state.approved: true` (the t9 gate reads it per request).
 
 test("signed-out POST /api/tutor -> 401 and inference is NEVER called", async () => {
   const fetchStub = makeFetchStub({ [INFERENCE_URL]: () => jsonResp({ reply: "should not happen" }) });
@@ -74,6 +81,12 @@ test("signed-in POST /api/tutor brokers to INFERENCE_URL exactly once", async ()
   });
   const env = makeEnv({ INFERENCE_URL, INFERENCE_TOKEN: "infer-token", FETCH: fetchStub });
   seedConsent(env, "42", TERMS_VERSION); // a returning, currently-consented learner (t6)
+  // ...who is also admin-approved for the tutoring tier (t9).
+  env.DB.learners.set("42", {
+    github_user_id: "42",
+    display_name: "Ada",
+    state: JSON.stringify({ approved: true }),
+  });
   const { token } = await mintToken(env, { uid: "42", name: "Ada" });
 
   const res = await call(
@@ -101,6 +114,13 @@ test("signed-in POST /api/tutor brokers to INFERENCE_URL exactly once", async ()
 test("broker returns 503 when INFERENCE_URL is unset (still auth-gated first)", async () => {
   const env = makeEnv(); // no INFERENCE_URL
   seedConsent(env, "42", TERMS_VERSION); // default mintToken() learner (t6)
+  // Approved (t9): the 503 is only reachable ABOVE the approval gate — an
+  // unapproved learner gets 403 instead (proven in approval.test.js).
+  env.DB.learners.set("42", {
+    github_user_id: "42",
+    display_name: "Ada",
+    state: JSON.stringify({ approved: true }),
+  });
   const { token } = await mintToken(env);
   const res = await call(
     env,

@@ -143,3 +143,37 @@ def admin_list_learners(token: str, *, timeout: float = DEFAULT_TIMEOUT) -> dict
     — this client makes no admin decision of its own.
     """
     return _request("GET", "/admin/learners", token=token, timeout=timeout)
+
+
+def admin_approve_learner(
+    token: str, github_user_id: str, *, timeout: float = DEFAULT_TIMEOUT
+) -> dict[str, Any]:
+    """Admin-only: ``POST /api/admin/approve`` — grant a learner the tutoring
+    tier (spec c13, task t9). The server enforces both the admin allow-list
+    AND decision c20 (the target's consent must cover the CURRENT terms
+    version — a ``409 consent_stale`` otherwise); either failure surfaces as
+    an ``ApiError`` here, same as any other HTTP failure.
+    """
+    return _request(
+        "POST",
+        "/admin/approve",
+        token=token,
+        payload={"github_user_id": github_user_id},
+        timeout=timeout,
+    )
+
+
+def admin_revoke_learner(
+    token: str, github_user_id: str, *, timeout: float = DEFAULT_TIMEOUT
+) -> dict[str, Any]:
+    """Admin-only: ``POST /api/admin/revoke`` — withdraw a learner's tutoring
+    tier (task t9). Takes effect on the learner's very next tutor call; the
+    server reads the flag per request, no re-login involved.
+    """
+    return _request(
+        "POST",
+        "/admin/revoke",
+        token=token,
+        payload={"github_user_id": github_user_id},
+        timeout=timeout,
+    )

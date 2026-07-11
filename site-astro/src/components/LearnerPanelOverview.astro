@@ -65,6 +65,13 @@ const subjectRoster = subjects.map((s) => ({
       <h3 class="account-heading">Your account</h3>
 
       <div class="account-row">
+        <span class="account-label">Tutoring</span>
+        <p class="muted account-note" data-tutor-tier>
+          Tutoring tier status loads with your account.
+        </p>
+      </div>
+
+      <div class="account-row">
         <span class="account-label">Visibility</span>
         <div class="visibility-toggle" role="group" aria-label="Profile visibility">
           <button
@@ -384,5 +391,33 @@ const subjectRoster = subjects.map((s) => ({
 
   .admin-list li:last-child {
     border-bottom: none;
+  }
+
+  /* Approve/revoke buttons (task t9) are created by learner.js at hydrate
+     time, so they carry no Astro scope attribute — style them via :global
+     under the scoped .admin-list ancestor (the same reason the subject rows
+     above use :global). Same pill shape + tokens as .btn-secondary. */
+  .admin-list :global(.admin-tutor-btn) {
+    display: inline-block;
+    margin-left: 0.6rem;
+    padding: 0.25rem 0.8rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.78rem;
+    cursor: pointer;
+  }
+
+  .admin-list :global(.admin-tutor-btn:hover:not(:disabled)) {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+    color: var(--accent-strong);
+  }
+
+  .admin-list :global(.admin-tutor-btn:disabled) {
+    opacity: 0.55;
+    cursor: default;
   }
 </style>

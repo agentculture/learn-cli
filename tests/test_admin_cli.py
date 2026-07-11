@@ -27,6 +27,7 @@ def _admin_payload() -> dict:
                 "display_name": "Admin",
                 "created_at": "2026-01-01T00:00:00.000Z",
                 "visibility": "private",
+                "approved": False,
                 "consent": {"terms_version": "1.0.0", "granted_at": "2026-01-01T00:00:00.000Z"},
                 "consent_status": "current",
                 "records": {},
@@ -37,6 +38,7 @@ def _admin_payload() -> dict:
                 "display_name": "Ada",
                 "created_at": "2026-02-01T00:00:00.000Z",
                 "visibility": "public",
+                "approved": True,
                 "consent": {"terms_version": "1.0.0", "granted_at": "2026-02-01T00:00:00.000Z"},
                 "consent_status": "current",
                 "records": {"french": 2},
@@ -99,6 +101,9 @@ def test_admin_learners_text_mode_lists_every_learner(
     assert "Admin" in out
     assert "Ada" in out
     assert "42" in out
+    # t9: the roster surfaces each learner's tutoring-tier approval.
+    assert "tutoring: approved" in out
+    assert "tutoring: not approved" in out
 
 
 def test_admin_learners_server_403_surfaces_as_environment_error(
@@ -129,6 +134,138 @@ def test_admin_learners_network_failure_is_environment_error(
     assert rc == 2
     err = json.loads(capsys.readouterr().err)
     assert "could not list learners" in err["message"]
+
+
+# --- learn admin approve / revoke (task t9) -----------------------------------
+
+
+def test_admin_approve_requires_sign_in(profile_home, capsys: pytest.CaptureFixture[str]) -> None:
+    rc = main(["admin", "approve", "42", "--json"])
+    assert rc == 1
+    err = json.loads(capsys.readouterr().err)
+    assert "not signed in" in err["message"]
+
+
+def test_admin_approve_happy_path_json(
+    profile_home, fake_api, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _sign_in(profile_home)
+    fake_api.on(
+        "POST", "/admin/approve", (200, {"ok": True, "github_user_id": "42", "approved": True})
+    )
+
+    rc = main(["admin", "approve", "42", "--json"])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert out["approved"] is True
+    assert out["github_user_id"] == "42"
+
+    # Sent the stored bearer token and the target id in the body.
+    req = next(r for r in fake_api.requests if r["path"] == "/admin/approve")
+    assert req["method"] == "POST"
+    assert req["headers"]["Authorization"] == "Bearer tok-admin"
+    assert req["body"] == {"github_user_id": "42"}
+
+
+def test_admin_approve_text_mode(
+    profile_home, fake_api, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _sign_in(profile_home)
+    fake_api.on(
+        "POST", "/admin/approve", (200, {"ok": True, "github_user_id": "42", "approved": True})
+    )
+
+    rc = main(["admin", "approve", "42"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "approved" in out
+    assert "42" in out
+
+
+def test_admin_approve_consent_stale_is_environment_error_with_remediation(
+    profile_home, fake_api, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Decision c20, as the server enforces it: approving a learner whose
+    # consent is not current 409s; the CLI surfaces the server's message and
+    # points at the consent precondition rather than a generic retry.
+    _sign_in(profile_home)
+    fake_api.on(
+        "POST",
+        "/admin/approve",
+        (
+            409,
+            {
+                "error": "consent_stale",
+                "message": "This learner's consent does not cover the current terms",
+                "reason": "stale_version",
+            },
+        ),
+    )
+
+    rc = main(["admin", "approve", "42", "--json"])
+    assert rc == 2
+    err = json.loads(capsys.readouterr().err)
+    assert "could not approve learner" in err["message"]
+    assert "consent" in err["remediation"]
+
+
+def test_admin_revoke_happy_path_json(
+    profile_home, fake_api, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _sign_in(profile_home)
+    fake_api.on(
+        "POST", "/admin/revoke", (200, {"ok": True, "github_user_id": "42", "approved": False})
+    )
+
+    rc = main(["admin", "revoke", "42", "--json"])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert out["approved"] is False
+
+    req = next(r for r in fake_api.requests if r["path"] == "/admin/revoke")
+    assert req["body"] == {"github_user_id": "42"}
+    assert req["headers"]["Authorization"] == "Bearer tok-admin"
+
+
+def test_admin_revoke_server_403_surfaces_as_environment_error(
+    profile_home, fake_api, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _sign_in(profile_home)
+    fake_api.on(
+        "POST",
+        "/admin/revoke",
+        (
+            403,
+            {"error": "admin_required", "message": "This route is restricted to the learn admin."},
+        ),
+    )
+
+    rc = main(["admin", "revoke", "42", "--json"])
+    assert rc == 2
+    err = json.loads(capsys.readouterr().err)
+    assert "could not revoke learner" in err["message"]
+
+
+def test_admin_approve_missing_argument_structured_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc:
+        main(["admin", "approve"])
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    assert err.startswith("error:")
+    assert "hint:" in err
+
+
+def test_admin_revoke_missing_argument_structured_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc:
+        main(["admin", "revoke"])
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    assert err.startswith("error:")
+    assert "hint:" in err
 
 
 # --- learn admin overview ----------------------------------------------------

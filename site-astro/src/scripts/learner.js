@@ -29,6 +29,14 @@
 // GET /api/me now carries — the all-learners list (GET /api/admin/learners).
 // All of it is called from bootstrap() only after the session check
 // succeeds, same discipline as hydratePanels()/wireExerciseRecorders().
+//
+// Approval tier (task t9): the same account panel shows the caller's OWN
+// tutoring-tier status (the additive `learner.approved` field on GET
+// /api/me — display only; the Worker enforces the gate on its tutor broker
+// route independently, and this site still never calls that route), and the
+// admin list gains per-learner approve/revoke buttons (POST
+// /api/admin/approve, POST /api/admin/revoke). As everywhere else here,
+// admin-ness is a server decision; `is_admin` only decides what to RENDER.
 import { API_BASE } from "../lib/api.js";
 
 const html = document.documentElement;
@@ -434,7 +442,10 @@ function wireDelete(panel, me) {
 /** Admin-only "every learner" list (GET /api/admin/learners) — rendered
  * ONLY when `me.is_admin` is true (the additive /api/me field, t8); the
  * server enforces the allow-list independently, this is purely a UI show/
- * hide, never a source of truth. */
+ * hide, never a source of truth. t9 adds each learner's tutoring-tier
+ * `approved` state plus an approve/revoke button per learner; a successful
+ * toggle re-hydrates the whole list from the server rather than patching
+ * the DOM, so what's shown is always what the Worker actually stored. */
 async function hydrateAdminList(section) {
   const listEl = section.querySelector("[data-admin-list]");
   const status = section.querySelector("[data-admin-status]");
@@ -446,9 +457,51 @@ async function hydrateAdminList(section) {
     listEl.textContent = "";
     (data.learners || []).forEach((l) => {
       const li = document.createElement("li");
-      li.textContent =
+      const label = document.createElement("span");
+      label.textContent =
         `${l.display_name} (github:${l.github_user_id}) — ${l.visibility}, ` +
-        `consent: ${l.consent_status}, records: ${l.records_total}`;
+        `consent: ${l.consent_status}, records: ${l.records_total}, ` +
+        `tutoring: ${l.approved ? "approved" : "not approved"}`;
+      li.appendChild(label);
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "admin-tutor-btn";
+      btn.textContent = l.approved ? "Revoke tutoring" : "Approve tutoring";
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        if (status) status.textContent = l.approved ? "Revoking…" : "Approving…";
+        try {
+          // Two static templates (not one with an interpolated verb) so the
+          // check-static-auth whitelist can enumerate both routes exactly.
+          const url = l.approved ? `${API_BASE}/admin/revoke` : `${API_BASE}/admin/approve`;
+          const res2 = await fetch(url, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ github_user_id: l.github_user_id }),
+          });
+          if (!res2.ok) {
+            // The one expected structured failure: approve on a learner whose
+            // consent isn't current (409 consent_stale, decision c20).
+            const body = await res2.json().catch(() => ({}));
+            if (status) {
+              status.textContent =
+                body.error === "consent_stale"
+                  ? "Can't approve: their consent isn't current — they must re-accept the terms first."
+                  : "Couldn't update — try again.";
+            }
+            btn.disabled = false;
+            return;
+          }
+          await hydrateAdminList(section); // re-render from the server's truth
+        } catch {
+          if (status) status.textContent = "Couldn't update — try again.";
+          btn.disabled = false;
+        }
+      });
+      li.appendChild(btn);
+
       listEl.appendChild(li);
     });
     if (status) status.textContent = `${data.count} learner(s).`;
@@ -460,6 +513,16 @@ async function hydrateAdminList(section) {
 async function hydrateAccountPanel(me) {
   const panel = document.querySelector("[data-account-panel]");
   if (!panel) return;
+
+  // Tutoring tier (t9): the caller's own approved state, display only —
+  // the Worker gates its tutor broker route server-side regardless.
+  const tierEl = panel.querySelector("[data-tutor-tier]");
+  if (tierEl) {
+    tierEl.textContent =
+      me.learner && me.learner.approved
+        ? "Tutoring: approved — the admin has enabled the tutoring tier for your account."
+        : "Tutoring: not approved — the tutoring tier is enabled per learner by the admin.";
+  }
 
   wireVisibilityToggle(panel, me);
   wireExport(panel);

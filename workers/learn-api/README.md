@@ -106,17 +106,43 @@ visibility yet — there is no leaderboard or shared-profile surface anywhere
 in this repo — so the toggle is honestly forward-looking state today, not a
 live feature; see `db.js#setLearnerVisibility`'s doc comment.
 
-`GET /api/admin/learners` (t8) is the one admin surface that exists today:
-a full learner roster with a cheap per-subject record-count summary
+`GET /api/admin/learners` (t8) is the admin read surface: a full learner
+roster with a cheap per-subject record-count summary
 (`db.js#listAllLearners`, three D1 reads total regardless of learner
 count — a learners scan, one `GROUP BY` over `records`, and a full
 `consents` scan — no N+1 as the roster grows). There is **no per-learner
 detail route** — a deliberate lean-minimal scope decision; the list already
-carries everything the admin surface needs (visibility, consent status/
-version, per-subject counts), and a detail route can be added later if a
-concrete need appears. The approval flag t9 adds (admin approve/revoke for
-the Bedrock tutoring tier) reuses this same `ADMIN_GITHUB_IDS` allow-list
-and `requireAdmin` helper — t9 does not reinvent role enforcement.
+carries everything the admin surface needs (visibility, tutoring-tier
+`approved`, consent status/version, per-subject counts), and a detail route
+can be added later if a concrete need appears.
+
+The approval-gate invariant (spec c13/h5, decision c20, task t9) puts a
+fourth level on top of the resource-gate ordering: **signed-out <
+signed-in < consented < APPROVED — only an admin-approved learner can spend
+inference.** The flag is `approved: true` in `learners.state` (the same
+no-schema-change pattern as `visibility`; an absent key means *not*
+approved for every existing and new learner, no migration), settable only
+via `POST /api/admin/approve` / `POST /api/admin/revoke` behind t8's
+`requireAdmin` — t9 reinvented no role enforcement. `handleTutor` reads the
+flag **fresh from the learner row on every request** (one indexed
+`getLearner` D1 read — negligible next to the inference call this route
+exists to spend), so approve and revoke take effect immediately, with no
+re-login and no token re-issue; a consented-but-unapproved learner gets a
+structured `403 approval_required` **before** the `INFERENCE_URL` config
+check, so they cannot even probe whether inference is wired up, and — h5
+verbatim — the Worker makes **zero outbound inference requests** for them,
+proven by extending the signed-out ordering test one level
+(`test/approval.test.js`). Decision c20 is enforced in code: approve 409s
+(`consent_stale`, `reason: "none" | "stale_version"`) unless the target's
+recorded consent covers the **current** terms version — no learner joins
+the Bedrock tier without having consented to the terms that disclose
+Bedrock processing. The reverse direction is defense in depth: a terms bump
+does **not** clear an existing approval (revocation is an admin act, not a
+version-bump side effect), but tutoring still stops instantly because
+`requireConsented` (t6) walls the route off independently — both gates hold
+on their own, test-proven. And erasure composes (t7): `POST /api/delete`
+removes the learner row, `approved` flag included, so a re-signup lands
+consented-but-**unapproved** — approval never survives deletion.
 
 No third-party runtime deps: the Worker uses only Web-standard APIs (`fetch`,
 `Request`/`Response`, `crypto.subtle`, `btoa`/`atob`), so the same code runs in
@@ -139,9 +165,11 @@ No third-party runtime deps: the Worker uses only Web-standard APIs (`fetch`,
 | POST | `/api/record` | consented | Validate the `recorded` shape and append it to the ledger. Pending OR stale-version session: `403 consent_required`. |
 | GET | `/api/export` | consented | Self-serve data export: the learner's identity row, every recorded result across **every subject**, and their full consent history, as one JSON document (t7). Pending OR stale-version session: `403 consent_required` — same gate as progress/record/tutor. |
 | POST | `/api/delete` | session or pending | Self-serve whole-learner erasure — consent withdrawal (t7). Requires `{ "confirm": "<your github_user_id>" }` in the body. Deletes the learners/records/consents rows, revokes the **current** session (KV tombstone), clears the cookie. Deliberately reachable from a stale-consent (and even pending-consent) session — see "Endpoint shapes" below for why. |
-| POST | `/api/tutor` | consented | Broker: forward to `INFERENCE_URL` (a served inference endpoint). Pending OR stale-version session: `403 consent_required`, zero inference calls. |
+| POST | `/api/tutor` | approved | Broker: forward to `INFERENCE_URL` (a served inference endpoint). Pending OR stale-version session: `403 consent_required`; consented but not admin-approved: `403 approval_required` (t9) — zero inference calls either way. |
 | POST | `/api/me/visibility` | consented | Set the caller's OWN `visibility` (`private` \| `public`) in their `state` blob (t8). `400 invalid_visibility` for anything else. Pending OR stale-version session: `403 consent_required` — same gate as progress/record/export. |
-| GET | `/api/admin/learners` | admin | List every learner + a per-subject record-count summary, admin-only (t8). Consented but non-allow-listed: `403 admin_required`. See "Roles + visibility" below. |
+| GET | `/api/admin/learners` | admin | List every learner + a per-subject record-count summary and their tutoring-tier `approved` state, admin-only (t8, t9). Consented but non-allow-listed: `403 admin_required`. See "Roles + visibility" below. |
+| POST | `/api/admin/approve` | admin | Grant a learner the tutoring tier (t9): set `state.approved`. Body `{ "github_user_id": "<id>" }`. `409 consent_stale` unless the target's consent covers the CURRENT terms version (decision c20); `404 learner_not_found` for an unknown id. |
+| POST | `/api/admin/revoke` | admin | Withdraw the tutoring tier (t9): clear `state.approved`. Same body; idempotent. Effective on the learner's very next `/api/tutor` call — no re-login involved. |
 
 Sessions are stateless HMAC-signed tokens (short TTL, ~1h; pending-consent
 tokens 10 min) accepted either as an `Authorization: Bearer <token>` header
@@ -547,34 +575,52 @@ carrying a pending-consent `session` cookie (10 min TTL). The page:
    cleared and the session revoked; confirm to the user that nothing was
    stored (`stored: false` in the response is that guarantee, test-proven).
 
-### For t9 (approval gate for tutoring)
+### For t9 (approval gate for tutoring) — SHIPPED
 
-Reuse, don't reinvent: t9's admin approve/revoke surface (an `approved` flag
-on the learner row, gating `POST /api/tutor`) sits on top of the exact same
-role machinery t8 just built —
+The approve/revoke surface, exactly as t8 laid it out — same
+`ADMIN_GITHUB_IDS` allow-list, same `requireAdmin`, `approved` as a
+`learners.state` key next to `visibility` (no schema change),
+`db.js#setLearnerApproved` as `setLearnerVisibility`'s sibling. Two flat
+verb-named POST routes (matching this Worker's every-mutation-is-a-POST-to-
+a-verb-path convention — see t7's route-naming note above — and keeping the
+site's fetch whitelist exactly enumerable):
 
-- **`isAdmin(env, uid)` and `requireAdmin(request, env)` live in
-  `src/admin.js`.** `requireAdmin` already stacks the allow-list check on
-  top of `requireConsented`, so any new admin-only route (e.g.
-  `POST /api/admin/learners/:id/approve`) should call it the same way
-  `handleAdminLearners` does — `const session = await requireAdmin(request,
-  env);` — rather than duplicating the allow-list check inline.
-- **`ADMIN_GITHUB_IDS`** (`wrangler.toml` `[vars]`, mirrored as a placeholder
-  in `wrangler.signedout.toml`) is the one config surface for admin-ness;
-  t9 does not need a second var or a different allow-list.
-- **The `approved` flag itself is new state t9 owns** — most naturally
-  another key in `learners.state` next to `visibility` (same
-  no-schema-change pattern db.js#setLearnerVisibility already established;
-  a `setLearnerApproved`-shaped sibling function is the obvious next
-  addition to `db.js`), gated in `handleTutor` (`src/index.js`) BEFORE the
-  `INFERENCE_URL` check, mirroring how `requireConsented` already gates
-  that same handler. `db.js#listAllLearners`'s per-learner shape is a
-  natural place to surface `approved` too, so the admin list can show who's
-  already approved without a second admin route.
-- **The isolation-audit pattern in `test/visibility.test.js`** (seed two
-  learners, assert neither route nor toggle ever leaks or mutates the
-  other's row) is the template t9's own cross-learner tests should follow
-  for the approve/revoke action.
+```text
+POST /api/admin/approve               (requireAdmin)
+  Body: { "github_user_id": "<id>" }
+  -> 200 { ok: true, github_user_id, approved: true }
+  -> 409 { error: "consent_stale", reason: "none" | "stale_version",
+           terms_version: "<current>" }   // decision c20: consent not current
+  -> 404 { error: "learner_not_found", ... }
+  -> 400 { error: "missing_github_user_id", ... }
+
+POST /api/admin/revoke                (requireAdmin)
+  Body: { "github_user_id": "<id>" }
+  -> 200 { ok: true, github_user_id, approved: false }   // idempotent
+  -> 404 / 400 as above
+```
+
+`GET /api/me` (full session) gains an additive `learner.approved` boolean;
+`GET /api/admin/learners` gains an additive per-learner `approved`. The
+tutor gate itself lives in `handleTutor` and 403s `approval_required`
+before the `INFERENCE_URL` check — see "The approval-gate invariant" above.
+
+### For t15 (Nova Pro wiring) and t16 (voice tokens)
+
+- **t15 changes config only.** The four-level gate (auth → consent →
+  approval → `INFERENCE_URL` presence) is entirely inside `handleTutor`
+  (`src/index.js`) and its helpers — pointing `INFERENCE_URL` at Bedrock's
+  OpenAI-compatible endpoint and setting `INFERENCE_TOKEN` to a Bedrock API
+  key changes no gate code, and the broker forwards the JSON body unchanged
+  (plus the `learner` stamp), so no provider SDK is needed (h11). Record
+  the region + model id + cost-when-busy note here when wiring it.
+- **t16's natural hook point:** a voice-token mint would be a NEW
+  admin-independent route (e.g. `POST /api/voice/token`) that runs the same
+  two learner-side gates the tutor route runs — `requireConsented` then the
+  `approvedOf(getLearner(...))` check (both already importable from
+  `auth.js`/`db.js`; `approvedOf` lives in `index.js`) — and returns a
+  short-lived signed token for the serverless bridge to verify. It is NOT
+  built here; only the gate order it must reproduce is.
 
 ## Testing
 
@@ -582,7 +628,7 @@ role machinery t8 just built —
 node --test
 ```
 
-136 tests cover session sign/verify/expiry, `recorded` validation (including the
+151 tests cover session sign/verify/expiry, `recorded` validation (including the
 `score`/`grade`/`points` rejection), the full record round-trip, per-learner
 ledger isolation, web + device OAuth flows, the consent gate (zero D1 writes on
 both unconsented sign-in paths, the pending-session 403 wall, accept ordering —
@@ -610,7 +656,16 @@ admin payload's per-subject aggregate shape (`test/db.test.js` also proves
 count), default-private visibility with no migration, the
 `POST /api/me/visibility` round-trip, and an explicit cross-learner
 isolation audit across `/api/me`, `/api/progress/:subject`, `/api/export`,
-and the visibility toggle (h4's second half). Tests invoke the Worker's
+and the visibility toggle (h4's second half). The approval gate
+(`test/approval.test.js`, t9) extends the ordering proof one final level:
+a consented-but-unapproved learner's `/api/tutor` call 403s
+`approval_required` with **zero** outbound inference (h5) and without even
+reaching the `INFERENCE_URL` config check; approve/revoke flip tutoring on
+a live token with no re-login; approve 409s `consent_stale` unless the
+target's consent is current (c20); a terms bump blocks tutoring even for an
+approved learner (both gates independent); approving one learner never
+touches another's row; and deletion erases the flag so a re-signup is not
+approved. Tests invoke the Worker's
 `fetch` handler directly with in-memory KV/D1 stubs (the D1 stub logs every
 write statement, making "zero writes" literal); no network and no wrangler
 are needed. A published-version bump is simulated with

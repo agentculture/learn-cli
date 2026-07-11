@@ -17,30 +17,37 @@
 //   POST /api/record            consent  append a recorded result to the ledger
 //   GET  /api/export            consent  full self-serve data export (JSON)
 //   POST /api/delete            auth*    consent withdrawal = whole-learner erasure
-//   POST /api/tutor             consent  broker -> env.INFERENCE_URL (model call)
+//   POST /api/tutor             approved broker -> env.INFERENCE_URL (model call)
 //   POST /api/me/visibility     consent  set the caller's own visibility (private|public)
 //   GET  /api/admin/learners    admin    list every learner (allow-list only, t8)
+//   POST /api/admin/approve     admin    grant the tutoring tier (t9; c20-gated)
+//   POST /api/admin/revoke      admin    withdraw the tutoring tier (t9)
 //
-// auth*   = any valid session, INCLUDING pending-consent (requireAuth).
-// consent = full session AND its stored consent still matches the currently
-//           published terms version; pending-consent OR stale-version
-//           sessions get a structured 403 (requireConsented) before the
-//           route body runs.
-// admin   = consent, PLUS the session's uid is on the server-side
-//           ADMIN_GITHUB_IDS allow-list (src/admin.js#requireAdmin) — never
-//           derived from anything the client sends (spec c12/h4).
+// auth*    = any valid session, INCLUDING pending-consent (requireAuth).
+// consent  = full session AND its stored consent still matches the currently
+//            published terms version; pending-consent OR stale-version
+//            sessions get a structured 403 (requireConsented) before the
+//            route body runs.
+// approved = consent, PLUS the learner row carries `state.approved: true`
+//            (set only by POST /api/admin/approve) — read fresh from D1 on
+//            every request, so approve/revoke take effect without re-login.
+// admin    = consent, PLUS the session's uid is on the server-side
+//            ADMIN_GITHUB_IDS allow-list (src/admin.js#requireAdmin) — never
+//            derived from anything the client sends (spec c12/h4).
 //
 // Self-serve export + delete (spec c11/h3, decision c18, task t7): consent
 // withdrawal means deletion, not a soft flag — see handleExport/handleDelete
 // below for why export requires a CURRENT consent but delete deliberately
 // does not.
 //
-// Resource-gate invariant: requireAuth()/requireConsented() runs before the
-// body of every auth route. POST /api/tutor is the only route that spends
-// model tokens, and it is unreachable without a valid, CURRENTLY-CONSENTED
-// session — signed-out, pending-consent, AND stale-consent traffic can NEVER
-// trigger a model call. Proven in worker.test.js + consent.test.js +
-// reconsent.test.js.
+// Resource-gate invariant, four levels (spec c13/h5, task t9 extends c21):
+// signed-out < signed-in < consented < APPROVED. requireAuth()/
+// requireConsented() runs before the body of every auth route. POST
+// /api/tutor is the only route that spends model tokens, and it is
+// unreachable without a valid, CURRENTLY-CONSENTED, ADMIN-APPROVED session —
+// signed-out, pending-consent, stale-consent, AND unapproved traffic can
+// NEVER trigger a model call. Proven in worker.test.js + consent.test.js +
+// reconsent.test.js + approval.test.js.
 //
 // Consent-gate invariant (spec c9/h1, decision c19): NEITHER sign-in path
 // (web callback, device poll) writes to D1 unless a recorded consent already
@@ -100,6 +107,7 @@ import {
   deleteLearnerData,
   listAllLearners,
   setLearnerVisibility,
+  setLearnerApproved,
 } from "./db.js";
 import { deriveProgress } from "./progress.js";
 import {
@@ -158,6 +166,8 @@ async function route(request, env, ctx) {
   if (method === "POST" && path === "/api/tutor") return handleTutor(request, env, ctx);
   if (method === "POST" && path === "/api/me/visibility") return handleSetVisibility(request, env);
   if (method === "GET" && path === "/api/admin/learners") return handleAdminLearners(request, env);
+  if (method === "POST" && path === "/api/admin/approve") return handleAdminApprove(request, env);
+  if (method === "POST" && path === "/api/admin/revoke") return handleAdminRevoke(request, env);
 
   const progressMatch = /^\/api\/progress\/([a-z][a-z0-9-]*)$/.exec(path);
   if (method === "GET" && progressMatch) return handleProgress(request, env, progressMatch[1]);
@@ -431,6 +441,11 @@ async function handleMe(request, env) {
         // "private" — the default for every existing AND new learner, no
         // migration required (see db.js#setLearnerVisibility's doc comment).
         visibility: visibilityOf(learner),
+        // approved (spec c13, t9): additive — the tutoring-tier flag, read
+        // from the same learner row this handler already fetched (no extra
+        // D1 read), so a client can show tier status. Absent key means
+        // false; changes take effect here without any token re-issue.
+        approved: approvedOf(learner),
       },
       session: { expires_at: session.exp, refreshed: !!headers["Set-Cookie"] },
     },
@@ -584,10 +599,30 @@ async function handleDelete(request, env) {
 }
 
 async function handleTutor(request, env, ctx) {
-  // AUTH + CONSENT FIRST — before any inference call. This ordering is the
-  // guarantee: neither signed-out nor pending-consent traffic reaches the
-  // model endpoint.
+  // THE FOUR-LEVEL GATE (spec c13/h5, task t9), in this exact order:
+  //   1. requireConsented — signed-out -> 401; pending/stale-consent -> 403
+  //      consent_required (levels one to three, t5/t6).
+  //   2. the APPROVAL check — consented but not admin-approved -> 403
+  //      approval_required (level four). Read fresh from the learner row on
+  //      EVERY request (one indexed getLearner D1 read — negligible next to
+  //      the inference call this route exists to spend), so approve/revoke
+  //      take effect immediately, with no re-login and no token re-issue.
+  //   3. only THEN the INFERENCE_URL config check — an unapproved learner
+  //      must not even learn whether inference is configured (no 503 probe
+  //      below the approval level).
+  // Ordering is the guarantee: no traffic below "approved" reaches (or can
+  // even observe) the model endpoint. Proven in approval.test.js.
   const session = await requireConsented(request, env);
+  const learner = await getLearner(env, session.uid);
+  if (!approvedOf(learner)) {
+    throw new HttpError(
+      403,
+      "approval_required",
+      "Tutoring is not enabled for your account.",
+      "The tutoring tier is granted per learner by the learn admin — ask the admin to approve " +
+        "your account. Everything else (progress, records, export) keeps working meanwhile.",
+    );
+  }
   if (!env.INFERENCE_URL) {
     throw new HttpError(
       503,
@@ -664,6 +699,91 @@ async function handleAdminLearners(request, env) {
   });
 }
 
+// POST /api/admin/approve — grant the tutoring tier (spec c13, task t9).
+// Two flat verb-named POST routes (this + /api/admin/revoke) rather than one
+// route with an `action` body or a /learners/:id/approve path param: every
+// mutation in this Worker is a POST to a verb-named path (consent/accept,
+// consent/decline, auth/logout, delete), and flat literal paths keep the
+// site's fetch whitelist (check-static-auth.mjs) and the CLI catalog
+// precisely enumerable.
+//
+// Decision c20 enforced HERE, in code: no learner is approved for the
+// Bedrock tier until their recorded consent is CURRENT (they must have
+// accepted the terms that disclose Bedrock processing). A target with no
+// consent row, or one granted against a superseded version, gets a
+// structured 409 consent_stale (reason: "none" | "stale_version") and the
+// flag is never written. Note the asymmetry with the tutor gate: a terms
+// bump does NOT clear an existing approval (revocation is an admin act, not
+// a version-bump side effect) — but tutoring still stops immediately because
+// requireConsented walls the route off independently (defense in depth,
+// proven in approval.test.js).
+async function handleAdminApprove(request, env) {
+  await requireAdmin(request, env);
+  const uid = await readTargetUid(request);
+  await requireKnownLearner(env, uid);
+  const consent = await getConsent(env, uid);
+  if (!consentSatisfiesCurrentTerms(consent, env)) {
+    throw new HttpError(
+      409,
+      "consent_stale",
+      "This learner's consent does not cover the current Terms/Privacy version — approval " +
+        "requires a current consent first (decision c20).",
+      "Have the learner accept the current terms (POST /api/consent/accept), then approve.",
+      {
+        reason: consent ? "stale_version" : "none",
+        terms_version: currentTermsVersion(env),
+      },
+    );
+  }
+  await setLearnerApproved(env, uid, true);
+  return jsonResponse(200, { ok: true, github_user_id: uid, approved: true });
+}
+
+// POST /api/admin/revoke — withdraw the tutoring tier (t9). No consent
+// precondition (c20 gates GRANTING a capability, not removing one), and
+// idempotent: revoking a never-approved learner is a no-op that still
+// reports approved: false. Takes effect on the learner's very next
+// /api/tutor call — the gate reads the row per request.
+async function handleAdminRevoke(request, env) {
+  await requireAdmin(request, env);
+  const uid = await readTargetUid(request);
+  await requireKnownLearner(env, uid);
+  await setLearnerApproved(env, uid, false);
+  return jsonResponse(200, { ok: true, github_user_id: uid, approved: false });
+}
+
+// Shared by approve/revoke: the target learner id from the request body.
+// Body-sourced data here is only ever the TARGET of the action — WHO may act
+// remains requireAdmin's session-based decision alone (h4).
+async function readTargetUid(request) {
+  const body = await readJson(request);
+  const uid = body.github_user_id == null ? "" : String(body.github_user_id).trim();
+  if (!uid) {
+    throw new HttpError(
+      400,
+      "missing_github_user_id",
+      'approve/revoke require { "github_user_id": "<id>" } in the request body.',
+      "GET /api/admin/learners lists every learner with their github_user_id.",
+    );
+  }
+  return uid;
+}
+
+// Shared by approve/revoke: a precise 404 for an unknown target (a typo'd id
+// should tell the admin so, not silently no-op setLearnerApproved's UPDATE).
+async function requireKnownLearner(env, uid) {
+  const learner = await getLearner(env, uid);
+  if (!learner) {
+    throw new HttpError(
+      404,
+      "learner_not_found",
+      `No learner with github_user_id ${uid} exists.`,
+      "GET /api/admin/learners lists every learner with their github_user_id.",
+    );
+  }
+  return learner;
+}
+
 // Read a learner's visibility out of their state blob, defaulting to
 // "private" for anything else (absent key, a legacy/malformed state, or the
 // synthetic `{ github_user_id, display_name }` stand-in handleMe uses when
@@ -671,6 +791,16 @@ async function handleAdminLearners(request, env) {
 // for why absence-means-private needs no migration.
 function visibilityOf(learner) {
   return learner && learner.state && learner.state.visibility === "public" ? "public" : "private";
+}
+
+// Read a learner's tutoring-tier approval out of their state blob (spec c13,
+// t9). Same defensive shape as visibilityOf: anything but a literal
+// `approved: true` — absent key, malformed state, no learner row at all —
+// means NOT approved, so pre-t9 rows need no migration and a revoked learner
+// (key deleted, see db.js#setLearnerApproved) reads identically to a
+// never-approved one.
+function approvedOf(learner) {
+  return !!(learner && learner.state && learner.state.approved === true);
 }
 
 // --- helpers ---------------------------------------------------------------

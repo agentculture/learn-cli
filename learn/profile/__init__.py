@@ -28,6 +28,7 @@ Public API
   sync cursor.
 * :func:`device_start`, :func:`device_poll`, :func:`device_logout`,
   :func:`fetch_me`, :func:`push_record`, :func:`admin_list_learners`,
+  :func:`admin_approve_learner`, :func:`admin_revoke_learner`,
   :class:`ApiError`, :func:`api_base` — the learn API client.
 * :class:`SyncResult`, :func:`push_pending`, :func:`pending_sync_count` — the
   one-way sync push.
@@ -40,7 +41,9 @@ from learn.profile._api import (
     DEFAULT_API_URL,
     DEFAULT_TIMEOUT,
     ApiError,
+    admin_approve_learner,
     admin_list_learners,
+    admin_revoke_learner,
     api_base,
     device_logout,
     device_poll,
@@ -89,6 +92,8 @@ __all__ = [
     "fetch_me",
     "push_record",
     "admin_list_learners",
+    "admin_approve_learner",
+    "admin_revoke_learner",
     "DEFAULT_API_URL",
     "API_URL_ENV",
     "DEFAULT_TIMEOUT",

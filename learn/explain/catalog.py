@@ -351,9 +351,11 @@ works offline.
 _ADMIN = """\
 # learn admin
 
-The admin-only CLI read surface (task t8). One verb: `admin learners`, which
-lists every learner plus a cheap per-subject progress summary via
-`GET /api/admin/learners`. Requires a local session (`learn auth login`) —
+The admin-only CLI surface (tasks t8 + t9): `admin learners` lists every
+learner plus a cheap per-subject progress summary via
+`GET /api/admin/learners`; `admin approve` / `admin revoke` grant or
+withdraw a learner's tutoring tier via `POST /api/admin/approve` /
+`POST /api/admin/revoke`. All require a local session (`learn auth login`) —
 the same authenticated-API pattern `learn auth` uses. Admin-ness itself is a
 SERVER-SIDE decision (spec c12/h4, allow-listed GitHub ids enforced in
 `workers/learn-api/src/admin.js`): this CLI makes none of its own — a
@@ -363,14 +365,19 @@ here as an environment error (exit 2).
 ## Verbs
 
 - `learn admin learners` — list every learner + a per-subject progress
-  summary (admin-only; server-enforced).
+  summary and their tutoring-tier approval (admin-only; server-enforced).
+- `learn admin approve <github_user_id>` — grant the tutoring tier
+  (server enforces decision c20: the learner's consent must be current).
+- `learn admin revoke <github_user_id>` — withdraw the tutoring tier
+  (effective on the learner's next tutor call; no re-login involved).
 - `learn admin overview` — describe this noun (you are here).
 
 ## Usage
 
     learn auth login
     learn admin learners
-    learn admin learners --json
+    learn admin approve 20955789
+    learn admin revoke 20955789 --json
 
 `LEARN_API_URL` overrides the API base (default
 `https://agentculture.org/learn/api`).
@@ -380,16 +387,55 @@ _ADMIN_LEARNERS = """\
 # learn admin learners
 
 Lists every learner registered with the learn API, each with `github_user_id`,
-`display_name`, `created_at`, `visibility`, consent status/version, and a
-per-subject record-count summary — via `GET /api/admin/learners`. Requires a
-local session (`learn auth login`); the server 403s a non-admin token
-(`admin_required`), surfaced here as an environment error (exit 2), never a
-silent empty list.
+`display_name`, `created_at`, `visibility`, tutoring-tier `approved` (t9),
+consent status/version, and a per-subject record-count summary — via
+`GET /api/admin/learners`. Requires a local session (`learn auth login`); the
+server 403s a non-admin token (`admin_required`), surfaced here as an
+environment error (exit 2), never a silent empty list.
 
 ## Usage
 
     learn admin learners
     learn admin learners --json
+"""
+
+_ADMIN_APPROVE = """\
+# learn admin approve <github_user_id>
+
+Grants a learner the Bedrock tutoring tier via `POST /api/admin/approve`
+(spec c13, task t9). Requires a local session (`learn auth login`); the
+server enforces the admin allow-list (403 `admin_required` for anyone else)
+AND decision c20 — the target learner's recorded consent must cover the
+CURRENT terms version, otherwise the server 409s `consent_stale` and nothing
+is written. Both failures surface here as environment errors (exit 2).
+
+Approval takes effect on the learner's very next `/api/tutor` call — the
+Worker reads the flag per request, so the learner does not re-login. Until
+approved, a consented learner's tutor calls get a structured
+`403 approval_required` and spend zero inference.
+
+## Usage
+
+    learn admin learners            # find the github_user_id + consent status
+    learn admin approve 20955789
+    learn admin approve 20955789 --json
+"""
+
+_ADMIN_REVOKE = """\
+# learn admin revoke <github_user_id>
+
+Withdraws a learner's Bedrock tutoring tier via `POST /api/admin/revoke`
+(task t9). Requires a local session (`learn auth login`); admin-only
+(server-enforced allow-list, 403 `admin_required` otherwise). Idempotent — a
+never-approved learner revokes to the same state. Takes effect on the
+learner's very next `/api/tutor` call (the Worker reads the flag per
+request): they get a structured `403 approval_required` and spend zero
+inference, while progress/records/export keep working.
+
+## Usage
+
+    learn admin revoke 20955789
+    learn admin revoke 20955789 --json
 """
 
 _PROGRESS = """\
@@ -481,4 +527,6 @@ ENTRIES: dict[tuple[str, ...], str] = {
     ("admin",): _ADMIN,
     ("admin", "overview"): _ADMIN,
     ("admin", "learners"): _ADMIN_LEARNERS,
+    ("admin", "approve"): _ADMIN_APPROVE,
+    ("admin", "revoke"): _ADMIN_REVOKE,
 }

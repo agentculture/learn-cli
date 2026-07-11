@@ -209,12 +209,17 @@ const learnerJs = readFileSync(learnerJsPath, "utf8");
 
 // t8 (roles + visibility) adds /export, /delete (the export/delete web
 // affordance the consent page's own copy promised, deferred from t7), and
-// /admin/ (the admin-only all-learners list, gated client-side on the
-// `is_admin` field GET /api/me now carries — the server enforces the
-// allow-list independently either way). /me/visibility is already covered
-// by the existing `\/me` prefix (unanchored at the end, by design — see the
-// two call sites below).
-const ALLOWED_SUFFIX_RE = /^(\/me|\/progress\/|\/record|\/auth\/|\/export|\/delete|\/admin\/)/;
+// the admin surface (gated client-side on the `is_admin` field GET /api/me
+// now carries — the server enforces the allow-list independently either
+// way). /me/visibility is already covered by the existing `\/me` prefix
+// (unanchored at the end, by design — see the two call sites below).
+// t9 (approval gate) enumerates the admin routes EXACTLY — /admin/learners,
+// /admin/approve, /admin/revoke, each anchored — replacing t8's open
+// `/admin/` prefix, so a future admin route must be added here consciously
+// rather than riding in under the prefix. learner.js keeps approve/revoke
+// as two static templates (never `/admin/${verb}`) for exactly this reason.
+const ALLOWED_SUFFIX_RE =
+  /^(\/me|\/progress\/|\/record|\/auth\/|\/export|\/delete|\/admin\/(learners|approve|revoke)$)/;
 
 // t10's consent.js is a SECOND, separately-loaded script (only on
 // src/pages/consent/index.astro, not via Layout.astro) with its own,
