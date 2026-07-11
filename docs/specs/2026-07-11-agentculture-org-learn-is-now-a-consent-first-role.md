@@ -69,3 +69,28 @@
 - Model access is Bedrock-direct (user decision): AWS Bedrock is the only service that can serve AWS Nova models — both the Nova Pro text path (OpenAI-compatible endpoint + Bedrock API key) and the Nova Sonic 2 voice path (InvokeModelWithBidirectionalStream) terminate at Bedrock itself. Anything between the learner and Bedrock is thin credentialed plumbing enforcing the approval gate, never a model host. Supersedes the earlier cloudai-cli/ec2bedrock-cli serving framing.
 - Policy docs live /learn-local (user decision, resolves v1): learn-cli authors, versions, and serves the Terms of Use + Privacy Policy under /learn — it is the only surface processing personal data (auth, ledger, Bedrock); org's static site collects nothing. Re-consent versioning stays inside learn-cli, uncoupled from org releases. org gets a filed issue to link the policies site-wide and to record this decision.
 - AWS plumbing is serverless, pay-as-you-go (user decision, resolves v7): no EC2 unless explicitly requested. The Nova Sonic 2 voice bridge follows league-of-agents-platform's proven infra pattern (built by Fable): AWS SAM, Lambda (arm64) behind an API Gateway WebSocket API relaying learner audio to Bedrock's bidirectional stream, an AWS Budgets alarm pinned to a hard monthly USD ceiling with every sizing choice commented against it, and zero idle cost. Bedrock itself is serverless GenAI — nothing always-on sits between the learner and it.
+
+## Post-convergence correction (2026-07-11, pending user confirmation)
+
+> This note annotates — it does not silently rewrite — a converged claim. It is
+> captured as `q1` in the frame's questions store and awaits user confirmation
+> at the final PR gate.
+
+- **c24 endpoint wording (OpenAI-compatible → native Converse).** c24 (and the
+  Decisions "Model access is Bedrock-direct" line) say the Nova Pro text path
+  points `INFERENCE_URL` at Bedrock's *OpenAI-compatible chat-completions*
+  endpoint (`bedrock-runtime.<region>.amazonaws.com/openai/v1/...`). A live probe
+  during t15 (2026-07-11) proved that endpoint returns `model_not_found` for
+  Nova Pro in every region tried (us-east-1, us-west-2, eu-west-1, eu-central-1),
+  and `/openai/v1/models` is not even an operation. The **native Bedrock Converse
+  API** — `POST /model/us.amazon.nova-pro-v1:0/converse` with a Bedrock API key as
+  the Bearer token — DID return real Nova Pro completions (HTTP 200, ~0.5–1s) and
+  tolerates the broker's `learner` stamp as an extra field. So the honesty
+  condition **h11 still holds** (no Worker code change beyond config; no provider
+  SDK): only the endpoint URL and the request/response *shape* change from the
+  OpenAI chat-completions form to the Converse form. The shipped code
+  (`wrangler.toml`, `workers/learn-api/README.md`, `site-astro/src/scripts/
+  tutor-core.js`) already targets Converse; this note reconciles the spec's
+  wording with what shipped. **Proposed:** retarget c24's "OpenAI-compatible
+  chat-completions endpoint" wording to the native Converse API. Awaiting user
+  confirmation.
