@@ -1,0 +1,4 @@
+# Generated gate output + local node deps — never committed.
+.out/
+node_modules/
+package-lock.json
