@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "kind": "subject_doctor",
+  "subject": "french",
+  "contract_version": "1.0",
+  "healthy": true,
+  "checks": [
+    {
+      "id": "content-store-present",
+      "passed": true,
+      "severity": "error",
+      "message": "story and lesson content files load and validate",
+      "remediation": ""
+    },
+    {
+      "id": "learner-state-writable",
+      "passed": true,
+      "severity": "error",
+      "message": "per-learner state dir is writable (XDG path)",
+      "remediation": ""
+    },
+    {
+      "id": "contract-schemas-pinned",
+      "passed": true,
+      "severity": "warning",
+      "message": "subject pins contract 1.0",
+      "remediation": ""
+    }
+  ]
+}

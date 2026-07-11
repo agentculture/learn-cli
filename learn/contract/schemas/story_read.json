@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentculture.org/learn/contract/1.0/story_read.json",
+  "title": "Story read payload",
+  "description": "Emitted by `<subject> story read <id> --json [--learner <id>]`. Wraps one full story (the shared story.json schema, verbatim) in a teaching directive: how the driver should present it, use the glossary, run the comprehension exercises, and record results. Reading may update the learner's current position.",
+  "type": "object",
+  "required": ["schema_version", "kind", "subject", "learner", "story", "directive"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "kind": { "const": "story_read" },
+    "subject": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "learner": { "type": "string", "minLength": 1 },
+    "story": {
+      "$ref": "story.json",
+      "description": "The full story content object, exactly as committed in the subject repo."
+    },
+    "directive": { "$ref": "#/$defs/directive" }
+  },
+  "$defs": {
+    "directive": {
+      "type": "object",
+      "description": "Structured instructions to the driving agent (the directive pattern): the subject stays LLM-free; the driver does the conversational tutoring and writes results back via `record`.",
+      "required": ["instructions", "record_with"],
+      "properties": {
+        "persona": { "type": "string" },
+        "instructions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "record_with": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Concrete runnable `record` command lines for writing outcomes back."
+        }
+      }
+    }
+  }
+}

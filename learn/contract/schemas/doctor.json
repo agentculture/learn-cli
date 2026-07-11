@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentculture.org/learn/contract/1.0/doctor.json",
+  "title": "Subject doctor payload",
+  "description": "Emitted by `<subject> doctor --json`. The subject's self-check plus its contract pin: `contract_version` declares which contract version this subject implements — the field `learn subject doctor` reads before validating any other payload. A subject that drifts fails its own CI, not learn-cli's runtime. Exit code follows health: 0 healthy, 2 unhealthy.",
+  "type": "object",
+  "required": ["schema_version", "kind", "subject", "contract_version", "healthy", "checks"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "kind": { "const": "subject_doctor" },
+    "subject": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "contract_version": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$",
+      "description": "The subject-plugin contract version this subject pins and satisfies."
+    },
+    "healthy": {
+      "type": "boolean",
+      "description": "False when any severity=error check failed."
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "passed", "severity", "message"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+          "passed": { "type": "boolean" },
+          "severity": { "enum": ["error", "warning", "info"] },
+          "message": { "type": "string", "minLength": 1 },
+          "remediation": { "type": "string" }
+        }
+      }
+    }
+  }
+}

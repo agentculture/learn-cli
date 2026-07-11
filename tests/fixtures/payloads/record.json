@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "kind": "record_ack",
+  "subject": "french",
+  "learner": "ori",
+  "recorded": {
+    "item_id": "numbers-money",
+    "activity": "practice",
+    "exercise_id": "nm-p1",
+    "result": "pass",
+    "correct": 1,
+    "total": 1,
+    "duration_seconds": 38.0,
+    "notes": "Solid on composed numbers; hesitated on cinquante.",
+    "at": "2026-07-11T09:14:22+00:00"
+  },
+  "mastery": {
+    "item_id": "numbers-money",
+    "level": "practiced"
+  },
+  "next": {
+    "done": false,
+    "module_id": "premiers-pas",
+    "item_id": "numbers-money",
+    "text": "one more practice pass on 'Numbers and money' to reach mastered",
+    "command": "french practice numbers-money --json"
+  }
+}

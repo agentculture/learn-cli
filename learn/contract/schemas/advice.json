@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentculture.org/learn/contract/1.0/advice.json",
+  "title": "Advice payload",
+  "description": "Emitted by `<subject> advice --json [--learner <id>]`. Deterministic study advice derived from the learner's recorded state — what to shore up and why, each with a runnable command. No LLM: advice is a pure function of stored mastery/history.",
+  "type": "object",
+  "required": ["schema_version", "kind", "subject", "learner", "advice"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "kind": { "const": "advice" },
+    "subject": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "learner": { "type": "string", "minLength": 1 },
+    "advice": {
+      "type": "array",
+      "description": "May be empty for a brand-new learner; each entry is actionable.",
+      "items": {
+        "type": "object",
+        "required": ["suggestion"],
+        "properties": {
+          "focus": {
+            "type": "string",
+            "description": "The item or module id the advice targets ('' for general advice)."
+          },
+          "reason": { "type": "string" },
+          "suggestion": { "type": "string", "minLength": 1 },
+          "command": {
+            "type": "string",
+            "description": "A runnable subject-CLI command that acts on the suggestion."
+          }
+        }
+      }
+    }
+  }
+}

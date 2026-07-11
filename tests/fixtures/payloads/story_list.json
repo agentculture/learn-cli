@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "kind": "story_list",
+  "subject": "french",
+  "stories": [
+    {
+      "id": "fr-beg-le-marche-du-samedi",
+      "title": "Le marché du samedi",
+      "level": "beginner",
+      "level_detail": "A1",
+      "language": "fr",
+      "summary": "Claire goes to the Saturday market and buys fruit, bread, and cheese.",
+      "exercises": 4
+    },
+    {
+      "id": "fr-int-la-lettre-perdue",
+      "title": "La lettre perdue",
+      "level": "intermediate",
+      "level_detail": "B1",
+      "language": "fr",
+      "summary": "A misdelivered letter sends Hugo across Lyon in the passé composé.",
+      "exercises": 5
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentculture.org/learn/contract/1.0/practice.json",
+  "title": "Practice directive payload",
+  "description": "Emitted by `<subject> practice [<scope>] --json [--learner <id>]`. A batch of exercises for the driver to run conversationally, grade (pass|partial|fail against answer/rubric), and record. With no scope argument the subject picks the weakest touched items — its within-subject review mode.",
+  "type": "object",
+  "required": ["schema_version", "kind", "subject", "learner", "scope", "exercises", "directive"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "kind": { "const": "practice_directive" },
+    "subject": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "learner": { "type": "string", "minLength": 1 },
+    "scope": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What is being practiced: an item id, a module id, or 'review'."
+    },
+    "exercises": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/exercise" }
+    },
+    "directive": { "$ref": "#/$defs/directive" }
+  },
+  "$defs": {
+    "exercise": {
+      "type": "object",
+      "required": ["id", "type", "prompt"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+        "type": {
+          "enum": [
+            "multiple_choice",
+            "true_false",
+            "cloze",
+            "short_answer",
+            "translation",
+            "open",
+            "discussion"
+          ]
+        },
+        "item_id": {
+          "type": "string",
+          "description": "The curriculum item this exercise evidences — the id `record --item` expects."
+        },
+        "prompt": { "type": "string", "minLength": 1 },
+        "choices": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "type": "string" }
+        },
+        "answer": { "type": "string" },
+        "rubric": { "type": "string" }
+      }
+    },
+    "directive": {
+      "type": "object",
+      "description": "Structured instructions to the driving agent (the directive pattern).",
+      "required": ["instructions", "record_with"],
+      "properties": {
+        "persona": { "type": "string" },
+        "instructions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "record_with": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}
