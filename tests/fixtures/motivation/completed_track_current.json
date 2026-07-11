@@ -1,0 +1,59 @@
+{
+  "description": "The same fully-mastered learner, but now == the last activity: nothing has decayed yet, so the review queue is empty. done still is not a dead end \u2014 maintenance mode kicks in. The recent activity includes a story, so what-next deepens the stalest mastered item at a harder rung.",
+  "now": "2026-07-07T09:00:00+00:00",
+  "subjects": [
+    {
+      "subject": "french",
+      "items_total": 2,
+      "items_mastered": 2,
+      "done": true
+    }
+  ],
+  "ledger": [
+    {
+      "subject": "french",
+      "item_id": "greetings",
+      "activity": "story",
+      "result": "pass",
+      "at": "2026-07-05T09:00:00+00:00"
+    },
+    {
+      "subject": "french",
+      "item_id": "numbers",
+      "activity": "story",
+      "result": "pass",
+      "at": "2026-07-07T09:00:00+00:00"
+    }
+  ],
+  "expected": {
+    "exercise_scores": [
+      100,
+      100
+    ],
+    "session_score": 100,
+    "streaks": {
+      "overall": {
+        "current_days": 1,
+        "longest_days": 1,
+        "last_active": "2026-07-07",
+        "active_today": true
+      },
+      "by_subject": {
+        "french": {
+          "current_days": 1,
+          "longest_days": 1,
+          "last_active": "2026-07-07",
+          "active_today": true
+        }
+      }
+    },
+    "review_queue": [],
+    "what_next": {
+      "action": "harder_repeat",
+      "mode": "maintenance",
+      "subject": "french",
+      "item_id": "greetings",
+      "items": []
+    }
+  }
+}

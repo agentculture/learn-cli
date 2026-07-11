@@ -1,0 +1,87 @@
+{
+  "description": "A learner splitting french and spanish. French was practiced early and left to decay; spanish is the recent, active subject. now is 12 days after the french work, so the french mastered item has decayed into the review queue but only gently (due, not urgent). This exercises the balanced branch: a single non-urgent review yields to forward progress, and spanish (recently active, still has material) is the next lesson.",
+  "now": "2026-07-20T12:00:00+00:00",
+  "subjects": [
+    {
+      "subject": "french",
+      "done": false
+    },
+    {
+      "subject": "spanish",
+      "items_total": 30,
+      "items_mastered": 1
+    }
+  ],
+  "ledger": [
+    {
+      "subject": "french",
+      "item_id": "greetings",
+      "activity": "lesson",
+      "result": "pass",
+      "correct": 3,
+      "total": 3,
+      "at": "2026-07-08T10:00:00+00:00"
+    },
+    {
+      "subject": "spanish",
+      "item_id": "saludos",
+      "activity": "lesson",
+      "result": "pass",
+      "correct": 4,
+      "total": 4,
+      "at": "2026-07-19T10:00:00+00:00"
+    },
+    {
+      "subject": "spanish",
+      "item_id": "numeros",
+      "activity": "practice",
+      "result": "partial",
+      "correct": 2,
+      "total": 3,
+      "at": "2026-07-20T09:00:00+00:00"
+    }
+  ],
+  "expected": {
+    "exercise_scores": [
+      100,
+      100,
+      63
+    ],
+    "session_score": 88,
+    "streaks": {
+      "overall": {
+        "current_days": 2,
+        "longest_days": 2,
+        "last_active": "2026-07-20",
+        "active_today": true
+      },
+      "by_subject": {
+        "french": {
+          "current_days": 0,
+          "longest_days": 1,
+          "last_active": "2026-07-08",
+          "active_today": false
+        },
+        "spanish": {
+          "current_days": 2,
+          "longest_days": 2,
+          "last_active": "2026-07-20",
+          "active_today": true
+        }
+      }
+    },
+    "review_queue": [
+      [
+        "french",
+        "greetings"
+      ]
+    ],
+    "what_next": {
+      "action": "next_lesson",
+      "mode": "progress",
+      "subject": "spanish",
+      "item_id": null,
+      "items": []
+    }
+  }
+}

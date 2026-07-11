@@ -1,0 +1,98 @@
+{
+  "description": "One learner working through french over five days: a mastered item, a partial, a countable pass, and a fresh fail. Studied every day \u2192 a 5-day streak. now is the last study day; nothing has decayed enough to review, and french still has material, so what-next is the next lesson.",
+  "now": "2026-07-05T20:00:00+00:00",
+  "subjects": [
+    {
+      "subject": "french",
+      "items_total": 40,
+      "items_mastered": 2
+    }
+  ],
+  "ledger": [
+    {
+      "subject": "french",
+      "item_id": "greetings",
+      "activity": "lesson",
+      "result": "pass",
+      "correct": 4,
+      "total": 4,
+      "at": "2026-07-01T09:00:00+00:00"
+    },
+    {
+      "subject": "french",
+      "item_id": "numbers",
+      "activity": "practice",
+      "result": "partial",
+      "correct": 1,
+      "total": 2,
+      "at": "2026-07-02T09:00:00+00:00"
+    },
+    {
+      "subject": "french",
+      "item_id": "food-vocab",
+      "activity": "lesson",
+      "result": "pass",
+      "correct": 5,
+      "total": 6,
+      "at": "2026-07-03T09:00:00+00:00"
+    },
+    {
+      "subject": "french",
+      "item_id": "numbers",
+      "activity": "practice",
+      "result": "pass",
+      "correct": 2,
+      "total": 2,
+      "lesson_id": "l-numbers",
+      "at": "2026-07-04T09:00:00+00:00"
+    },
+    {
+      "subject": "french",
+      "item_id": "daily-routine",
+      "activity": "practice",
+      "result": "fail",
+      "correct": 0,
+      "total": 3,
+      "at": "2026-07-05T09:00:00+00:00"
+    }
+  ],
+  "expected": {
+    "exercise_scores": [
+      100,
+      56,
+      93,
+      100,
+      0
+    ],
+    "session_score": 70,
+    "streaks": {
+      "overall": {
+        "current_days": 5,
+        "longest_days": 5,
+        "last_active": "2026-07-05",
+        "active_today": true
+      },
+      "by_subject": {
+        "french": {
+          "current_days": 5,
+          "longest_days": 5,
+          "last_active": "2026-07-05",
+          "active_today": true
+        }
+      }
+    },
+    "review_queue": [
+      [
+        "french",
+        "daily-routine"
+      ]
+    ],
+    "what_next": {
+      "action": "next_lesson",
+      "mode": "progress",
+      "subject": "french",
+      "item_id": null,
+      "items": []
+    }
+  }
+}
