@@ -53,6 +53,30 @@ losing the ability to check who's signed in. Proven by `test/reconsent.test.js`
 (the version-bump paths, the live-token wall, the accept-restores-access full
 cycle, and the `/api/me` additive shape).
 
+The erasure invariant (spec c11/h3, decision c18, task t7) is the exit door
+on the other side of consent: **withdrawal of consent means deletion, and
+whole-learner deletion is the only erasure path there is.** The `records`
+ledger stays append-only for normal operation — there is no update-a-row or
+delete-one-row API anywhere in this Worker — but `POST /api/delete` hard-
+deletes every row a learner has (`learners`, `records`, `consents`) in one D1
+batch (`src/db.js#deleteLearnerData`) and revokes the *current* session (KV
+tombstone) at the route layer, the same mechanism `handleLogout` uses. h3 is
+proven literally: after delete, a D1 query finds **no row in any of the
+three tables** for that `github_user_id`, and the pre-delete session token is
+rejected on the very next authed call. Unlike every other learner-scoped
+route, `POST /api/delete` runs on `requireAuth`, not `requireConsented` — a
+learner whose stored consent has gone stale (t6) must still be able to erase
+their data *without* being forced to re-accept terms they no longer agree to
+first; gating erasure behind fresh consent would be a contradiction. `GET
+/api/export` (the data-portability counterpart) *does* run on
+`requireConsented`, same as progress/record/tutor — export is a resource
+read, not one of the narrow `requireAuth` escape-hatch routes. Proven by
+`test/export-delete.test.js`, including the isolation case (another
+learner's data and their ability to keep appending to the ledger are
+unaffected by someone else's deletion) and the full cycle (delete, sign in
+again, land pending-consent with zero consent rows surviving, re-consent,
+start with an empty ledger).
+
 No third-party runtime deps: the Worker uses only Web-standard APIs (`fetch`,
 `Request`/`Response`, `crypto.subtle`, `btoa`/`atob`), so the same code runs in
 `wrangler dev`, in production, and under `node --test`.
@@ -72,6 +96,8 @@ No third-party runtime deps: the Worker uses only Web-standard APIs (`fetch`,
 | GET | `/api/me` | session or pending | Identity + session expiry; auto-refreshes a near-stale full session. Pending session: reports `pending_consent: true` + `consent_required`. Full session (t6): reports `reconsent_required` (+ `consent_required` when true) instead of 403ing. Never refreshes a pending session. |
 | GET | `/api/progress/:subject` | consented | Ledger-derived `progress.json`-shaped payload. Pending OR stale-version session: `403 consent_required` (t6 adds `reason` + `consent_required` to the body — see "Endpoint shapes"). |
 | POST | `/api/record` | consented | Validate the `recorded` shape and append it to the ledger. Pending OR stale-version session: `403 consent_required`. |
+| GET | `/api/export` | consented | Self-serve data export: the learner's identity row, every recorded result across **every subject**, and their full consent history, as one JSON document (t7). Pending OR stale-version session: `403 consent_required` — same gate as progress/record/tutor. |
+| POST | `/api/delete` | session or pending | Self-serve whole-learner erasure — consent withdrawal (t7). Requires `{ "confirm": "<your github_user_id>" }` in the body. Deletes the learners/records/consents rows, revokes the **current** session (KV tombstone), clears the cookie. Deliberately reachable from a stale-consent (and even pending-consent) session — see "Endpoint shapes" below for why. |
 | POST | `/api/tutor` | consented | Broker: forward to `INFERENCE_URL` (a served inference endpoint). Pending OR stale-version session: `403 consent_required`, zero inference calls. |
 
 Sessions are stateless HMAC-signed tokens (short TTL, ~1h; pending-consent
@@ -370,6 +396,94 @@ version to accept. `POST /api/consent/accept` itself never 403s this way: it
 runs on `requireAuth` (any valid, unexpired session, pending or full), so it
 stays reachable specifically to recover from `reason: "stale_version"`.
 
+### For t7 (self-serve export + delete)
+
+**Route naming.** `GET /api/export` and `POST /api/delete` (not `DELETE
+/api/me`) — chosen to match this Worker's existing convention: every
+mutation here is a `POST` to a verb-named path (`/api/consent/accept`,
+`/api/consent/decline`, `/api/auth/logout`), never the HTTP `DELETE` method,
+so `Access-Control-Allow-Methods` (see `withCors`) doesn't need a new entry
+and no route needs to special-case its own verb. `/api/export`/`/api/delete`
+sit at the same level as `/api/record`/`/api/progress/:subject` — they act
+on the same "your data" resource, just export it wholesale or erase it
+wholesale instead of appending to it.
+
+```text
+GET /api/export                       (requireConsented — same gate as progress/record/tutor)
+  -> 200 {
+       schema_version: "1.0",
+       kind: "export",
+       exported_at: "<ISO-8601, now>",
+       schema_note: "<prose: what each top-level field means>",
+       learner: { github_user_id, display_name, state },
+       records: [
+         { subject, item_id, activity, result, at, mastery_level,
+           recorded: { ...the exact object your subject CLI/the web reader submitted... } },
+         ...   // every row, every subject, oldest first
+       ],
+       consents: [
+         { terms_version, granted_at },
+         ...   // every version you have ever accepted, oldest first
+       ],
+     }
+  -> 403 { error: "consent_required", reason: "pending" | "stale_version", ... }  // nothing to export
+  -> 401                                                                          // signed out
+```
+
+`exported_at` + `schema_note` make the payload self-describing (a learner
+opening the downloaded JSON months later doesn't need this README to
+understand what they're looking at). `records[].recorded` is the **parsed**
+object, not the JSON-TEXT-column string `records.sql` stores it as — see
+`parseRecorded()` in `src/index.js`.
+
+```text
+POST /api/delete                      (requireAuth — pending, stale, OR current session)
+  Body: { "confirm": "<your github_user_id>" }
+  -> 200 { ok: true, status: "deleted",
+           deleted: { records: <n>, consents: <n>, learners: <n> } }
+       // + Set-Cookie clearing `session`; the token used to call this is
+       //   immediately revoked (KV tombstone) — reuse it anywhere -> 401.
+  -> 400 { error: "confirmation_required", ... }   // confirm missing/wrong/absent body
+  -> 401                                            // signed out
+```
+
+**Why a `confirm` field instead of a bare `POST`:** the one-extra-step guard
+is deliberately cheap (no CAPTCHA, no second request) but not "one click" —
+a stray retry, a misclicked button, or a naive `fetch(..., {method:
+"POST"})` with no body cannot trigger deletion; the caller must already know
+its own `github_user_id` (trivially available from `GET /api/me`, which any
+UI wiring this up will have already called). This mirrors GitHub's own
+"type the repo name to confirm" pattern at API scale rather than UI scale.
+
+**Why `POST /api/delete` uses `requireAuth`, not `requireConsented`, while
+`GET /api/export` uses `requireConsented`:** export is a resource *read* —
+gated exactly like progress/record/tutor, and a pending or stale-consent
+session has either nothing to export (h1) or can trivially re-consent first.
+Delete is the *escape hatch itself* — the same class of route as `POST
+/api/consent/accept`/`decline` and `GET /api/me`, which all run on
+`requireAuth` specifically so they stay reachable from a non-current-consent
+session. Gating erasure behind a **fresh** consent would force a learner who
+no longer agrees with the current terms to accept them anyway just to leave
+— exactly backwards. A pending-consent session may also call `/api/delete`;
+since sign-in never wrote anything for it (h1), `deleteLearnerData` is a
+documented no-op (see `test/db.test.js`) and the route still revokes the
+pending token, same effect as `POST /api/consent/decline`.
+
+**Site-side affordance (t7 scope decision):** no `site-astro` change ships
+with this task. The only existing signed-in surface site-wide is
+`Header.astro`'s auth slot (display name + "Sign out", wired by
+`src/scripts/learner.js`, gated by the audited fetch-whitelist in
+`scripts/check-static-auth.mjs`) — there is no account/settings page to
+extend, and the consent notice's own copy ("decline below, or delete your
+account later") is static prose with nothing to hang a live control on yet.
+Wiring a destructive, confirmation-guarded action into a sitewide nav
+partial would be inventing new UI surface, not extending an existing one —
+out of scope per this task's own instructions. Both routes are fully
+CLI/agent-ready today (`curl`/`learn`/MCP can call them right now); the web
+affordance is deferred to **t8** (roles + visibility), which already has to
+build a real account-scoped surface for the private/visible toggle and is
+the natural place to add "Export my data" / "Delete my data" alongside it.
+
 ### For t10 (the consent page, `/learn/consent/`)
 
 An unconsented web sign-in 302s from the OAuth callback to `/learn/consent/`
@@ -393,7 +507,7 @@ carrying a pending-consent `session` cookie (10 min TTL). The page:
 node --test
 ```
 
-84 tests cover session sign/verify/expiry, `recorded` validation (including the
+100 tests cover session sign/verify/expiry, `recorded` validation (including the
 `score`/`grade`/`points` rejection), the full record round-trip, per-learner
 ledger isolation, web + device OAuth flows, the consent gate (zero D1 writes on
 both unconsented sign-in paths, the pending-session 403 wall, accept ordering —
@@ -403,8 +517,16 @@ previously-consented learner's next sign-in to pending-consent with zero new
 writes, walls off a live full-session token at every `requireConsented`
 route with `reason: "stale_version"`, the full consent-v1 → bump → 403 →
 re-accept → 200 cycle, and `/api/me`'s additive `reconsent_required`
-reporting), and — critically — that a signed-out `/api/tutor` request returns
-`401` with **zero** inference calls. Tests invoke the Worker's `fetch` handler
+reporting), the export + delete gate (`test/export-delete.test.js`: a
+consented session's export spans every subject and its full consent
+history, a pending session gets `403` with literally nothing to export,
+delete erases all three tables and revokes the session so the old token
+403→401s on every subsequent call, a stale-consent session can still delete
+without re-accepting, isolation — one learner's deletion never touches
+another's rows or their ability to keep appending — and the full
+delete→sign-in-again→pending→re-accept→empty-ledger cycle), and —
+critically — that a signed-out `/api/tutor` request returns `401` with
+**zero** inference calls. Tests invoke the Worker's `fetch` handler
 directly with in-memory KV/D1 stubs (the D1 stub logs every write statement,
 making "zero writes" literal); no network and no wrangler are needed. A
 published-version bump is simulated with `env.TERMS_VERSION_OVERRIDE` (see
