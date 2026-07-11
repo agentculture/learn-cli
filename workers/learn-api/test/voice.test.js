@@ -284,6 +284,50 @@ test("budget: month rollover resets the meter — last month's exhaustion doesn'
   assert.equal(ada.state.voice_usage.seconds_minted, DEFAULT_VOICE_MAX_SESSION_SECONDS);
 });
 
+test("budget: two concurrent mints reading the same pre-state cannot both book past the cap (Qodo review finding, BUG 3)", async () => {
+  // The race the naive read-then-write allowed: two requests both call
+  // getLearner, both see the SAME `used`, both pass "used + max <= cap",
+  // and (pre-fix) both write — landing at 2100s of bookings against an
+  // 1800s cap. This fires two REAL concurrent /api/voice/token requests via
+  // Promise.all (same cooperative-scheduling interleaving two simultaneous
+  // Worker invocations would see — this Worker has no other concurrency
+  // primitive) rather than hand-simulating the interleave, so it exercises
+  // the full handleVoiceToken -> bookVoiceUsage -> setLearnerVoiceUsage
+  // path end to end. test/db.test.js's setLearnerVoiceUsage CAS tests pin
+  // the underlying primitive deterministically; this proves the route wires
+  // it up correctly under actual contention.
+  const { env, token } = await voiceEnv();
+  const month = new Date().toISOString().slice(0, 7);
+  // Exactly one more 300s booking fits (1500 + 300 = 1800 == the cap); if
+  // BOTH concurrent mints booked, the total would land at 2100 > 1800.
+  seedLearner(env, "42", "Ada", {
+    approved: true,
+    voice_usage: { month, seconds_minted: 1500 },
+  });
+
+  const [resA, resB] = await Promise.all([call(env, voiceReq(token)), call(env, voiceReq(token))]);
+  const [bodyA, bodyB] = await Promise.all([resA.json(), resB.json()]);
+  const results = [
+    { status: resA.status, body: bodyA },
+    { status: resB.status, body: bodyB },
+  ];
+
+  const statuses = results.map((r) => r.status).sort();
+  assert.deepEqual(statuses, [200, 429], "exactly one of the two concurrent mints succeeds");
+
+  const ok = results.find((r) => r.status === 200);
+  const fail = results.find((r) => r.status === 429);
+  assert.ok(ok.body.token, "the winning mint gets a token");
+  assert.equal(ok.body.limits.monthly_seconds_used, 1800);
+  assert.equal(fail.body.error, "voice_budget_exhausted");
+  assert.equal("token" in fail.body, false, "the losing mint must never leak a token");
+
+  // The ledger lands EXACTLY at the cap, never past it — this is the
+  // assertion that would have failed before the fix (it would read 2100).
+  const ada = await getLearner(env, "42");
+  assert.equal(ada.state.voice_usage.seconds_minted, 1800);
+});
+
 test("budget bookkeeping merges into state — approved/visibility survive the usage write", async () => {
   const { env, token } = await voiceEnv();
   seedLearner(env, "42", "Ada", { approved: true, visibility: "public", other_pref: "keep" });

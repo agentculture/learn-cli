@@ -158,7 +158,7 @@ in two places so the pre/post-deploy story is legible:
 
 The **authed** consent/approval/delete/voice flows cannot be reproduced against
 LIVE prod (no mintable prod session), so the Worker's own unit suite
-(`cd workers/learn-api && npm test`, 168 tests) is run as a `run.sh` step and is
+(`cd workers/learn-api && npm test`, 183 tests) is run as a `run.sh` step and is
 the authoritative proof of the zero-inference counting, consent ordering, and
 revocation invariants — `consent_walk.mjs` LOCAL mode re-proves them at the HTTP
 layer.

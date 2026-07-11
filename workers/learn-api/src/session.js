@@ -31,13 +31,16 @@ export const PENDING_CONSENT_TTL_SECONDS = 600; // 10 minutes.
  * Mint a signed session token for a learner.
  * @param {object} [opts]
  * @param {boolean} [opts.pendingConsent] mark the token pending-consent (c19).
+ * @param {number} [opts.now] override `iat` (unix seconds) — deterministic
+ *   tests only (mirrors voice.js#mintVoiceToken's own `opts.now`); production
+ *   callers never pass it and get the real clock.
  * @returns {{ token: string, payload: object }}
  */
 export async function issueSession(env, learner, ttlSeconds = DEFAULT_TTL_SECONDS, opts = {}) {
   if (!env || !env.SESSION_SECRET) {
     throw new Error("SESSION_SECRET is not configured");
   }
-  const iat = nowSeconds();
+  const iat = opts.now == null ? nowSeconds() : Math.floor(opts.now);
   const payload = {
     v: 1,
     uid: String(learner.uid),

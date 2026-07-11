@@ -48,6 +48,34 @@ export async function requireAuth(request, env) {
       );
     }
   }
+  // Per-uid revocation (Qodo review finding, BUG 1): a per-sid tombstone
+  // alone only kills the ONE token that called logout/delete. Sessions are
+  // stateless signed tokens and /api/me's sliding refresh mints a new token
+  // WITHOUT revoking the old one, so a learner can hold several valid
+  // sessions at once (web + CLI + another browser tab). POST /api/delete
+  // (src/index.js#handleDelete) stamps `revoked_uid:<uid>` with the epoch
+  // SECOND deletion ran, so this check rejects EVERY session for that uid
+  // issued before it — "delete logs me out everywhere" — not just the sid
+  // that called delete.
+  //
+  // Strict `<`, not `<=`: a token whose `iat` lands in the exact same
+  // epoch-second as the marker must NOT be rejected. That boundary matters
+  // in practice — signing back in immediately after a self-delete (the
+  // documented delete -> pending-consent -> re-accept flow) mints a brand
+  // new session whose `iat` can legitimately equal the delete second at
+  // this granularity; only tokens issued strictly BEFORE the marker are the
+  // ones delete needs to invalidate.
+  if (env.SESSIONS && payload.uid && typeof payload.iat === "number") {
+    const revokedAt = await env.SESSIONS.get(`revoked_uid:${payload.uid}`);
+    if (revokedAt !== null && payload.iat < Number(revokedAt)) {
+      throw new HttpError(
+        401,
+        "session_revoked",
+        "This session was signed out (account data was deleted).",
+        "Sign in again to obtain a fresh session.",
+      );
+    }
+  }
   return payload;
 }
 

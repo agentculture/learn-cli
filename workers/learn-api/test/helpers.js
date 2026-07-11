@@ -104,8 +104,26 @@ class D1Prepared {
       return { success: true, meta: { changes: 1, last_row_id: 0 } };
     }
     if (this.sql.includes("update learners")) {
-      // setLearnerVisibility (t8): UPDATE learners SET state = ?, updated_at = ? WHERE github_user_id = ?
       this._logWrite("learners", "update");
+      if (this.sql.includes("and updated_at")) {
+        // setLearnerVoiceUsage's compare-and-swap (BUG 3 fix):
+        //   UPDATE learners SET state = ?, updated_at = ?
+        //     WHERE github_user_id = ? AND updated_at = ?
+        // Only writes (and reports changes: 1) when the row's CURRENT
+        // updated_at still matches what the caller read — a stale expected
+        // value (another booking won first) reports changes: 0 and touches
+        // nothing, exactly like real D1's conditional UPDATE would.
+        const [state, updatedAt, uid, expectedUpdatedAt] = this.args;
+        const existing = this.db.learners.get(String(uid));
+        const matches = !!existing && existing.updated_at === expectedUpdatedAt;
+        if (matches) {
+          existing.state = state;
+          existing.updated_at = updatedAt;
+        }
+        return { success: true, meta: { changes: matches ? 1 : 0 } };
+      }
+      // setLearnerVisibility / setLearnerApproved (unconditional):
+      //   UPDATE learners SET state = ?, updated_at = ? WHERE github_user_id = ?
       const [state, updatedAt, uid] = this.args;
       const existing = this.db.learners.get(String(uid));
       if (existing) {

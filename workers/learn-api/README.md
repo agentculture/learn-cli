@@ -59,11 +59,23 @@ whole-learner deletion is the only erasure path there is.** The `records`
 ledger stays append-only for normal operation — there is no update-a-row or
 delete-one-row API anywhere in this Worker — but `POST /api/delete` hard-
 deletes every row a learner has (`learners`, `records`, `consents`) in one D1
-batch (`src/db.js#deleteLearnerData`) and revokes the *current* session (KV
-tombstone) at the route layer, the same mechanism `handleLogout` uses. h3 is
-proven literally: after delete, a D1 query finds **no row in any of the
-three tables** for that `github_user_id`, and the pre-delete session token is
-rejected on the very next authed call. Unlike every other learner-scoped
+batch (`src/db.js#deleteLearnerData`) and revokes **every session for that
+uid, not only the one that called delete** (a Qodo review finding, fixed
+alongside t7's original per-sid revoke): sessions are stateless signed
+tokens and `/api/me`'s sliding refresh mints a fresh token without revoking
+the old one, so a learner can hold several simultaneously valid sessions
+(another browser tab, a CLI token, a second device). `handleDelete` writes
+BOTH the per-sid `revoked:<sid>` tombstone `handleLogout` also uses AND a
+per-uid `revoked_uid:<uid>` marker stamped with the delete's epoch second;
+`src/auth.js#requireAuth` rejects any token for that uid whose `iat`
+predates the marker (strict `<`, not `<=`, so a session minted in the same
+epoch-second as the delete — e.g. an immediate resignup — is never
+false-revoked; see that function's own comment). h3 is proven literally:
+after delete, a D1 query finds **no row in any of the three tables** for
+that `github_user_id`, and every pre-delete session token for that learner —
+not just the one used to call delete — is rejected on the very next authed
+call (`test/export-delete.test.js`, `test/auth.test.js`). Unlike every other
+learner-scoped
 route, `POST /api/delete` runs on `requireAuth`, not `requireConsented` — a
 learner whose stored consent has gone stale (t6) must still be able to erase
 their data *without* being forced to re-accept terms they no longer agree to
@@ -164,7 +176,7 @@ No third-party runtime deps: the Worker uses only Web-standard APIs (`fetch`,
 | GET | `/api/progress/:subject` | consented | Ledger-derived `progress.json`-shaped payload. Pending OR stale-version session: `403 consent_required` (t6 adds `reason` + `consent_required` to the body — see "Endpoint shapes"). |
 | POST | `/api/record` | consented | Validate the `recorded` shape and append it to the ledger. Pending OR stale-version session: `403 consent_required`. |
 | GET | `/api/export` | consented | Self-serve data export: the learner's identity row, every recorded result across **every subject**, and their full consent history, as one JSON document (t7). Pending OR stale-version session: `403 consent_required` — same gate as progress/record/tutor. |
-| POST | `/api/delete` | session or pending | Self-serve whole-learner erasure — consent withdrawal (t7). Requires `{ "confirm": "<your github_user_id>" }` in the body. Deletes the learners/records/consents rows, revokes the **current** session (KV tombstone), clears the cookie. Deliberately reachable from a stale-consent (and even pending-consent) session — see "Endpoint shapes" below for why. |
+| POST | `/api/delete` | session or pending | Self-serve whole-learner erasure — consent withdrawal (t7). Requires `{ "confirm": "<your github_user_id>" }` in the body. Deletes the learners/records/consents rows, revokes **every session for that uid** (both the per-sid KV tombstone and a per-uid `revoked_uid:<uid>` marker — "delete logs you out everywhere," not just the current device), clears the cookie. Deliberately reachable from a stale-consent (and even pending-consent) session — see "Endpoint shapes" below for why. |
 | POST | `/api/tutor` | approved | Broker: forward to `INFERENCE_URL` (Bedrock Converse in production — see "For t15"). Pending OR stale-version session: `403 consent_required`; consented but not admin-approved: `403 approval_required` (t9) — zero inference calls either way. |
 | POST | `/api/voice/token` | approved | Mint a short-lived voice token for the serverless bridge (t16) — same learner-side gates as `/api/tutor`, in the same order, plus the per-learner monthly voice budget (`429 voice_budget_exhausted`). `503 not_configured` until `VOICE_BRIDGE_URL` + `VOICE_TOKEN_SECRET` are set. See "For t16" below. |
 | POST | `/api/me/visibility` | consented | Set the caller's OWN `visibility` (`private` \| `public`) in their `state` blob (t8). `400 invalid_visibility` for anything else. Pending OR stale-version session: `403 consent_required` — same gate as progress/record/export. |
@@ -519,8 +531,11 @@ POST /api/delete                      (requireAuth — pending, stale, OR curren
   Body: { "confirm": "<your github_user_id>" }
   -> 200 { ok: true, status: "deleted",
            deleted: { records: <n>, consents: <n>, learners: <n> } }
-       // + Set-Cookie clearing `session`; the token used to call this is
-       //   immediately revoked (KV tombstone) — reuse it anywhere -> 401.
+       // + Set-Cookie clearing `session`; EVERY session for this uid is
+       //   immediately revoked — the token used to call this (KV
+       //   `revoked:<sid>` tombstone) AND every other still-live session
+       //   for the same learner (KV `revoked_uid:<uid>` marker, checked in
+       //   auth.js#requireAuth) — reuse ANY of them anywhere -> 401.
   -> 400 { error: "confirmation_required", ... }   // confirm missing/wrong/absent body
   -> 401                                            // signed out
 ```
@@ -722,8 +737,16 @@ equal to the SAM stack's `MaxSessionSeconds`) against
 `learners.state.voice_usage = { month: "YYYY-MM", seconds_minted: n }`, and
 the mint that would push the month past `VOICE_MONTHLY_SECONDS_CAP`
 (default 1800 s = 30 min = 6 max-length sessions) is refused with `429` and
-books nothing. Month rollover is free: a stale stored month reads as zero
-(no cron, no migration). **This caps MINTED session-seconds — intent, the
+books nothing. **The check-then-book is atomic** (a Qodo review finding,
+fixed): `src/db.js#setLearnerVoiceUsage` is a compare-and-swap on the
+learner row's `updated_at`, not a plain read-then-write, so two concurrent
+mints can never both read the same `used`, both pass the cap check, and
+both write — `src/index.js#bookVoiceUsage` retries (bounded, 3 attempts)
+against a fresh read on a lost CAS and refuses the mint rather than risk an
+unmetered token if it still can't secure a booking. Proven by
+`test/db.test.js`'s direct CAS tests and `test/voice.test.js`'s real
+concurrent-request test. Month rollover is free: a stale stored month reads
+as zero (no cron, no migration). **This caps MINTED session-seconds — intent, the
 worst case that every minted token is fully used — not actual streamed
 seconds.** A learner who hangs up after 10 s still spent a 300 s booking.
 Actual per-session length and global concurrency are enforced by the bridge
@@ -770,7 +793,7 @@ until the supervised deploy. Operator runbook for that step:
 node --test
 ```
 
-168 tests cover session sign/verify/expiry, `recorded` validation (including the
+183 tests cover session sign/verify/expiry, `recorded` validation (including the
 `score`/`grade`/`points` rejection), the full record round-trip, per-learner
 ledger isolation, web + device OAuth flows, the consent gate (zero D1 writes on
 both unconsented sign-in paths, the pending-session 403 wall, accept ordering —
@@ -783,10 +806,14 @@ re-accept → 200 cycle, and `/api/me`'s additive `reconsent_required`
 reporting), the export + delete gate (`test/export-delete.test.js`: a
 consented session's export spans every subject and its full consent
 history, a pending session gets `403` with literally nothing to export,
-delete erases all three tables and revokes the session so the old token
-403→401s on every subsequent call, a stale-consent session can still delete
-without re-accepting, isolation — one learner's deletion never touches
-another's rows or their ability to keep appending — and the full
+delete erases all three tables and revokes **every** session for that uid
+(not just the one that called delete — a Qodo review finding; `test/auth.test.js`
+pins the underlying `requireAuth` boundary deterministically, including the
+same-epoch-second edge case a delete-then-immediate-resignup can hit) so
+every old token for that learner 403→401s on every subsequent call, a
+stale-consent session can still delete without re-accepting, isolation — one
+learner's deletion never touches another's rows, sessions, or their ability
+to keep appending — and the full
 delete→sign-in-again→pending→re-accept→empty-ledger cycle), and —
 critically — that a signed-out `/api/tutor` request returns `401` with
 **zero** inference calls. The roles + visibility gate (`test/admin.test.js`,
@@ -813,8 +840,13 @@ callers get 401/403/403/403 with **no token in any body**, the approval 403
 fires before the config 503, the happy-path token's claim set and signature
 are pinned to `infra/voice_bridge/tokens.py`'s contract (including the
 committed cross-language fixture, byte-for-byte), and the monthly budget
-books per mint, refuses without overshoot, rolls over by month, and merges
-into `learners.state` without clobbering other keys. The Converse
+books per mint, refuses without overshoot, rolls over by month, merges into
+`learners.state` without clobbering other keys, and — a Qodo review finding,
+fixed — cannot be double-booked by two real concurrent mint requests racing
+past the same pre-state (`test/db.test.js` pins the underlying
+compare-and-swap primitive in `setLearnerVoiceUsage` deterministically;
+`test/voice.test.js` proves the route wires it up correctly under actual
+`Promise.all` contention). The Converse
 pass-through (`test/tutor-converse.test.js`, t15, additive) proves the
 unchanged broker carries a native Bedrock Converse payload verbatim — plus
 exactly the `learner` stamp — and relays the Converse response shape and

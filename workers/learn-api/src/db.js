@@ -35,10 +35,17 @@ export async function upsertLearner(env, learner) {
     .run();
 }
 
-/** Read a learner's identity + state, or null if unknown. */
+/**
+ * Read a learner's identity + state, or null if unknown. Carries `updated_at`
+ * (task t16 follow-up, Qodo BUG 3) alongside the usual fields — not because
+ * ordinary callers need it, but because it's the version stamp
+ * setLearnerVoiceUsage's compare-and-swap write needs, and re-reading it
+ * separately for that one caller would defeat the "read once, CAS against
+ * exactly what you read" property the fix relies on.
+ */
 export async function getLearner(env, uid) {
   const row = await env.DB.prepare(
-    `SELECT github_user_id, display_name, state FROM learners WHERE github_user_id = ?`,
+    `SELECT github_user_id, display_name, state, updated_at FROM learners WHERE github_user_id = ?`,
   )
     .bind(String(uid))
     .first();
@@ -49,7 +56,12 @@ export async function getLearner(env, uid) {
   } catch {
     state = {};
   }
-  return { github_user_id: row.github_user_id, display_name: row.display_name, state };
+  return {
+    github_user_id: row.github_user_id,
+    display_name: row.display_name,
+    state,
+    updated_at: row.updated_at,
+  };
 }
 
 /** Append one recorded result to the ledger. Insert-only. */
@@ -283,22 +295,44 @@ export async function setLearnerApproved(env, uid, approved) {
 
 /**
  * Persist a learner's monthly voice-budget meter inside their `state` blob
- * (task t16): `voice_usage = { month: "2026-07", seconds_minted: n }`. Same
- * no-schema-change, read-then-write-merge pattern as setLearnerVisibility /
- * setLearnerApproved directly above — an absent key means "nothing minted",
- * so pre-t16 rows need no migration and month rollover is just the reader
- * (src/voice.js#voiceSecondsUsed) treating a stale month as zero. POLICY is
- * the caller's job: the cap check lives in index.js#handleVoiceToken, not
- * here (mirroring how the c20 precondition stays out of setLearnerApproved).
+ * (task t16): `voice_usage = { month: "2026-07", seconds_minted: n }`.
+ *
+ * Unlike setLearnerVisibility / setLearnerApproved's plain read-then-write,
+ * this is a COMPARE-AND-SWAP on the learner row's `updated_at` (Qodo review
+ * finding, BUG 3): the naive read-then-write here let two concurrent voice
+ * mints both read the same `used`, both pass index.js#handleVoiceToken's cap
+ * check, and both overwrite the same counter — silently exceeding
+ * VOICE_MONTHLY_SECONDS_CAP. `baseState` is the state blob the CALLER
+ * already read (index.js#bookVoiceUsage) — merged in here rather than
+ * re-read, so the write is scoped to exactly the row version the cap was
+ * checked against, not whatever happens to be there by the time this runs.
+ * `expectedUpdatedAt` is REQUIRED (no unconditional fallback): the `UPDATE
+ * ... WHERE updated_at = ?` only touches the row if it still matches, so a
+ * concurrent winner's write invalidates every loser's stamp and their CAS
+ * simply reports `ok: false` instead of clobbering the winner's booking.
+ *
+ * An absent `voice_usage` key means "nothing minted" (unchanged from
+ * before), so pre-t16 rows still need no migration and month rollover is
+ * still just the reader (src/voice.js#voiceSecondsUsed) treating a stale
+ * month as zero. POLICY (the cap check itself, and the bounded retry-on-
+ * conflict loop) is the caller's job — see index.js#bookVoiceUsage — mirroring
+ * how the c20 precondition stays out of setLearnerApproved.
+ *
+ * @returns {Promise<{ ok: boolean, usage: object }>} `ok: false` means the
+ *   row's `updated_at` no longer matched `expectedUpdatedAt` — another
+ *   booking won the race; the caller must re-read and retry, never treat
+ *   this as a successful booking.
  */
-export async function setLearnerVoiceUsage(env, uid, usage) {
-  const learner = await getLearner(env, uid);
-  const state = { ...(learner ? learner.state : {}), voice_usage: usage };
+export async function setLearnerVoiceUsage(env, uid, usage, baseState, expectedUpdatedAt) {
+  const state = { ...(baseState || {}), voice_usage: usage };
   const now = new Date().toISOString();
-  await env.DB.prepare(`UPDATE learners SET state = ?, updated_at = ? WHERE github_user_id = ?`)
-    .bind(JSON.stringify(state), now, String(uid))
+  const res = await env.DB.prepare(
+    `UPDATE learners SET state = ?, updated_at = ? WHERE github_user_id = ? AND updated_at = ?`,
+  )
+    .bind(JSON.stringify(state), now, String(uid), expectedUpdatedAt)
     .run();
-  return usage;
+  const changed = !!(res && res.meta && res.meta.changes);
+  return { ok: changed, usage };
 }
 
 /**
