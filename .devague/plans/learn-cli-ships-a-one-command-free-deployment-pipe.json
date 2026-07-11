@@ -1,0 +1,254 @@
+{
+  "slug": "learn-cli-ships-a-one-command-free-deployment-pipe",
+  "title": "learn-cli ships a one-command-free deployment pipeline: merging to main deploys the whole /learn stack \u2014 Astro site, the learn-api Cloudflare Worker, and the D1 schema \u2014 from CI with no local wrangler, and the same workflow runs on demand from any branch (workflow_dispatch) against a non-production preview target, so the pipeline is proven green before the merge path is trusted.",
+  "frame_slug": "learn-cli-ships-a-one-command-free-deployment-pipe",
+  "schema_version": 2,
+  "status": "exported",
+  "created": "2026-07-11T16:34:03Z",
+  "updated": "2026-07-11T16:38:18Z",
+  "targets": [
+    {
+      "id": "c1",
+      "kind": "announcement",
+      "text": "learn-cli ships a one-command-free deployment pipeline: merging to main deploys the whole /learn stack \u2014 Astro site, the learn-api Cloudflare Worker, and the D1 schema \u2014 from CI with no local wrangler, and the same workflow runs on demand from any branch (workflow_dispatch) against a non-production preview target, so the pipeline is proven green before the merge path is trusted."
+    },
+    {
+      "id": "h6",
+      "kind": "honesty",
+      "text": "The whole claim is provable by two runs: a green branch workflow_dispatch and a green merge-to-main deploy that together cover site + Worker + schema."
+    },
+    {
+      "id": "c2",
+      "kind": "audience",
+      "text": "The learn-cli operator/maintainer who merges to main or needs to verify a deploy, and the agent driving go-live (which the auto-mode classifier currently forbids from running local wrangler)."
+    },
+    {
+      "id": "h7",
+      "kind": "honesty",
+      "text": "After this ships, neither operator nor agent runs local wrangler for a normal deploy \u2014 CI holds the Cloudflare credentials and does it."
+    },
+    {
+      "id": "c3",
+      "kind": "before_state",
+      "text": "The Astro site auto-deploys on merge (deploy-site.yml), but the learn-api Worker, its D1 schema, and its secrets are a manual out-of-band wrangler runbook the auto-mode classifier blocks the agent from running \u2014 so go-live is a hand-run, non-reproducible checklist."
+    },
+    {
+      "id": "h8",
+      "kind": "honesty",
+      "text": "Today no workflow references wrangler deploy / learn-api (grep-verified), so the manual Worker gap is real, not already-solved."
+    },
+    {
+      "id": "c4",
+      "kind": "after_state",
+      "text": "Merge to main runs one CI pipeline that deploys the site, deploys the learn-api Worker, and idempotently applies the D1 schema \u2014 no local wrangler, no agent-run deploy; a branch workflow_dispatch runs the same jobs against a non-prod preview target and reports green/red without mutating production."
+    },
+    {
+      "id": "h9",
+      "kind": "honesty",
+      "text": "One triggered CI run performs all three actions (site deploy, Worker deploy, remote schema apply) on main, and a branch run is provably non-prod."
+    },
+    {
+      "id": "c5",
+      "kind": "why_it_matters",
+      "text": "The deploy becomes reproducible, auditable, and executable by CI's credentials rather than a human/agent laptop \u2014 which also resolves the auto-mode deploy blocker \u2014 and branch-dispatch lets the pipeline mechanics be verified before a real merge relies on them."
+    },
+    {
+      "id": "h10",
+      "kind": "honesty",
+      "text": "The deploy is reproducible from committed git state + repo secrets alone, with no laptop-specific or agent-specific state."
+    },
+    {
+      "id": "c6",
+      "kind": "success_signal",
+      "text": "A branch workflow_dispatch run goes green end-to-end against the preview target while production stays byte-identical (route, Worker version, D1 rows unchanged)."
+    },
+    {
+      "id": "h11",
+      "kind": "honesty",
+      "text": "A preview run leaves the production Worker version id, the /learn/* route binding, and D1 row counts unchanged \u2014 checkable before/after."
+    },
+    {
+      "id": "c7",
+      "kind": "success_signal",
+      "text": "After a merge to main, the LIVE_ORIGIN=https://agentculture.org launch gate (consent_walk.mjs) flips from the recorded pre-uplift baseline to green with no local wrangler invoked."
+    },
+    {
+      "id": "h12",
+      "kind": "honesty",
+      "text": "Post-merge, LIVE_ORIGIN=https://agentculture.org consent_walk.mjs flips the recorded BASELINE-2026-07-11 failures to green."
+    },
+    {
+      "id": "c8",
+      "kind": "success_signal",
+      "text": "Re-running the pipeline is a no-op-safe idempotent operation: schema re-apply changes nothing, and a Worker redeploy preserves already-set secrets."
+    },
+    {
+      "id": "h13",
+      "kind": "honesty",
+      "text": "A second identical pipeline run changes nothing: schema apply is a no-op and the Worker redeploy preserves secrets and behavior."
+    },
+    {
+      "id": "c9",
+      "kind": "boundary",
+      "text": "Not automating the SAM voice bridge deploy (infra/ \u2014 sam deploy stays a separate, later manual step); this phase is site + Worker + D1 schema only."
+    },
+    {
+      "id": "h14",
+      "kind": "honesty",
+      "text": "The workflows never invoke sam / touch infra/ \u2014 the voice bridge stays undeployed by this pipeline."
+    },
+    {
+      "id": "c12",
+      "kind": "requirement",
+      "text": "The pipeline deploys the Worker from the committed workers/learn-api/wrangler.toml (the full signed-in config, not wrangler.signedout.toml) and applies workers/learn-api/schema.sql to the remote D1 before/with the Worker deploy."
+    },
+    {
+      "id": "h1",
+      "kind": "honesty",
+      "text": "schema.sql is fully idempotent (verified: every statement is CREATE TABLE/INDEX IF NOT EXISTS), so applying it on every prod deploy is a no-op once migrated."
+    },
+    {
+      "id": "h2",
+      "kind": "honesty",
+      "text": "wrangler.toml (not wrangler.signedout.toml) is the config CI deploys, and it carries the KV+D1 bindings and /learn/* route the running product needs."
+    },
+    {
+      "id": "c13",
+      "kind": "requirement",
+      "text": "A branch workflow_dispatch (preview) run must not deploy to the production Worker/route or write to production KV/D1 \u2014 production is left untouched by any non-main run."
+    },
+    {
+      "id": "h3",
+      "kind": "honesty",
+      "text": "The mechanism chosen for preview (per the open question) provably cannot promote to the production Worker, bind the /learn/* route, or write prod D1/KV \u2014 a preview run leaves prod's deployed version and data unchanged."
+    },
+    {
+      "id": "c14",
+      "kind": "requirement",
+      "text": "Secrets are never printed to CI logs nor committed: CI reads them from GitHub Actions secrets (masked) and pipes them to wrangler; no secret value appears in the workflow file or logs."
+    },
+    {
+      "id": "h4",
+      "kind": "honesty",
+      "text": "wrangler deploy does NOT reset or delete already-set Worker secrets, and 'wrangler secret put' (if ever used) reads the value from stdin/env so it never appears as a command-line arg in logs; GitHub masks secrets.* in logs."
+    },
+    {
+      "id": "c15",
+      "kind": "requirement",
+      "text": "A deploy failure (bad wrangler.toml, missing binding, D1 error) fails the CI job visibly red and does not leave a partially-promoted production Worker."
+    },
+    {
+      "id": "h5",
+      "kind": "honesty",
+      "text": "A failing wrangler deploy / d1 execute returns a non-zero exit that fails the job, and 'wrangler deploy' is atomic (a bad upload does not partially replace the live version)."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "summary": "Add an [env.preview] environment to workers/learn-api/wrangler.toml: name learn-api-preview, a preview D1 binding (its own database_id, operator-provisioned), NO routes key; the top-level config stays production (learn-ledger D1 + /learn/* route).",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "wrangler.toml has an [env.preview] table whose worker name is learn-api-preview, binds a preview D1, and declares no route/routes key",
+        "the top-level (production) config still binds learn-ledger D1 and the /learn/* zone route, unchanged"
+      ],
+      "deps": [],
+      "covers": [
+        "c13",
+        "h3"
+      ],
+      "instruction": "Model [env.preview] on the top-level config: copy the [[kv_namespaces]]/[[d1_databases]] blocks under [env.preview], set name='learn-api-preview', point d1 at the preview DB (placeholder database_id, operator fills like the prod one), and OMIT the routes key. Do not touch the top-level production config."
+    },
+    {
+      "id": "t2",
+      "summary": "Add .github/workflows/deploy-worker.yml: push-to-main (path-filtered workers/learn-api/**) runs schema.sql against learn-ledger --remote, syncs secrets, and 'wrangler deploy' (production); workflow_dispatch from any branch runs schema.sql against the preview D1 and 'wrangler versions upload --env preview' (no promote); prod/promote steps gated to ref==main; secrets piped via stdin; secrets-gated skip-notice like deploy-site.yml.",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "on push to main the job applies schema.sql to learn-ledger --remote and runs 'wrangler deploy' (top-level wrangler.toml)",
+        "a workflow_dispatch run off a non-main branch runs 'wrangler versions upload --env preview' and applies schema to the preview D1, and NEVER runs 'wrangler deploy' or promotes to prod",
+        "every production/promote/prod-D1 step is guarded by an if: condition requiring ref == refs/heads/main",
+        "each secret is applied via stdin (printf %s $X | wrangler secret put NAME) so no secret value appears as a CLI argument; the deploy step is skipped with a notice when CLOUDFLARE_API_TOKEN is unset"
+      ],
+      "deps": [
+        "t1"
+      ],
+      "covers": [
+        "c1",
+        "c4",
+        "c5",
+        "c12",
+        "c14",
+        "c15",
+        "h1",
+        "h4",
+        "h5",
+        "h6",
+        "h8",
+        "h9",
+        "h10"
+      ],
+      "instruction": "Mirror .github/workflows/deploy-site.yml structure (checkout, env-mapped CLOUDFLARE_* secrets, 'if: env.CLOUDFLARE_API_TOKEN != \\'\\'' skip-notice, npx wrangler@4, working-directory workers/learn-api). Use two guarded step groups: prod (if github.ref=='refs/heads/main') and preview (else / workflow_dispatch). Secrets loop: for each of SESSION_SECRET GITHUB_CLIENT_ID GITHUB_CLIENT_SECRET INFERENCE_TOKEN VOICE_TOKEN_SECRET, 'printf %s \"${{ secrets.X }}\" | npx wrangler@4 secret put X [--env preview]'."
+    },
+    {
+      "id": "t3",
+      "summary": "Add tests/test_deploy_pipeline_invariants.py: parse deploy-worker.yml + wrangler.toml and assert the mechanical boundaries \u2014 prod steps gated to ref==main, no 'sam'/'infra' reference, deploys wrangler.toml (never wrangler.signedout.toml), no secret passed as a CLI arg, schema.sql statements all idempotent.",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "test asserts the workflow guards prod deploy + prod-D1 apply behind ref==refs/heads/main (or environment: production)",
+        "test asserts the workflow never references 'sam' or 'infra/', and deploys workers/learn-api/wrangler.toml and never wrangler.signedout.toml",
+        "test asserts every statement in schema.sql is CREATE ... IF NOT EXISTS (idempotent) and no secret value is a literal CLI argument in the workflow"
+      ],
+      "deps": [
+        "t2"
+      ],
+      "covers": [
+        "c6",
+        "c9",
+        "h2",
+        "h11",
+        "h14"
+      ],
+      "instruction": "Follow the existing tests/test_launch_gate_invariants.py style (read the workflow YAML + wrangler.toml as text/ast, assert mechanical boundaries). Keep it hermetic \u2014 no network, no wrangler invocation."
+    },
+    {
+      "id": "t4",
+      "summary": "Update workers/learn-api/README.md deploy section: CI now deploys (merge=prod, branch dispatch=preview verify); document the one-time operator prerequisites (create the preview D1, set the 5 GitHub Actions secrets), the pre/post-deploy verify (LIVE launch gate + run-twice idempotency), and the preview-env OAuth-callback caveat; remove local 'wrangler deploy' as the routine path.",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "README documents the CI pipeline (merge-to-main production vs branch-dispatch preview) and no longer presents a local 'wrangler deploy' as the routine go-live path",
+        "README lists the one-time operator setup (preview D1 creation + the named GitHub Actions secrets) and the preview OAuth-callback caveat",
+        "README documents the post-merge verify (LIVE_ORIGIN launch gate vs baseline) and the run-twice idempotency check"
+      ],
+      "deps": [
+        "t2"
+      ],
+      "covers": [
+        "c2",
+        "c3",
+        "c7",
+        "c8",
+        "h7",
+        "h12",
+        "h13"
+      ],
+      "instruction": "Edit the deploy/runbook section of workers/learn-api/README.md. Cross-reference tools/launch-gate/BASELINE-2026-07-11.md for the post-merge verify. State the operator prereqs as a numbered list."
+    },
+    {
+      "id": "t5",
+      "summary": "Bump pyproject.toml version and prepend a CHANGELOG entry describing the deploy-worker pipeline (required by version-check CI on every PR).",
+      "origin": "llm",
+      "status": "confirmed",
+      "acceptance_criteria": [
+        "pyproject.toml version is greater than main's and CHANGELOG.md has a dated entry describing the deploy pipeline automation"
+      ],
+      "deps": [],
+      "covers": [],
+      "instruction": "Use the version-bump skill: echo JSON | python3 .claude/skills/version-bump/scripts/bump.py minor (this is a new feature). Summarize the deploy pipeline in the Added section."
+    }
+  ],
+  "risks": []
+}
