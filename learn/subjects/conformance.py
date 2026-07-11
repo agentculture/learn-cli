@@ -260,25 +260,85 @@ def _is_cloze_blanks_item(exercise: Any) -> bool:
     )
 
 
+def _validate_cloze_top_level_fields(prefix: str, exercise: dict[str, Any], text: Any) -> list[str]:
+    """Check the exercise-level fields: `text` is a non-empty string, `item_id` is set.
+
+    Independent of the per-blank checks below — both run even if the other fails.
+    """
+    errors: list[str] = []
+    if not isinstance(text, str) or not text.strip():
+        errors.append(f"{prefix}: `text` must be a non-empty string")
+    if not exercise.get("item_id"):
+        errors.append(f"{prefix}: missing `item_id` (the join key `record --item` expects)")
+    return errors
+
+
+def _validate_cloze_blank_id(
+    bpath: str, bid: Any, placeholder_ids: set[str], seen_ids: set[str]
+) -> list[str]:
+    """Check one blank's `id`: present, unique in the exercise, matches a `text` placeholder.
+
+    Records a valid, non-duplicate id into ``seen_ids`` (mutated in place) so the
+    caller can later find `text` placeholders with no matching blank.
+    """
+    if not isinstance(bid, str) or not bid:
+        return [f"{bpath}: missing/empty `id`"]
+    if bid in seen_ids:
+        return [f"{bpath}: duplicate blank id '{bid}' within this exercise"]
+    seen_ids.add(bid)
+    if bid not in placeholder_ids:
+        return [f"{bpath}: id '{bid}' has no matching {{{{{bid}}}}} placeholder in `text`"]
+    return []
+
+
+def _validate_cloze_blank_answer(bpath: str, options: Any, answer: Any) -> list[str]:
+    """Check one blank's `options` (>=2 words) and `answer` (present, among `options`)."""
+    errors: list[str] = []
+    if not isinstance(options, list) or len(options) < 2:
+        errors.append(f"{bpath}: `options` must list at least 2 words")
+    if not isinstance(answer, str) or not answer:
+        errors.append(f"{bpath}: missing/empty `answer`")
+    elif isinstance(options, list) and answer not in options:
+        errors.append(f"{bpath}: `answer` {answer!r} is not among its own `options`")
+    return errors
+
+
+def _validate_cloze_blank(
+    bpath: str, blank: Any, placeholder_ids: set[str], seen_ids: set[str]
+) -> list[str]:
+    """Validate one `blanks[i]` entry in full: shape, then id, then options/answer."""
+    if not isinstance(blank, dict):
+        return [f"{bpath}: must be an object"]
+    errors = _validate_cloze_blank_id(bpath, blank.get("id"), placeholder_ids, seen_ids)
+    errors.extend(_validate_cloze_blank_answer(bpath, blank.get("options"), blank.get("answer")))
+    return errors
+
+
+def _validate_cloze_orphan_placeholders(
+    prefix: str, placeholder_ids: set[str], seen_ids: set[str]
+) -> list[str]:
+    """`text` placeholders with no matching `blanks` entry, sorted for stable output."""
+    return [
+        f"{prefix}: `text` placeholder {{{{{orphan}}}}} has no matching `blanks` entry"
+        for orphan in sorted(placeholder_ids - seen_ids)
+    ]
+
+
 def _validate_cloze_exercise(story_id: str, exercise: dict[str, Any]) -> list[str]:
     """Semantic checks the mini JSON-Schema validator can't express: cross-field
     rules (an option list contains its own answer, blank ids are unique and
     match `text`'s placeholders 1:1). Structural shape (types, minItems, ...) is
     already covered by :func:`learn.contract.validate` against the schema.
     """
-    errors: list[str] = []
     exercise_id = exercise.get("id", "?")
     prefix = f"story '{story_id}' exercise '{exercise_id}'"
 
     text = exercise.get("text")
     blanks = exercise.get("blanks")
     if text is None or blanks is None:
-        errors.append(f"{prefix}: a pick-the-right-word cloze item needs BOTH `text` and `blanks`")
-        return errors
-    if not isinstance(text, str) or not text.strip():
-        errors.append(f"{prefix}: `text` must be a non-empty string")
-    if not exercise.get("item_id"):
-        errors.append(f"{prefix}: missing `item_id` (the join key `record --item` expects)")
+        return [f"{prefix}: a pick-the-right-word cloze item needs BOTH `text` and `blanks`"]
+
+    errors = _validate_cloze_top_level_fields(prefix, exercise, text)
     if not isinstance(blanks, list) or not blanks:
         errors.append(f"{prefix}: `blanks` must be a non-empty array")
         return errors
@@ -286,35 +346,112 @@ def _validate_cloze_exercise(story_id: str, exercise: dict[str, Any]) -> list[st
     placeholder_ids = set(_BLANK_PLACEHOLDER_RE.findall(text)) if isinstance(text, str) else set()
     seen_ids: set[str] = set()
     for i, blank in enumerate(blanks):
-        bpath = f"{prefix} blanks[{i}]"
-        if not isinstance(blank, dict):
-            errors.append(f"{bpath}: must be an object")
-            continue
-        bid = blank.get("id")
-        options = blank.get("options")
-        answer = blank.get("answer")
-        if not isinstance(bid, str) or not bid:
-            errors.append(f"{bpath}: missing/empty `id`")
-        elif bid in seen_ids:
-            errors.append(f"{bpath}: duplicate blank id '{bid}' within this exercise")
-        else:
-            seen_ids.add(bid)
-            if bid not in placeholder_ids:
-                errors.append(
-                    f"{bpath}: id '{bid}' has no matching {{{{{bid}}}}} placeholder in `text`"
-                )
-        if not isinstance(options, list) or len(options) < 2:
-            errors.append(f"{bpath}: `options` must list at least 2 words")
-        if not isinstance(answer, str) or not answer:
-            errors.append(f"{bpath}: missing/empty `answer`")
-        elif isinstance(options, list) and answer not in options:
-            errors.append(f"{bpath}: `answer` {answer!r} is not among its own `options`")
-
-    for orphan in sorted(placeholder_ids - seen_ids):
-        errors.append(
-            f"{prefix}: `text` placeholder {{{{{orphan}}}}} has no matching `blanks` entry"
+        errors.extend(
+            _validate_cloze_blank(f"{prefix} blanks[{i}]", blank, placeholder_ids, seen_ids)
         )
+
+    errors.extend(_validate_cloze_orphan_placeholders(prefix, placeholder_ids, seen_ids))
     return errors
+
+
+def _read_story_exercises(
+    exe: str, entry: SubjectEntry, story_id: str, timeout: float
+) -> tuple[list[Any], str | None]:
+    """Read one story via ``story read`` and return (exercises, error).
+
+    On any failure to read/parse the story, returns ``([], <error message>)``.
+    On success, returns ``(<exercise list, or [] if the shape is off>, None)`` —
+    a malformed/missing ``exercises`` field is not itself an error here; it just
+    yields nothing to iterate (the schema check on ``story_read`` catches that
+    shape drift, this probe only cares about cloze content).
+    """
+    result = _run(exe, entry, ("story", "read", story_id), learner=True, timeout=timeout)
+    if isinstance(result, str):
+        return [], f"story '{story_id}': could not read to verify cloze items ({result})"
+    rc, out, _err = result
+    if rc != 0:
+        return [], f"story '{story_id}': story read exited {rc}; could not verify cloze items"
+    try:
+        payload = json.loads(out)
+    except json.JSONDecodeError:
+        return [], f"story '{story_id}': story read did not emit valid JSON"
+    story = payload.get("story") if isinstance(payload, dict) else None
+    exercises = story.get("exercises") if isinstance(story, dict) else None
+    return (exercises if isinstance(exercises, list) else []), None
+
+
+def _check_cloze_exercise_id_reuse(
+    exercise_id: str, story_id: str, first_story_for_exercise_id: dict[str, str]
+) -> str | None:
+    """Flag a cloze exercise ``id`` already seen under a different story.
+
+    Records the first (story_id) an id was seen under into
+    ``first_story_for_exercise_id`` (mutated in place).
+    """
+    prior = first_story_for_exercise_id.get(exercise_id)
+    if prior is not None and prior != story_id:
+        return (
+            f"cloze exercise id '{exercise_id}' is reused in both '{prior}' and "
+            f"'{story_id}' — exercise ids must be unique"
+        )
+    first_story_for_exercise_id.setdefault(exercise_id, story_id)
+    return None
+
+
+def _validate_cloze_in_story(
+    story_id: str, exercise: dict[str, Any], first_story_for_exercise_id: dict[str, str]
+) -> list[str]:
+    """Validate one cloze exercise's well-formedness plus its id's cross-story uniqueness."""
+    errors = _validate_cloze_exercise(story_id, exercise)
+    exercise_id = exercise.get("id")
+    if isinstance(exercise_id, str) and exercise_id:
+        reuse_error = _check_cloze_exercise_id_reuse(
+            exercise_id, story_id, first_story_for_exercise_id
+        )
+        if reuse_error is not None:
+            errors.append(reuse_error)
+    return errors
+
+
+def _probe_story_cloze_items(
+    story_id: str, exercises: list[Any], first_story_for_exercise_id: dict[str, str]
+) -> tuple[list[str], int]:
+    """Validate every pick-the-right-word cloze exercise in one story's exercise list.
+
+    Returns ``(errors, found_count)`` — exercises that aren't the cloze-blanks
+    variant (see :func:`_is_cloze_blanks_item`) are skipped, uncounted.
+    """
+    errors: list[str] = []
+    found = 0
+    for exercise in exercises:
+        if not _is_cloze_blanks_item(exercise):
+            continue
+        found += 1
+        errors.extend(_validate_cloze_in_story(story_id, exercise, first_story_for_exercise_id))
+    return errors, found
+
+
+def _summarize_cloze_check(
+    cid: str, errors: list[str], found: int, remediation: str
+) -> dict[str, Any]:
+    """Turn accumulated per-story errors/found-count into the final `cloze-items` check.
+
+    A subject with no cloze-blanks items (``found == 0``) passes trivially, even
+    if some story failed to read along the way — that's a content-verification
+    no-op, not this check's failure to report.
+    """
+    if found == 0:
+        return _check(cid, True, "no pick-the-right-word cloze items declared (nothing to verify)")
+    if errors:
+        return _check(
+            cid,
+            False,
+            f"{errors[0]} ({len(errors)} issue(s) total across {found} cloze item(s))",
+            remediation=remediation,
+        )
+    return _check(
+        cid, True, f"{found} pick-the-right-word cloze item(s) verified: well-formed blanks"
+    )
 
 
 def _probe_cloze_items(
@@ -349,53 +486,17 @@ def _probe_cloze_items(
         story_id = summary.get("id") if isinstance(summary, dict) else None
         if not isinstance(story_id, str) or not story_id:
             continue
-        result = _run(exe, entry, ("story", "read", story_id), learner=True, timeout=timeout)
-        if isinstance(result, str):
-            errors.append(f"story '{story_id}': could not read to verify cloze items ({result})")
+        exercises, read_error = _read_story_exercises(exe, entry, story_id, timeout)
+        if read_error is not None:
+            errors.append(read_error)
             continue
-        rc, out, _err = result
-        if rc != 0:
-            errors.append(
-                f"story '{story_id}': story read exited {rc}; could not verify cloze items"
-            )
-            continue
-        try:
-            payload = json.loads(out)
-        except json.JSONDecodeError:
-            errors.append(f"story '{story_id}': story read did not emit valid JSON")
-            continue
-        story = payload.get("story") if isinstance(payload, dict) else None
-        exercises = story.get("exercises") if isinstance(story, dict) else None
-        if not isinstance(exercises, list):
-            continue
-        for exercise in exercises:
-            if not _is_cloze_blanks_item(exercise):
-                continue
-            found += 1
-            errors.extend(_validate_cloze_exercise(story_id, exercise))
-            exercise_id = exercise.get("id")
-            if isinstance(exercise_id, str) and exercise_id:
-                prior = first_story_for_exercise_id.get(exercise_id)
-                if prior is not None and prior != story_id:
-                    errors.append(
-                        f"cloze exercise id '{exercise_id}' is reused in both '{prior}' and "
-                        f"'{story_id}' — exercise ids must be unique"
-                    )
-                else:
-                    first_story_for_exercise_id.setdefault(exercise_id, story_id)
-
-    if found == 0:
-        return _check(cid, True, "no pick-the-right-word cloze items declared (nothing to verify)")
-    if errors:
-        return _check(
-            cid,
-            False,
-            f"{errors[0]} ({len(errors)} issue(s) total across {found} cloze item(s))",
-            remediation=remediation,
+        story_errors, story_found = _probe_story_cloze_items(
+            story_id, exercises, first_story_for_exercise_id
         )
-    return _check(
-        cid, True, f"{found} pick-the-right-word cloze item(s) verified: well-formed blanks"
-    )
+        errors.extend(story_errors)
+        found += story_found
+
+    return _summarize_cloze_check(cid, errors, found, remediation)
 
 
 def run_conformance(entry: SubjectEntry, *, timeout: float = DEFAULT_TIMEOUT) -> dict[str, Any]:
