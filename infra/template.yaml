@@ -320,6 +320,14 @@ Resources:
   # session's model tokens. TTL (expires_at) garbage-collects sessions and
   # frames for free, so a crashed holder cannot pin the concurrency cap
   # (rows expire ~1 h past deadline) or accumulate storage cost.
+  #
+  # Session-metadata items live under the constant partition key PK=ACTIVE
+  # (frames keep their own PK=SESSION#<connection> partition) precisely so
+  # the $connect concurrency gate (DynamoSessionStore.count_active) can
+  # Query that one partition instead of Scan-ing the whole table — a Scan
+  # would read every frame row too, so its cost/latency would grow with
+  # frame volume even though the gate only ever needs the session count.
+  # The base table's PK/SK schema already covers this Query; no GSI needed.
   VoiceSessionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
