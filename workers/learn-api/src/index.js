@@ -15,6 +15,8 @@
 //   GET  /api/me                auth*    who am I + session expiry (auto-refresh)
 //   GET  /api/progress/:subject consent  ledger-derived progress payload
 //   POST /api/record            consent  append a recorded result to the ledger
+//   GET  /api/export            consent  full self-serve data export (JSON)
+//   POST /api/delete            auth*    consent withdrawal = whole-learner erasure
 //   POST /api/tutor             consent  broker -> env.INFERENCE_URL (model call)
 //
 // auth*   = any valid session, INCLUDING pending-consent (requireAuth).
@@ -22,6 +24,11 @@
 //           published terms version; pending-consent OR stale-version
 //           sessions get a structured 403 (requireConsented) before the
 //           route body runs.
+//
+// Self-serve export + delete (spec c11/h3, decision c18, task t7): consent
+// withdrawal means deletion, not a soft flag — see handleExport/handleDelete
+// below for why export requires a CURRENT consent but delete deliberately
+// does not.
 //
 // Resource-gate invariant: requireAuth()/requireConsented() runs before the
 // body of every auth route. POST /api/tutor is the only route that spends
@@ -80,8 +87,11 @@ import {
   getLearner,
   insertRecord,
   listRecords,
+  listAllRecords,
+  listConsents,
   getConsent,
   recordConsent,
+  deleteLearnerData,
 } from "./db.js";
 import { deriveProgress } from "./progress.js";
 import {
@@ -135,6 +145,8 @@ async function route(request, env, ctx) {
   if (method === "POST" && path === "/api/auth/logout") return handleLogout(request, env);
   if (method === "GET" && path === "/api/me") return handleMe(request, env);
   if (method === "POST" && path === "/api/record") return handleRecord(request, env);
+  if (method === "GET" && path === "/api/export") return handleExport(request, env);
+  if (method === "POST" && path === "/api/delete") return handleDelete(request, env);
   if (method === "POST" && path === "/api/tutor") return handleTutor(request, env, ctx);
 
   const progressMatch = /^\/api\/progress\/([a-z][a-z0-9-]*)$/.exec(path);
@@ -329,7 +341,8 @@ async function handleConsentDecline(request, env) {
       409,
       "already_consented",
       "This session already carries recorded consent; decline applies only before accepting.",
-      "To withdraw consent (which deletes your stored data), use the self-serve delete flow.",
+      'To withdraw consent (which deletes your stored data), call POST /api/delete with ' +
+        '{ "confirm": "<your github_user_id>" } (see GET /api/me for that id).',
     );
   }
   await revokeSession(env, session);
@@ -450,6 +463,103 @@ async function handleRecord(request, env) {
   });
 }
 
+// --- self-serve export + delete (spec c11/h3, decision c18, task t7) -------
+//
+// Erasure beats immutability at whole-learner granularity (c18): the
+// records ledger stays append-only for normal operation — there is no
+// update-a-row or delete-one-row API anywhere in this Worker, here or
+// elsewhere — and the ONLY erasure path is whole-learner exit through
+// POST /api/delete below, which defers the actual D1 work to
+// db.js#deleteLearnerData (records + consents + the learners row, one
+// batch) and revokes the CURRENT session here at the route layer (KV
+// tombstone, same mechanism as logout) — db.js deliberately never touches
+// KV, see its own "revokes nothing beyond D1 rows" test.
+
+// GET /api/export: the learner's complete data as JSON — their identity
+// row, every recorded result across every subject, and their full consent
+// history. Runs on requireConsented, same as progress/record/tutor: a
+// pending-consent session has NOTHING to export by construction (t5's h1
+// guarantee — zero D1 writes happen before consent) and a stale-consent
+// (reason: "stale_version") session is walled off the same way every other
+// requireConsented route already is — export is a resource READ, not one of
+// the narrow requireAuth escape-hatch routes (/api/me, consent accept/
+// decline, logout) that exist specifically to get OUT of pending/stale.
+// Recovery is one click either way: POST /api/consent/accept to re-consent
+// then export, or POST /api/delete below to erase without re-consenting.
+async function handleExport(request, env) {
+  const session = await requireConsented(request, env);
+  const [learner, records, consents] = await Promise.all([
+    getLearner(env, session.uid),
+    listAllRecords(env, session.uid),
+    listConsents(env, session.uid),
+  ]);
+  return jsonResponse(200, {
+    schema_version: CONTRACT_VERSION,
+    kind: "export",
+    exported_at: new Date().toISOString(),
+    schema_note:
+      "learner: your identity (github_user_id, display_name) plus the small " +
+      "cross-subject state blob. records: every result ever recorded to " +
+      "your ledger, across every subject, oldest first, each carrying the " +
+      "exact object your subject CLI or the web reader submitted. " +
+      "consents: every Terms/Privacy version you have accepted, oldest " +
+      "first. This is the complete set of data this service holds about " +
+      "you (spec c11 / data-portability).",
+    learner: learner || {
+      github_user_id: String(session.uid),
+      display_name: session.name,
+      state: {},
+    },
+    records: records.map((row) => ({
+      subject: row.subject,
+      item_id: row.item_id,
+      activity: row.activity,
+      result: row.result,
+      at: row.at,
+      mastery_level: row.mastery_level || null,
+      recorded: parseRecorded(row.recorded),
+    })),
+    consents: consents.map((c) => ({
+      terms_version: c.terms_version,
+      granted_at: c.granted_at,
+    })),
+  });
+}
+
+// POST /api/delete: whole-learner erasure. Runs on requireAuth, deliberately
+// NOT requireConsented — a learner whose stored consent has gone stale
+// (t6's "stale_version") must still be able to erase their data WITHOUT
+// first being forced to re-accept terms they no longer agree to; gating
+// erasure behind fresh consent would be self-defeating. A pending-consent
+// session may call this too: nothing was ever written for it (h1), so
+// deleteLearnerData is a documented no-op (see db.test.js) and revoking the
+// pending session here has the same effect as POST /api/consent/decline.
+//
+// `confirm` must equal the caller's own github_user_id (readable from
+// GET /api/me) — a deliberate one-extra-step guard against an accidental
+// bare POST (e.g. a stray retry, a misclicked button) silently erasing an
+// account; a body-less or empty-body request already 400s as bad_json
+// before this check even runs.
+async function handleDelete(request, env) {
+  const session = await requireAuth(request, env);
+  const body = await readJson(request);
+  if (String(body.confirm || "") !== String(session.uid)) {
+    throw new HttpError(
+      400,
+      "confirmation_required",
+      "Deletion requires confirm to equal your own github_user_id.",
+      'GET /api/me to read your github_user_id, then POST /api/delete with { "confirm": "<that id>" }.',
+    );
+  }
+  const deleted = await deleteLearnerData(env, session.uid);
+  await revokeSession(env, session);
+  return jsonResponse(
+    200,
+    { ok: true, status: "deleted", deleted },
+    { "Set-Cookie": cookie("session", "", { maxAge: 0 }) },
+  );
+}
+
 async function handleTutor(request, env, ctx) {
   // AUTH + CONSENT FIRST — before any inference call. This ordering is the
   // guarantee: neither signed-out nor pending-consent traffic reaches the
@@ -495,6 +605,19 @@ async function revokeSession(env, session) {
     await env.SESSIONS.put(`revoked:${session.sid}`, "1", {
       expirationTtl: DEFAULT_TTL_SECONDS * 2,
     });
+  }
+}
+
+// db.js stores `records.recorded` as a JSON TEXT column (see insertRecord);
+// the export route (t7) hands the learner back the parsed object rather
+// than a double-encoded string. Defensive like getLearner's `state` parse:
+// malformed/legacy rows degrade to `{}` instead of failing the whole export.
+function parseRecorded(raw) {
+  if (raw && typeof raw === "object") return raw;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
   }
 }
 

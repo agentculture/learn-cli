@@ -16,6 +16,12 @@
 // All access goes through the D1 binding `env.DB` (prepare/bind/run/all/first,
 // plus batch for the multi-statement delete), so tests swap in an in-memory
 // D1 stub with the same surface.
+//
+// Self-serve export + delete (spec c11/h3, decision c18, task t7):
+// listAllRecords/listConsents are the ALL-subjects / full-history reads the
+// export route needs (listRecords/getConsent stay scoped to one
+// subject/the-latest-row for their existing callers). deleteLearnerData is
+// the sole erasure path — see its own doc comment below.
 
 /** Upsert a learner's identity. Only id + display name are written on login. */
 export async function upsertLearner(env, learner) {
@@ -82,6 +88,24 @@ export async function listRecords(env, uid, subject) {
   return (out && out.results) || [];
 }
 
+/**
+ * List every recorded result for a learner across ALL subjects, oldest
+ * first — the full-ledger view self-serve export (t7) needs. Unlike
+ * listRecords, this is not subject-scoped, so each returned row carries its
+ * own `subject` to keep a multi-subject export attributable.
+ */
+export async function listAllRecords(env, uid) {
+  const out = await env.DB.prepare(
+    `SELECT subject, item_id, recorded, mastery_level, activity, result, at
+       FROM records
+      WHERE github_user_id = ?
+      ORDER BY id ASC`,
+  )
+    .bind(String(uid))
+    .all();
+  return (out && out.results) || [];
+}
+
 /** Read a learner's most recent consent row (by granted_at), or null. */
 export async function getConsent(env, uid) {
   const row = await env.DB.prepare(
@@ -117,6 +141,23 @@ export async function recordConsent(env, uid, termsVersion) {
     .bind(String(uid), termsVersion, now, now)
     .run();
   return { github_user_id: String(uid), terms_version: termsVersion, granted_at: now };
+}
+
+/**
+ * List EVERY consent row a learner has ever accepted (not just the most
+ * recent one, unlike getConsent) — the full accept-history self-serve
+ * export (t7) reports. Oldest first.
+ */
+export async function listConsents(env, uid) {
+  const out = await env.DB.prepare(
+    `SELECT terms_version, granted_at
+       FROM consents
+      WHERE github_user_id = ?
+      ORDER BY granted_at ASC`,
+  )
+    .bind(String(uid))
+    .all();
+  return (out && out.results) || [];
 }
 
 /**

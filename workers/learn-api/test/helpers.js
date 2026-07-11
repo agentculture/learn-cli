@@ -180,10 +180,20 @@ class D1Prepared {
 
   async all() {
     if (this.sql.includes("from records")) {
+      // listRecords binds (uid, subject); listAllRecords (t7) binds uid
+      // only — a missing second bind means "every subject".
       const [uid, subject] = this.args;
-      const results = this.db.records
-        .filter((r) => r.github_user_id === String(uid) && r.subject === subject)
-        .sort((a, b) => a.id - b.id);
+      let results = this.db.records.filter((r) => r.github_user_id === String(uid));
+      if (subject !== undefined) results = results.filter((r) => r.subject === subject);
+      return { results: [...results].sort((a, b) => a.id - b.id) };
+    }
+    if (this.sql.includes("from consents")) {
+      // listConsents (t7): every consent row for a learner, oldest first —
+      // unlike getConsent's single most-recent-row `first()` query above.
+      const [uid] = this.args;
+      const results = this.db.consents
+        .filter((c) => c.github_user_id === String(uid))
+        .sort((a, b) => (a.granted_at < b.granted_at ? -1 : a.granted_at > b.granted_at ? 1 : 0));
       return { results };
     }
     return { results: [] };

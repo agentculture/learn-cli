@@ -8,7 +8,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { getConsent, recordConsent, deleteLearnerData } from "../src/db.js";
+import {
+  getConsent,
+  recordConsent,
+  deleteLearnerData,
+  listAllRecords,
+  listConsents,
+} from "../src/db.js";
 import { makeEnv } from "./helpers.js";
 
 // --- getConsent --------------------------------------------------------
@@ -169,6 +175,46 @@ test("deleteLearnerData revokes nothing beyond D1 rows (session revocation is t7
   const sessionsBefore = env.SESSIONS.map.size;
   await deleteLearnerData(env, "42");
   assert.equal(env.SESSIONS.map.size, sessionsBefore, "deleteLearnerData does not touch KV");
+});
+
+// --- listAllRecords (t7) ----------------------------------------------
+
+test("listAllRecords returns rows across EVERY subject, oldest first", async () => {
+  const env = makeEnv();
+  env.DB.records.push(
+    { id: 1, github_user_id: "42", subject: "french", item_id: "a1", recorded: '{"item_id":"a1"}',
+      mastery_level: "mastered", activity: "practice", result: "pass", at: "2026-01-01T00:00:00Z" },
+    { id: 2, github_user_id: "42", subject: "spanish", item_id: "b1", recorded: '{"item_id":"b1"}',
+      mastery_level: "practiced", activity: "lesson", result: "partial", at: "2026-02-01T00:00:00Z" },
+    { id: 3, github_user_id: "99", subject: "french", item_id: "c1", recorded: '{"item_id":"c1"}',
+      mastery_level: "mastered", activity: "practice", result: "pass", at: "2026-01-05T00:00:00Z" },
+  );
+  const rows = await listAllRecords(env, "42");
+  assert.equal(rows.length, 2, "isolated to the requested learner, both subjects included");
+  assert.deepEqual(rows.map((r) => r.subject), ["french", "spanish"]);
+  assert.deepEqual(rows.map((r) => r.item_id), ["a1", "b1"]);
+});
+
+test("listAllRecords returns an empty array for a learner with no records", async () => {
+  const env = makeEnv();
+  assert.deepEqual(await listAllRecords(env, "42"), []);
+});
+
+// --- listConsents (t7) --------------------------------------------------
+
+test("listConsents returns EVERY accepted version, oldest first (unlike getConsent's latest-only)", async () => {
+  const env = makeEnv();
+  await recordConsent(env, "42", "1.0.0");
+  await recordConsent(env, "42", "1.1.0");
+  const rows = await listConsents(env, "42");
+  assert.equal(rows.length, 2);
+  assert.deepEqual(rows.map((r) => r.terms_version), ["1.0.0", "1.1.0"]);
+});
+
+test("listConsents is per-learner isolated and empty for an unknown learner", async () => {
+  const env = makeEnv();
+  await recordConsent(env, "42", "1.0.0");
+  assert.deepEqual(await listConsents(env, "99"), []);
 });
 
 test("getConsent: same-millisecond re-consent tie resolves to the newest row (rowid tiebreak)", async () => {
