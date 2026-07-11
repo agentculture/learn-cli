@@ -8,7 +8,7 @@
 // by test (worker.test.js: "signed-out /api/tutor never calls inference").
 
 import { HttpError, parseCookies } from "./util.js";
-import { verifySession } from "./session.js";
+import { verifySession, isPendingConsent } from "./session.js";
 
 /** Extract a session token from a Bearer header (CLI/MCP) or cookie (web). */
 export function extractToken(request) {
@@ -45,6 +45,31 @@ export async function requireAuth(request, env) {
         "Sign in again to obtain a fresh session.",
       );
     }
+  }
+  return payload;
+}
+
+/**
+ * Require a valid, CONSENTED session — requireAuth plus the pending-consent
+ * gate (spec decision c19). A pending-consent token authenticates the learner
+ * but grants nothing beyond /api/me, the consent endpoints, and logout; every
+ * learner-scoped route (progress, record, tutor, ...) passes through here and
+ * rejects it with a structured 403 BEFORE touching D1 or inference.
+ *
+ * t5 gates on the token's own marker only: a full session was necessarily
+ * issued via consent accept (or a consented sign-in), so no D1 read is needed
+ * here. t6 (re-consent on version bump) adds the stored-version check.
+ * @returns {object} the verified, consented session payload.
+ */
+export async function requireConsented(request, env) {
+  const payload = await requireAuth(request, env);
+  if (isPendingConsent(payload)) {
+    throw new HttpError(
+      403,
+      "consent_required",
+      "Consent to the current Terms of Use and Privacy Policy is required first.",
+      "Review GET /api/consent, then POST /api/consent/accept — or /api/consent/decline to leave with nothing stored.",
+    );
   }
   return payload;
 }

@@ -3,12 +3,14 @@ import assert from "node:assert/strict";
 
 import worker from "../src/index.js";
 import { GH } from "../src/github.js";
+import { TERMS_VERSION } from "../src/terms.js";
 import {
   makeEnv,
   makeFetchStub,
   mintToken,
   authedRequest,
   jsonResp,
+  seedConsent,
 } from "./helpers.js";
 
 const BASE = "https://learn-api.example";
@@ -292,12 +294,15 @@ test("login redirect_uri carries the /learn mount prefix (matches the GitHub app
   assert.equal(redirectUri, "https://agentculture.org/learn/api/auth/callback");
 });
 
-test("GET /api/auth/callback exchanges code, upserts learner, sets session", async () => {
+test("GET /api/auth/callback (consented user) exchanges code, upserts learner, sets session", async () => {
   const fetchStub = makeFetchStub({
     [GH.token]: () => jsonResp({ access_token: "gho_web", token_type: "bearer" }),
     [GH.user]: () => jsonResp({ id: 555, login: "trinity", name: "Trinity" }),
   });
   const env = makeEnv({ FETCH: fetchStub, APP_URL: "https://agentculture.org/learn/" });
+  // A returning learner with recorded consent — the unconsented (pending)
+  // first sign-in is covered in consent.test.js.
+  seedConsent(env, "555", TERMS_VERSION);
 
   const req = new Request(`${BASE}/api/auth/callback?code=abc&state=xyz`, {
     headers: { Cookie: "oauth_state=xyz" },
@@ -352,7 +357,7 @@ test("device flow: start returns the user code", async () => {
   assert.equal(body.device_code, "dc_123");
 });
 
-test("device flow: poll pending, then complete issues a Bearer token", async () => {
+test("device flow (consented user): poll pending, then complete issues a Bearer token", async () => {
   let phase = "pending";
   const fetchStub = makeFetchStub({
     [GH.token]: () =>
@@ -362,6 +367,9 @@ test("device flow: poll pending, then complete issues a Bearer token", async () 
     [GH.user]: () => jsonResp({ id: 777, login: "neo", name: "Neo" }),
   });
   const env = makeEnv({ FETCH: fetchStub });
+  // A returning learner with recorded consent — the unconsented poll
+  // (status: consent_required) is covered in consent.test.js.
+  seedConsent(env, "777", TERMS_VERSION);
 
   const poll = () =>
     call(

@@ -13,6 +13,20 @@ spends inference tokens — is unreachable without a valid session. This is
 proven by `test/worker.test.js` ("signed-out `/api/tutor` never calls
 inference"), not merely asserted.
 
+The consent-gate invariant (spec c9/h1, decision c19) sits directly on top:
+**neither sign-in path writes anything to D1 until the learner has accepted
+the current Terms/Privacy version.** An unconsented sign-in (web callback or
+device poll) mints a short-lived **pending-consent session** — a stateless
+signed token marked `pending_consent: true`, TTL 10 minutes — whose only
+capabilities are `GET /api/me`, the consent endpoints, and logout. Every other
+authed route rejects it with a structured `403 consent_required` before
+touching D1 or inference. Accept records the consent row **first**, then
+creates the learner row (`consents` deliberately has no FK to `learners` so
+that order is possible), and upgrades to a full session. Decline revokes the
+pending session — nothing was ever written. Proven by `test/consent.test.js`,
+which asserts **zero D1 write statements** on both paths via a write log in
+the D1 stub.
+
 No third-party runtime deps: the Worker uses only Web-standard APIs (`fetch`,
 `Request`/`Response`, `crypto.subtle`, `btoa`/`atob`), so the same code runs in
 `wrangler dev`, in production, and under `node --test`.
@@ -23,16 +37,22 @@ No third-party runtime deps: the Worker uses only Web-standard APIs (`fetch`,
 | --- | --- | --- | --- |
 | GET | `/api/health` | public | Liveness. |
 | GET | `/api/auth/login` | public | Web OAuth: 302 to GitHub, sets a `oauth_state` cookie. |
-| GET | `/api/auth/callback` | public | Web OAuth: exchange code, upsert learner, set `session` cookie, redirect to the site. |
-| POST | `/api/auth/device` | public | Device flow `start` / `poll` for the CLI + MCP (wave-3 t12). |
-| POST | `/api/auth/logout` | session | Revoke the current session (KV tombstone) and clear the cookie. |
-| GET | `/api/me` | session | Identity + session expiry; auto-refreshes a near-stale session. |
-| GET | `/api/progress/:subject` | session | Ledger-derived `progress.json`-shaped payload. |
-| POST | `/api/record` | session | Validate the `recorded` shape and append it to the ledger. |
-| POST | `/api/tutor` | session | Broker: forward to `INFERENCE_URL` (a served inference endpoint). |
+| GET | `/api/auth/callback` | public | Web OAuth: exchange code. Consented user: upsert learner, set full `session` cookie, redirect to the site. Unconsented: set a pending-consent cookie, redirect to `/learn/consent/`, **zero D1 writes**. |
+| POST | `/api/auth/device` | public | Device flow `start` / `poll` for the CLI + MCP (wave-3 t12). Unconsented poll returns `status: "consent_required"` + a pending Bearer token, zero D1 writes. |
+| GET | `/api/consent` | public | What consent is currently required: `terms_version`, `effective_date`, policy links. |
+| POST | `/api/consent/accept` | session or pending | Record consent for the exact current `TERMS_VERSION`, **then** upsert the learner, upgrade to a full session (cookie + body token). |
+| POST | `/api/consent/decline` | pending only | Revoke the pending session, clear the cookie, nothing ever written. Full session gets `409 already_consented`. |
+| POST | `/api/auth/logout` | session or pending | Revoke the current session (KV tombstone) and clear the cookie. |
+| GET | `/api/me` | session or pending | Identity + session expiry; auto-refreshes a near-stale full session. Pending session: reports `pending_consent: true` + `consent_required`, never refreshes. |
+| GET | `/api/progress/:subject` | consented | Ledger-derived `progress.json`-shaped payload. Pending session: `403 consent_required`. |
+| POST | `/api/record` | consented | Validate the `recorded` shape and append it to the ledger. Pending session: `403 consent_required`. |
+| POST | `/api/tutor` | consented | Broker: forward to `INFERENCE_URL` (a served inference endpoint). Pending session: `403 consent_required`, zero inference calls. |
 
-Sessions are stateless HMAC-signed tokens (short TTL, ~1h) accepted either as an
-`Authorization: Bearer <token>` header (CLI/MCP) or a `session` cookie (web).
+Sessions are stateless HMAC-signed tokens (short TTL, ~1h; pending-consent
+tokens 10 min) accepted either as an `Authorization: Bearer <token>` header
+(CLI/MCP) or a `session` cookie (web). Pending-consent tokens carry
+`pending_consent: true` in their signed payload — no server-side row backs
+them, which is how sign-in stays write-free until consent.
 
 ## Storage
 
@@ -46,6 +66,10 @@ Sessions are stateless HMAC-signed tokens (short TTL, ~1h) accepted either as an
   - `records (...)` — append-only ledger. Every `POST /api/record` inserts one
     row; rows are never updated or deleted. Derived numbers
     (`score`/`grade`/`points`) are rejected before insert.
+  - `consents (github_user_id, terms_version, granted_at)` — one row per
+    accepted terms version. Deliberately **no FK to `learners`**: the consent
+    row is recorded *before* the learner row exists (accept-order contract).
+    For any learner, this is the first row that ever exists for them.
 
 ## Local development
 
@@ -188,7 +212,34 @@ POST /api/auth/device   { "action": "poll", "device_code": "<dc>" }
   -> 200 { "status": "pending", "slow_down": false }
   -> 200 { "status": "complete", "token": "<jwt-lite>", "token_type": "Bearer",
            "expires_at": <unix>, "learner": { github_user_id, display_name } }
+  -> 200 { "status": "consent_required", "token": "<pending jwt-lite>",
+           "token_type": "Bearer", "expires_at": <unix>,
+           "consent_required": { terms_version, effective_date,
+                                 terms_url, privacy_url },
+           "learner": { github_user_id, display_name } }
 ```
+
+On `consent_required` (a first sign-in, or no consent recorded yet): nothing is
+stored server-side; the CLI shows the notice (render `consent_required`, link
+both policy URLs) and prompts. The returned `token` is a **pending-consent**
+Bearer token (10 min TTL) valid only for `GET /api/me`, the consent endpoints,
+and logout — use it to call:
+
+```text
+POST /api/consent/accept    Authorization: Bearer <pending token>
+  -> 200 { ok: true, status: "consented",
+           consent: { terms_version, granted_at },
+           token: "<full jwt-lite>", token_type: "Bearer", expires_at: <unix>,
+           learner: { github_user_id, display_name } }
+
+POST /api/consent/decline   Authorization: Bearer <pending token>
+  -> 200 { ok: true, status: "declined", stored: false }   // token revoked, zero rows written
+  -> 409 { error: "already_consented", ... }               // on a full session
+```
+
+After accept, replace the stored token with the returned full `token` (the
+pending one is revoked). Do **not** re-poll the device code — GitHub codes are
+one-shot; the pending token is the continuation.
 
 The CLI stores `token` and sends it as `Authorization: Bearer <token>` on every
 subsequent call. Poll at `interval` seconds; back off on `slow_down`. Refresh by
@@ -222,13 +273,36 @@ Signed-in panels hydrate client-side by calling this API with credentials
 
 ```text
 GET /api/me
-  -> 200 { authenticated: true, learner: { github_user_id, display_name },
+  -> 200 { authenticated: true, pending_consent: false,
+           learner: { github_user_id, display_name },
            session: { expires_at, refreshed } }
+  -> 200 { authenticated: true, pending_consent: true,
+           consent_required: { terms_version, effective_date,
+                               terms_url, privacy_url },
+           learner: { github_user_id, display_name },
+           session: { expires_at, refreshed: false } }
   -> 401 (not signed in) — render the signed-out state, make NO further calls
 ```
 
 Sign-in button: link to `GET /api/auth/login`. Sign-out: `POST /api/auth/logout`.
 Progress/record shapes are identical to the CLI's above.
+
+### For t10 (the consent page, `/learn/consent/`)
+
+An unconsented web sign-in 302s from the OAuth callback to `/learn/consent/`
+carrying a pending-consent `session` cookie (10 min TTL). The page:
+
+1. Calls `GET /api/me` with credentials. `pending_consent: true` → render the
+   notice from `consent_required` (version, effective date, `terms_url`,
+   `privacy_url`). A `401` here means the pending session expired — offer the
+   sign-in link again. (`GET /api/consent` serves the same requirement shape
+   without a session, e.g. for pre-rendering.)
+2. **Accept** → `POST /api/consent/accept` with credentials. The response sets
+   the upgraded full-session cookie itself (the body token can be ignored on
+   the web) — then navigate into `/learn/` signed in.
+3. **Decline** → `POST /api/consent/decline` with credentials. The cookie is
+   cleared and the session revoked; confirm to the user that nothing was
+   stored (`stored: false` in the response is that guarantee, test-proven).
 
 ## Testing
 
@@ -236,9 +310,12 @@ Progress/record shapes are identical to the CLI's above.
 node --test
 ```
 
-34 tests cover session sign/verify/expiry, `recorded` validation (including the
+74 tests cover session sign/verify/expiry, `recorded` validation (including the
 `score`/`grade`/`points` rejection), the full record round-trip, per-learner
-ledger isolation, web + device OAuth flows, and — critically — that a signed-out
-`/api/tutor` request returns `401` with **zero** inference calls. Tests invoke
-the Worker's `fetch` handler directly with in-memory KV/D1 stubs; no network and
-no wrangler are needed.
+ledger isolation, web + device OAuth flows, the consent gate (zero D1 writes on
+both unconsented sign-in paths, the pending-session 403 wall, accept ordering —
+consent row before learner row — and write-free decline), and — critically —
+that a signed-out `/api/tutor` request returns `401` with **zero** inference
+calls. Tests invoke the Worker's `fetch` handler directly with in-memory KV/D1
+stubs (the D1 stub logs every write statement, making "zero writes" literal);
+no network and no wrangler are needed.

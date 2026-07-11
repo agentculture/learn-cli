@@ -43,6 +43,11 @@ export class D1Stub {
     this.learners = new Map();
     this.records = [];
     this.consents = [];
+    // Every write statement (insert/delete, any table) appends one entry here,
+    // in execution order. This is what makes "zero D1 writes before consent"
+    // (spec h1) literal: tests assert on `db.writes`, not just on table sizes,
+    // and can also assert ORDER (consent row recorded before the learner row).
+    this.writes = [];
     this._id = 0;
   }
 
@@ -79,8 +84,13 @@ class D1Prepared {
     return this;
   }
 
+  _logWrite(table, op) {
+    this.db.writes.push({ table, op });
+  }
+
   async run() {
     if (this.sql.includes("insert into learners")) {
+      this._logWrite("learners", "insert");
       // args: uid, name, now, now, name(update), now(update)
       const [uid, name] = this.args;
       const existing = this.db.learners.get(String(uid));
@@ -92,6 +102,7 @@ class D1Prepared {
       return { success: true, meta: { changes: 1, last_row_id: 0 } };
     }
     if (this.sql.includes("insert into records")) {
+      this._logWrite("records", "insert");
       const [uid, subject, item_id, recorded, mastery_level, activity, result, at] = this.args;
       const id = ++this.db._id;
       this.db.records.push({
@@ -108,6 +119,7 @@ class D1Prepared {
       return { success: true, meta: { changes: 1, last_row_id: id } };
     }
     if (this.sql.includes("insert into consents")) {
+      this._logWrite("consents", "insert");
       // args: uid, terms_version, granted_at, granted_at(on-conflict update)
       const [uid, termsVersion, grantedAt] = this.args;
       const id = String(uid);
@@ -122,18 +134,21 @@ class D1Prepared {
       return { success: true, meta: { changes: 1 } };
     }
     if (this.sql.includes("delete from records")) {
+      this._logWrite("records", "delete");
       const [uid] = this.args;
       const before = this.db.records.length;
       this.db.records = this.db.records.filter((r) => r.github_user_id !== String(uid));
       return { success: true, meta: { changes: before - this.db.records.length } };
     }
     if (this.sql.includes("delete from consents")) {
+      this._logWrite("consents", "delete");
       const [uid] = this.args;
       const before = this.db.consents.length;
       this.db.consents = this.db.consents.filter((c) => c.github_user_id !== String(uid));
       return { success: true, meta: { changes: before - this.db.consents.length } };
     }
     if (this.sql.includes("delete from learners")) {
+      this._logWrite("learners", "delete");
       const [uid] = this.args;
       const existed = this.db.learners.delete(String(uid));
       return { success: true, meta: { changes: existed ? 1 : 0 } };
@@ -196,10 +211,22 @@ export function makeEnv(overrides = {}) {
   };
 }
 
-/** Mint a valid (or, with ttl<0, expired) session token for a learner. */
-export async function mintToken(env, learner = { uid: "42", name: "Ada" }, ttl = 3600) {
-  const { token, payload } = await issueSession(env, learner, ttl);
+/** Mint a valid (or, with ttl<0, expired) session token for a learner.
+ * Pass `opts = { pendingConsent: true }` for a pending-consent token. */
+export async function mintToken(env, learner = { uid: "42", name: "Ada" }, ttl = 3600, opts = {}) {
+  const { token, payload } = await issueSession(env, learner, ttl, opts);
   return { token, payload };
+}
+
+/** Seed a consent row directly into the D1 stub (an already-consented
+ * learner), bypassing the write log — tests that assert "zero writes during
+ * the flow under test" must not count their own fixtures. */
+export function seedConsent(env, uid, termsVersion, grantedAt = "2026-07-11T00:00:00Z") {
+  env.DB.consents.push({
+    github_user_id: String(uid),
+    terms_version: termsVersion,
+    granted_at: grantedAt,
+  });
 }
 
 /** JSON Response helper for stubs. */
