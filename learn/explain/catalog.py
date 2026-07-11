@@ -115,6 +115,62 @@ itself (distinct from the global `overview`, which describes the agent).
     learn-cli cli overview --json
 """
 
+_SUBJECTS = """\
+# learn subjects
+
+Lists the registered subjects and whether each subject CLI is installed. The
+set of subjects is pure data — the `learn/subjects/registry.json` registry
+(override with the `LEARN_SUBJECTS_REGISTRY` env var). Deleting a registry entry
+removes the subject from every face; learn-cli holds no subject content.
+
+## Usage
+
+    learn subjects
+    learn subjects --json
+
+Each `--json` entry carries `name`, `display_name`, `description`, `repo`,
+`argv_prefix`, `contract_version`, and `available`.
+"""
+
+_SUBJECT = """\
+# learn subject
+
+The noun that fronts per-subject tutor CLIs. learn-cli hosts subjects it never
+imports, driving them only as external subprocesses over `--json`.
+
+## Verbs
+
+- `learn subject overview` — describe this noun and the registered subjects.
+- `learn subject doctor <name>` — check a subject CLI against the contract.
+
+## Usage
+
+    learn subject overview
+    learn subject doctor french --json
+"""
+
+_SUBJECT_DOCTOR = """\
+# learn subject doctor <name>
+
+The conformance gate. Drives a registered subject's verbs as subprocesses and
+validates each `--json` answer against the subject-plugin contract
+(`docs/specs/subject-plugin-contract.md`): the executable resolves, each
+read-only verb (`doctor`, `overview`, `progress`, `advice`, `story list`)
+responds with a schema-valid, version-compatible payload, and a bad invocation
+honours the error/exit contract (`{code, message, remediation}` on stderr,
+empty stdout, exit == code).
+
+Emits the standard doctor payload `{healthy, checks:[{id, passed, severity,
+message, remediation}]}` — itself a valid `subject_doctor` payload. Exits 0 when
+the subject conforms, 2 when it has drifted or its executable is missing, and 1
+for an unknown subject name.
+
+## Usage
+
+    learn subject doctor french
+    learn subject doctor french --json
+"""
+
 
 ENTRIES: dict[tuple[str, ...], str] = {
     (): _ROOT,
@@ -126,4 +182,8 @@ ENTRIES: dict[tuple[str, ...], str] = {
     ("doctor",): _DOCTOR,
     ("cli",): _CLI,
     ("cli", "overview"): _CLI,
+    ("subjects",): _SUBJECTS,
+    ("subject",): _SUBJECT,
+    ("subject", "overview"): _SUBJECT,
+    ("subject", "doctor"): _SUBJECT_DOCTOR,
 }
