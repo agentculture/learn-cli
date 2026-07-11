@@ -119,3 +119,49 @@ database_id = "c32b7bf6-b0a8-4c22-86f7-b50b3aa22a2e"
 # --- Observability ----------------------------------------------------------
 [observability]
 enabled = true
+
+# --- Preview environment (task t1) ------------------------------------------
+# A separate, non-production Worker + D1 so a `workflow_dispatch` deploy from
+# ANY branch can prove the deploy pipeline green without ever touching prod.
+# Cloudflare env bindings do NOT inherit from the top-level config, so every
+# binding the preview Worker needs is repeated below. Deliberately NO
+# `routes`/`route` key here: the production `/learn/*` zone route stays owned
+# by the top-level Worker above, and a preview env must never bind it. Deploy
+# with `wrangler versions upload --env preview` (a preview-only, non-promoting
+# upload) — never `wrangler deploy --env preview`.
+[env.preview]
+name = "learn-api-preview"
+
+# --- Preview vars ------------------------------------------------------------
+# Mirrors the top-level [vars] block so the preview Worker is functional.
+# INFERENCE_URL stays commented, exactly like top-level, until tutoring is
+# wired up for this environment too.
+[env.preview.vars]
+PUBLIC_URL   = "https://agentculture.org"          # origin used to build the OAuth callback
+APP_URL      = "https://agentculture.org/learn/"   # where the web callback redirects post-login
+CORS_ORIGIN  = "https://agentculture.org"          # allow the /learn site to call the API with creds
+PAGES_ORIGIN = "https://agentculture-learn.pages.dev"  # static-site origin the /learn zone mount proxies to
+# INFERENCE_URL = "https://bedrock-runtime.us-east-1.amazonaws.com/model/us.amazon.nova-pro-v1:0/converse"
+ADMIN_GITHUB_IDS = "20955789"
+
+# --- Preview KV: sessions namespace ------------------------------------------
+# A dedicated preview KV namespace (not the prod one) for cleaner isolation —
+# a preview run's device-flow bookkeeping and revocation tombstones never mix
+# with production session state. Create with:
+#   wrangler kv namespace create SESSIONS_PREVIEW
+# then replace the placeholder id below with the id that command prints.
+[[env.preview.kv_namespaces]]
+binding = "SESSIONS"
+id = "PLACEHOLDER_PREVIEW_KV_ID"
+
+# --- Preview D1: learner ledger ----------------------------------------------
+# Own preview database, provisioned once by the operator:
+#   wrangler d1 create learn-ledger-preview
+#   wrangler d1 execute learn-ledger-preview --file schema.sql
+# then replace the placeholder database_id below with the id that command
+# prints (mirrors how the production database_id above is a real, filled-in
+# value).
+[[env.preview.d1_databases]]
+binding = "DB"
+database_name = "learn-ledger-preview"
+database_id = "PLACEHOLDER_PREVIEW_D1_ID"
