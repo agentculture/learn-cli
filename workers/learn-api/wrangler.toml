@@ -25,6 +25,17 @@ GITHUB_CLIENT_ID = "REPLACE_ME_github_oauth_client_id"
 # APP_URL      = "https://agentculture.org/learn/"   # where the web callback redirects post-login
 # CORS_ORIGIN  = "https://agentculture.org"          # allow the /learn site to call the API with creds
 # INFERENCE_URL = "https://<cloudai-or-ec2bedrock-served-endpoint>/v1/messages"
+# PAGES_ORIGIN = "https://agentculture-learn.pages.dev"  # static-site origin the /learn zone mount proxies to
+
+# --- Zone route (the same-origin /learn mount) -------------------------------
+# Cloudflare Pages cannot be mounted at a path, so this ONE worker owns
+# agentculture.org/learn/*: /learn/api/* is handled here, everything else
+# proxies to PAGES_ORIGIN (which serves the site under /learn/ too).
+# Uncomment once the zone is reachable from this account's token:
+# routes = [
+#   { pattern = "agentculture.org/learn/*", zone_name = "agentculture.org" },
+#   { pattern = "agentculture.org/learn", zone_name = "agentculture.org" },
+# ]
 
 # --- Secrets (NEVER committed) ---------------------------------------------
 # Set with: wrangler secret put <NAME>

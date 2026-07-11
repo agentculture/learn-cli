@@ -62,8 +62,21 @@ export default {
 
 async function route(request, env, ctx) {
   const url = new URL(request.url);
-  const path = url.pathname.replace(/\/+$/, "") || "/";
+  let path = url.pathname.replace(/\/+$/, "") || "/";
   const method = request.method;
+
+  // Zone mount: Cloudflare Pages can't be mounted at a path, so the zone
+  // route agentculture.org/learn/* lands here. API calls arrive as
+  // /learn/api/* (normalize the prefix away); anything else under /learn
+  // proxies to the static Pages origin, which serves the site under /learn/
+  // too (the deploy wraps dist/ in a /learn/ directory).
+  if (path === "/learn" || path.startsWith("/learn/")) {
+    if (path.startsWith("/learn/api")) {
+      path = path.slice("/learn".length);
+    } else {
+      return proxyToPages(request, env, url);
+    }
+  }
 
   if (method === "GET" && path === "/api/health") return handleHealth(env);
   if (method === "GET" && path === "/api/auth/login") return handleLogin(request, env);
@@ -78,6 +91,18 @@ async function route(request, env, ctx) {
   if (method === "GET" && progressMatch) return handleProgress(request, env, progressMatch[1]);
 
   throw new HttpError(404, "not_found", `No route for ${method} ${path}`, "");
+}
+
+// --- static-site proxy (the /learn zone mount) ------------------------------
+
+async function proxyToPages(request, env, url) {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    throw new HttpError(405, "method_not_allowed", "The learn site is read-only", "");
+  }
+  requireConfig(env, "PAGES_ORIGIN");
+  const origin = env.PAGES_ORIGIN.replace(/\/+$/, "");
+  const upstream = origin + url.pathname + url.search;
+  return fetch(new Request(upstream, { method: request.method, headers: request.headers }));
 }
 
 // --- public routes ---------------------------------------------------------

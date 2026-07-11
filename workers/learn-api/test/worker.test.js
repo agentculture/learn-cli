@@ -395,3 +395,37 @@ test("OPTIONS preflight returns CORS headers when CORS_ORIGIN is set", async () 
   assert.equal(res.headers.get("Access-Control-Allow-Origin"), "https://agentculture.org");
   assert.equal(res.headers.get("Access-Control-Allow-Credentials"), "true");
 });
+
+// --- the /learn zone mount ---------------------------------------------------
+
+test("GET /learn/api/health normalizes the zone-mount prefix", async () => {
+  const env = makeEnv();
+  const res = await call(env, new Request(`${BASE}/learn/api/health`));
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.service, "learn-api");
+});
+
+test("GET /learn/<page> proxies to PAGES_ORIGIN with path preserved", async () => {
+  const seen = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (req) => {
+    seen.push(req.url);
+    return new Response("<html>page</html>", { status: 200, headers: { "content-type": "text/html" } });
+  };
+  try {
+    const env = makeEnv({ PAGES_ORIGIN: "https://agentculture-learn.pages.dev" });
+    const res = await call(env, new Request(`${BASE}/learn/french/stories/fr-a1-le-marche/`));
+    assert.equal(res.status, 200);
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0], "https://agentculture-learn.pages.dev/learn/french/stories/fr-a1-le-marche/");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("POST under the /learn site mount is rejected (read-only proxy)", async () => {
+  const env = makeEnv({ PAGES_ORIGIN: "https://agentculture-learn.pages.dev" });
+  const res = await call(env, new Request(`${BASE}/learn/french/`, { method: "POST" }));
+  assert.equal(res.status, 405);
+});
