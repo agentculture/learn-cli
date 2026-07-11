@@ -166,6 +166,7 @@ No third-party runtime deps: the Worker uses only Web-standard APIs (`fetch`,
 | GET | `/api/export` | consented | Self-serve data export: the learner's identity row, every recorded result across **every subject**, and their full consent history, as one JSON document (t7). Pending OR stale-version session: `403 consent_required` — same gate as progress/record/tutor. |
 | POST | `/api/delete` | session or pending | Self-serve whole-learner erasure — consent withdrawal (t7). Requires `{ "confirm": "<your github_user_id>" }` in the body. Deletes the learners/records/consents rows, revokes the **current** session (KV tombstone), clears the cookie. Deliberately reachable from a stale-consent (and even pending-consent) session — see "Endpoint shapes" below for why. |
 | POST | `/api/tutor` | approved | Broker: forward to `INFERENCE_URL` (a served inference endpoint). Pending OR stale-version session: `403 consent_required`; consented but not admin-approved: `403 approval_required` (t9) — zero inference calls either way. |
+| POST | `/api/voice/token` | approved | Mint a short-lived voice token for the serverless bridge (t16) — same learner-side gates as `/api/tutor`, in the same order, plus the per-learner monthly voice budget (`429 voice_budget_exhausted`). `503 not_configured` until `VOICE_BRIDGE_URL` + `VOICE_TOKEN_SECRET` are set. See "For t16" below. |
 | POST | `/api/me/visibility` | consented | Set the caller's OWN `visibility` (`private` \| `public`) in their `state` blob (t8). `400 invalid_visibility` for anything else. Pending OR stale-version session: `403 consent_required` — same gate as progress/record/export. |
 | GET | `/api/admin/learners` | admin | List every learner + a per-subject record-count summary and their tutoring-tier `approved` state, admin-only (t8, t9). Consented but non-allow-listed: `403 admin_required`. See "Roles + visibility" below. |
 | POST | `/api/admin/approve` | admin | Grant a learner the tutoring tier (t9): set `state.approved`. Body `{ "github_user_id": "<id>" }`. `409 consent_stale` unless the target's consent covers the CURRENT terms version (decision c20); `404 learner_not_found` for an unknown id. |
@@ -614,13 +615,100 @@ before the `INFERENCE_URL` check — see "The approval-gate invariant" above.
   key changes no gate code, and the broker forwards the JSON body unchanged
   (plus the `learner` stamp), so no provider SDK is needed (h11). Record
   the region + model id + cost-when-busy note here when wiring it.
-- **t16's natural hook point:** a voice-token mint would be a NEW
-  admin-independent route (e.g. `POST /api/voice/token`) that runs the same
-  two learner-side gates the tutor route runs — `requireConsented` then the
-  `approvedOf(getLearner(...))` check (both already importable from
-  `auth.js`/`db.js`; `approvedOf` lives in `index.js`) — and returns a
-  short-lived signed token for the serverless bridge to verify. It is NOT
-  built here; only the gate order it must reproduce is.
+- **t16's hook point — now built.** `POST /api/voice/token` is exactly the
+  route this note described: `requireConsented` then the same `approvedOf`
+  check `handleTutor` reads (both live in `index.js`, so the helper is
+  reused in place, not exported or duplicated), THEN the config check, then
+  the budget. Full contract in "For t16" directly below.
+
+### For t16 (voice sessions) — SHIPPED (live bridge deploy deferred)
+
+The Worker half of the voice approval gate (spec c15/h7). The serverless
+bridge (`infra/` — SAM: API GW WebSocket + arm64 Lambda + Nova Sonic 2, see
+`infra/SPIKE.md` for the live-proven GO) only upgrades a WebSocket at
+`$connect` for a token minted here with the shared secret; this route only
+mints for a learner who passes the same gates as `/api/tutor`, so **no audio
+byte can reach Bedrock for anyone below signed-in + consented + approved** —
+enforced independently at both ends, test-proven at both ends
+(`test/voice.test.js` here, `tests/test_voice_bridge_handler.py` at the
+bridge).
+
+```text
+POST /api/voice/token                 (requireConsented + the approvedOf check)
+  -> 200 { token,                       // base64url(payload).base64url(HMAC-SHA256)
+           wss_url,                     // VOICE_BRIDGE_URL + "?token=" + token
+           expires_at,                  // unix seconds; TTL 120s (mint->connect window)
+           limits: { max_session_seconds,          // the bridge's per-session cap
+                     monthly_seconds_cap,          // per-learner budget (below)
+                     monthly_seconds_used,         // incl. this mint's booking
+                     monthly_seconds_remaining } }
+  -> 401                                            // signed out — no token, ever
+  -> 403 { error: "consent_required", ... }         // pending OR stale consent
+  -> 403 { error: "approval_required", ... }        // consented, not admin-approved
+  -> 503 { error: "not_configured", ... }           // VOICE_BRIDGE_URL/VOICE_TOKEN_SECRET unset
+  -> 429 { error: "voice_budget_exhausted",
+           month, monthly_seconds_cap, monthly_seconds_used }
+```
+
+Gate order matters and mirrors `handleTutor`: the approval 403 fires
+**before** the config 503, so an unapproved learner cannot even probe
+whether the bridge is wired up. The token's claim set
+(`{v, scope: "voice", uid, approved: true, iat, exp, sid}`) is pinned
+byte-for-byte against the bridge's verifier: the committed fixture
+`tests/fixtures/voice_token_cross_language.json` (repo root) was minted by
+`src/voice.js` and is asserted reproducible by `test/voice.test.js` AND
+verifiable by `infra/voice_bridge/tokens.py` in
+`tests/test_voice_token_cross_language.py` — neither side can drift alone.
+A learn-api *session* token can never open the bridge (wrong `scope`), and a
+voice token can never call this API (it is not a session token).
+
+**The per-learner monthly voice budget — honest scope.** Each mint books the
+full bridge session cap (`VOICE_MAX_SESSION_SECONDS`, default 300 — keep it
+equal to the SAM stack's `MaxSessionSeconds`) against
+`learners.state.voice_usage = { month: "YYYY-MM", seconds_minted: n }`, and
+the mint that would push the month past `VOICE_MONTHLY_SECONDS_CAP`
+(default 1800 s = 30 min = 6 max-length sessions) is refused with `429` and
+books nothing. Month rollover is free: a stale stored month reads as zero
+(no cron, no migration). **This caps MINTED session-seconds — intent, the
+worst case that every minted token is fully used — not actual streamed
+seconds.** A learner who hangs up after 10 s still spent a 300 s booking.
+Actual per-session length and global concurrency are enforced by the bridge
+itself (`MaxSessionSeconds` + `MaxConcurrentVoiceSessions`, the real cost
+backstops along with the stack's AWS Budgets alarm); tightening this meter
+to actual usage needs bridge→worker usage reporting — a follow-up, not
+claimed here. Sizing rationale against the $20/month Budgets ceiling lives
+as a comment in `src/voice.js` (spike-measured ~$0.01–0.02 per
+conversation-minute → one exhausted cap ≈ $0.30–0.60 of speech tokens).
+
+**The site face** is `site-astro/src/pages/voice/` +
+`site-astro/src/scripts/voice.js` (its own page + script, loaded only
+there): gate states for signed-out / consent-needed / not-approved /
+approved, then mic → 16 kHz/16-bit/mono LPCM upstream as
+`{"seq": n, "audio": "<b64>"}` frames and 24 kHz LPCM downstream via
+WebAudio — t4's spike-proven client contract (`infra/voice_bridge/relay.py`
+pins the same shapes). The client opens its one WebSocket only after this
+route returned a grant — `site-astro/scripts/check-static-auth.mjs` and
+`tests/test_voice_page.py` both assert that structurally.
+
+**What is deferred to the launch-gate phase (t17): the live Nova Sonic
+exchange.** Everything above is code-complete and tested without AWS — token
+mint/verify in both directions, gate ordering, budget arithmetic incl.
+rollover, page states — but no bridge is deployed yet, so "an approved
+learner completes a live voice exchange from /learn" cannot be verified
+until the supervised deploy. Operator runbook for that step:
+
+1. `cd infra && sam build && sam deploy` — supply parameters
+   `VoiceTokenSecretValue=<secret>` (random ≥32 bytes; **the SAME value** as
+   the Worker's `VOICE_TOKEN_SECRET` below) and `BudgetAlertEmail=<inbox>`;
+   note the stack's WebSocket URL output
+   (`wss://<api-id>.execute-api.us-east-1.amazonaws.com/prod`).
+2. `wrangler secret put VOICE_TOKEN_SECRET` — paste the same secret.
+3. Set `VOICE_BRIDGE_URL = "<the wss URL>"` under `[vars]` in
+   `wrangler.toml` (and `VOICE_MAX_SESSION_SECONDS` if the stack's
+   `MaxSessionSeconds` was overridden), then `wrangler deploy`.
+4. Verify: as an approved learner, `/learn/voice/` → Start → speak → hear
+   the answer; a second concurrent session beyond the cap must be refused,
+   and rotating `VoiceTokenSecretValue` is the instant kill switch.
 
 ## Testing
 
@@ -628,7 +716,7 @@ before the `INFERENCE_URL` check — see "The approval-gate invariant" above.
 node --test
 ```
 
-151 tests cover session sign/verify/expiry, `recorded` validation (including the
+166 tests cover session sign/verify/expiry, `recorded` validation (including the
 `score`/`grade`/`points` rejection), the full record round-trip, per-learner
 ledger isolation, web + device OAuth flows, the consent gate (zero D1 writes on
 both unconsented sign-in paths, the pending-session 403 wall, accept ordering —
@@ -665,7 +753,14 @@ a live token with no re-login; approve 409s `consent_stale` unless the
 target's consent is current (c20); a terms bump blocks tutoring even for an
 approved learner (both gates independent); approving one learner never
 touches another's row; and deletion erases the flag so a re-signup is not
-approved. Tests invoke the Worker's
+approved. The voice-token mint (`test/voice.test.js`, t16) extends the same
+ordering proof to the voice transport: signed-out/pending/stale/unapproved
+callers get 401/403/403/403 with **no token in any body**, the approval 403
+fires before the config 503, the happy-path token's claim set and signature
+are pinned to `infra/voice_bridge/tokens.py`'s contract (including the
+committed cross-language fixture, byte-for-byte), and the monthly budget
+books per mint, refuses without overshoot, rolls over by month, and merges
+into `learners.state` without clobbering other keys. Tests invoke the Worker's
 `fetch` handler directly with in-memory KV/D1 stubs (the D1 stub logs every
 write statement, making "zero writes" literal); no network and no wrangler
 are needed. A published-version bump is simulated with

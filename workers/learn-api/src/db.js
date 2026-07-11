@@ -282,6 +282,26 @@ export async function setLearnerApproved(env, uid, approved) {
 }
 
 /**
+ * Persist a learner's monthly voice-budget meter inside their `state` blob
+ * (task t16): `voice_usage = { month: "2026-07", seconds_minted: n }`. Same
+ * no-schema-change, read-then-write-merge pattern as setLearnerVisibility /
+ * setLearnerApproved directly above — an absent key means "nothing minted",
+ * so pre-t16 rows need no migration and month rollover is just the reader
+ * (src/voice.js#voiceSecondsUsed) treating a stale month as zero. POLICY is
+ * the caller's job: the cap check lives in index.js#handleVoiceToken, not
+ * here (mirroring how the c20 precondition stays out of setLearnerApproved).
+ */
+export async function setLearnerVoiceUsage(env, uid, usage) {
+  const learner = await getLearner(env, uid);
+  const state = { ...(learner ? learner.state : {}), voice_usage: usage };
+  const now = new Date().toISOString();
+  await env.DB.prepare(`UPDATE learners SET state = ?, updated_at = ? WHERE github_user_id = ?`)
+    .bind(JSON.stringify(state), now, String(uid))
+    .run();
+  return usage;
+}
+
+/**
  * Erase everything persisted for a learner in one D1 batch: records and
  * consents first, the learners row last (records/consents reference the
  * learner, so deleting them first keeps the batch FK-safe even though this

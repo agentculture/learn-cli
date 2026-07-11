@@ -1,0 +1,11 @@
+{
+  "note": "Cross-language voice-token contract fixture (task t16). Minted ONCE by workers/learn-api/src/voice.js#mintVoiceToken with the deterministic inputs below and committed. workers/learn-api/test/voice.test.js asserts the JS minter still reproduces token byte-for-byte; tests/test_voice_token_cross_language.py asserts infra/voice_bridge/tokens.py still verifies it. Test-only secret — never a production value.",
+  "minted_by": "workers/learn-api/src/voice.js#mintVoiceToken",
+  "verified_by": "infra/voice_bridge/tokens.py#verify_voice_token",
+  "secret": "cross-language-contract-test-secret",
+  "uid": "20955789",
+  "now": 1800000000,
+  "ttl_seconds": 120,
+  "sid": "00000000-0000-4000-8000-000000000000",
+  "token": "eyJ2IjoxLCJzY29wZSI6InZvaWNlIiwidWlkIjoiMjA5NTU3ODkiLCJhcHByb3ZlZCI6dHJ1ZSwiaWF0IjoxODAwMDAwMDAwLCJleHAiOjE4MDAwMDAxMjAsInNpZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMCJ9.LyuCzEATPm2Ma5DWyVoS7m21sZ5RHp0nAYU4p_uY0xM"
+}

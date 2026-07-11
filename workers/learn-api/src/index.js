@@ -73,6 +73,7 @@ import {
   parseCookies,
   cookie,
   outboundFetch,
+  nowSeconds,
 } from "./util.js";
 import { requireAuth, requireConsented } from "./auth.js";
 import { isAdmin, requireAdmin } from "./admin.js";
@@ -108,7 +109,16 @@ import {
   listAllLearners,
   setLearnerVisibility,
   setLearnerApproved,
+  setLearnerVoiceUsage,
 } from "./db.js";
+import {
+  mintVoiceToken,
+  voiceMonthKey,
+  voiceSecondsUsed,
+  positiveIntVar,
+  DEFAULT_VOICE_MAX_SESSION_SECONDS,
+  DEFAULT_VOICE_MONTHLY_SECONDS_CAP,
+} from "./voice.js";
 import { deriveProgress } from "./progress.js";
 import {
   CONTRACT_VERSION,
@@ -164,6 +174,7 @@ async function route(request, env, ctx) {
   if (method === "GET" && path === "/api/export") return handleExport(request, env);
   if (method === "POST" && path === "/api/delete") return handleDelete(request, env);
   if (method === "POST" && path === "/api/tutor") return handleTutor(request, env, ctx);
+  if (method === "POST" && path === "/api/voice/token") return handleVoiceToken(request, env);
   if (method === "POST" && path === "/api/me/visibility") return handleSetVisibility(request, env);
   if (method === "GET" && path === "/api/admin/learners") return handleAdminLearners(request, env);
   if (method === "POST" && path === "/api/admin/approve") return handleAdminApprove(request, env);
@@ -645,6 +656,96 @@ async function handleTutor(request, env, ctx) {
   });
   const data = await upstream.json().catch(() => ({}));
   return jsonResponse(upstream.status, data);
+}
+
+// --- voice tokens (spec c15/h7, task t16) ------------------------------------
+
+// POST /api/voice/token: mint a short-lived, approval-stamped token the
+// serverless voice bridge (infra/voice_bridge/) verifies at WebSocket
+// $connect. This is h7's learn-api half: the bridge only opens a Bedrock
+// stream for a verified token, and THIS route only mints for a learner who
+// passes the SAME two learner-side gates as /api/tutor, in the same order —
+//   1. requireConsented — signed-out -> 401; pending/stale-consent -> 403;
+//   2. the approvedOf() check (the very same helper handleTutor reads, per
+//      t9's hook-point note — reused, not duplicated) -> 403 approval_required;
+//   3. only THEN the config check (VOICE_BRIDGE_URL + VOICE_TOKEN_SECRET,
+//      503 not_configured — mirroring INFERENCE_URL's pattern) — an
+//      unapproved learner must not even learn whether the bridge is wired up;
+//   4. the per-learner monthly budget (below) -> 429 voice_budget_exhausted.
+// So no traffic below "approved" can obtain a token, and without a token the
+// bridge's $connect refuses the upgrade before any audio byte can flow —
+// proven at both ends (test/voice.test.js here,
+// tests/test_voice_bridge_handler.py there).
+//
+// The budget (t4 handoff #3: the per-learner allowance belongs where approval
+// lives): each mint books the FULL bridge session cap
+// (VOICE_MAX_SESSION_SECONDS, default 300 — must match the SAM stack's
+// MaxSessionSeconds) against a monthly per-learner meter in
+// learners.state.voice_usage, refusing when the booking would exceed
+// VOICE_MONTHLY_SECONDS_CAP (default 1800 = 30 min/month; sizing rationale
+// against the $20 Budgets ceiling in src/voice.js). HONEST SCOPE: this caps
+// MINTED session-seconds — intent, the worst case that a minted token is
+// fully used — not actual streamed seconds; per-session length and global
+// concurrency are enforced by the bridge itself, and tightening this meter
+// to actual usage needs bridge->worker usage reporting (a follow-up, see
+// README). Read-then-write like every state-blob update; a lost race between
+// two concurrent mints can under-count by one booking at worst, acceptable
+// for a budget whose real backstop is the bridge's own caps + AWS Budgets.
+async function handleVoiceToken(request, env) {
+  const session = await requireConsented(request, env);
+  const learner = await getLearner(env, session.uid);
+  if (!approvedOf(learner)) {
+    throw new HttpError(
+      403,
+      "approval_required",
+      "Voice sessions are not enabled for your account.",
+      "The tutoring tier (which includes voice) is granted per learner by the learn admin — " +
+        "ask the admin to approve your account.",
+    );
+  }
+  requireConfig(env, "VOICE_BRIDGE_URL");
+  requireConfig(env, "VOICE_TOKEN_SECRET");
+
+  const maxSessionSeconds = positiveIntVar(
+    env.VOICE_MAX_SESSION_SECONDS,
+    DEFAULT_VOICE_MAX_SESSION_SECONDS,
+  );
+  const monthlyCap = positiveIntVar(
+    env.VOICE_MONTHLY_SECONDS_CAP,
+    DEFAULT_VOICE_MONTHLY_SECONDS_CAP,
+  );
+  const now = nowSeconds();
+  const month = voiceMonthKey(now);
+  const used = voiceSecondsUsed(learner, month);
+  if (used + maxSessionSeconds > monthlyCap) {
+    throw new HttpError(
+      429,
+      "voice_budget_exhausted",
+      "Your monthly voice allowance is used up.",
+      "The meter resets at the start of next month (UTC). Text tutoring is unaffected.",
+      { month, monthly_seconds_cap: monthlyCap, monthly_seconds_used: used },
+    );
+  }
+
+  const { token, payload } = await mintVoiceToken(env, session.uid, { now });
+  // Book AFTER the mint succeeded, BEFORE the token leaves the Worker — a
+  // failed write must not hand out unmetered tokens.
+  const secondsMinted = used + maxSessionSeconds;
+  await setLearnerVoiceUsage(env, session.uid, { month, seconds_minted: secondsMinted });
+
+  return jsonResponse(200, {
+    token,
+    // t4 handoff #1: the client presents the token as ?token= on the wss URL —
+    // the bridge's $connect reads queryStringParameters.token.
+    wss_url: `${env.VOICE_BRIDGE_URL}?token=${encodeURIComponent(token)}`,
+    expires_at: payload.exp,
+    limits: {
+      max_session_seconds: maxSessionSeconds,
+      monthly_seconds_cap: monthlyCap,
+      monthly_seconds_used: secondsMinted,
+      monthly_seconds_remaining: monthlyCap - secondsMinted,
+    },
+  });
 }
 
 // --- roles + visibility (spec c12/h4, task t8) ------------------------------
