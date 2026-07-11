@@ -1,12 +1,23 @@
 ---
 // The story reader: clean prose, glossary, and comprehension questions
-// listed statically (no interactive form — practice/checking is CLI or
-// signed-in territory, a later wave). One page per story in the
-// content-export; scripts/check-export-pages.mjs enforces the pairing.
+// listed statically. Most exercise types render as plain text (no form —
+// practice/checking is CLI or signed-in territory, a later wave); the
+// pick-the-right-word cloze variant (§3.6.1) is the one exception: a
+// dependency-free, sign-in-independent picker wired by
+// src/scripts/learner.js's wireClozeExercises(), giving instant right/wrong
+// feedback entirely client-side (no fetch — the answer is already public in
+// this page's own data). One page per story in the content-export;
+// scripts/check-export-pages.mjs enforces the pairing.
 import Layout from "../../../../layouts/Layout.astro";
 import PageHero from "../../../../components/PageHero.astro";
 import site from "../../../../data/site";
-import { getSubjects, getStories, type Subject, type Story } from "../../../../lib/content";
+import {
+  getSubjects,
+  getStories,
+  type Subject,
+  type Story,
+  type ClozeBlank,
+} from "../../../../lib/content";
 
 export function getStaticPaths() {
   return getSubjects().flatMap((subject) =>
@@ -23,6 +34,38 @@ interface Props {
 }
 
 const { subject, story } = Astro.props;
+
+// Split a cloze exercise's `text` on `{{blank_id}}` placeholders into an
+// ordered list of plain-text runs and blank widgets, for the pick-the-
+// right-word variant (§3.6.1). A placeholder with no matching `blanks` entry
+// renders as literal text rather than breaking the build — malformed content
+// is `learn subject doctor`'s `cloze-items` check's job to catch upstream,
+// not this page's.
+type ClozeSegment = { kind: "text"; value: string } | { kind: "blank"; blank: ClozeBlank };
+
+function clozeSegments(text: string, blanks: ClozeBlank[]): ClozeSegment[] {
+  const byId = new Map(blanks.map((b) => [b.id, b]));
+  const segments: ClozeSegment[] = [];
+  const placeholderRe = /\{\{([^{}]+)\}\}/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = placeholderRe.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ kind: "text", value: text.slice(lastIndex, match.index) });
+    }
+    const blank = byId.get(match[1]);
+    if (blank) {
+      segments.push({ kind: "blank", blank });
+    } else {
+      segments.push({ kind: "text", value: match[0] });
+    }
+    lastIndex = placeholderRe.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    segments.push({ kind: "text", value: text.slice(lastIndex) });
+  }
+  return segments;
+}
 
 // Paragraphs are separated by a blank line; a lone \n inside a paragraph is
 // just a wrapped source line, not an intentional break, so it collapses to
@@ -121,13 +164,39 @@ const typeLabel: Record<string, string> = {
                 <span class="exercise-type muted">
                   {typeLabel[exercise.type] ?? exercise.type}
                 </span>
-                <p class="exercise-prompt">{exercise.prompt}</p>
-                {exercise.choices && exercise.choices.length > 0 && (
-                  <ul class="choices muted">
-                    {exercise.choices.map((choice) => (
-                      <li>{choice}</li>
-                    ))}
-                  </ul>
+                {exercise.type === "cloze" && exercise.blanks && exercise.blanks.length > 0 ? (
+                  <div class="cloze">
+                    <p class="exercise-prompt">{exercise.prompt}</p>
+                    <p class="cloze-passage">
+                      {clozeSegments(exercise.text ?? "", exercise.blanks).map((segment) =>
+                        segment.kind === "text" ? (
+                          segment.value
+                        ) : (
+                          <span class="cloze-blank" data-cloze-blank data-answer={segment.blank.answer}>
+                            <span class="cloze-options" role="group" aria-label="Pick the right word">
+                              {segment.blank.options.map((option) => (
+                                <button type="button" class="cloze-option" data-option={option}>
+                                  {option}
+                                </button>
+                              ))}
+                            </span>
+                            <span class="cloze-status muted" data-cloze-status aria-live="polite"></span>
+                          </span>
+                        )
+                      )}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <p class="exercise-prompt">{exercise.prompt}</p>
+                    {exercise.choices && exercise.choices.length > 0 && (
+                      <ul class="choices muted">
+                        {exercise.choices.map((choice) => (
+                          <li>{choice}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
                 )}
                 {exercise.item_id && (
                   <div
@@ -253,6 +322,79 @@ const typeLabel: Record<string, string> = {
     height: 5px;
     border-radius: 50%;
     background: color-mix(in srgb, var(--mesh-node) 55%, var(--bg));
+  }
+
+  .exercises-section {
+    /* "Not quite" state: a burnt-orange/coral warm counterpoint to the
+       aurora-teal accent, tuned per theme (>=4.5:1 against --surface/--bg
+       in both — see the dataviz-adjacent verification in the t3 PR). */
+    --cloze-wrong: #b3401c;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .exercises-section {
+      --cloze-wrong: #ff9466;
+    }
+  }
+
+  .cloze-passage {
+    font-size: 1rem;
+    line-height: 2.1;
+  }
+
+  .cloze-blank {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0 0.15rem;
+    vertical-align: middle;
+  }
+
+  .cloze-options {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .cloze-option {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.2rem 0.75rem;
+    cursor: pointer;
+  }
+
+  .cloze-option:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+    color: var(--accent-strong);
+  }
+
+  .cloze-option:disabled {
+    cursor: default;
+  }
+
+  .cloze-option.is-correct {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+    color: var(--accent-strong);
+    opacity: 1;
+  }
+
+  .cloze-option.is-incorrect {
+    border-color: var(--cloze-wrong);
+    background: color-mix(in srgb, var(--cloze-wrong) 16%, var(--surface));
+    color: var(--cloze-wrong);
+    opacity: 1;
+  }
+
+  .cloze-status {
+    font-size: 0.78rem;
+    font-style: italic;
   }
 
   .cta-note {

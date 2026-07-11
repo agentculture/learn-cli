@@ -21,7 +21,11 @@ import pytest
 from learn.cli import main
 from learn.contract import validate
 from learn.subjects import get_subject
-from learn.subjects.conformance import run_conformance
+from learn.subjects.conformance import (
+    _is_cloze_blanks_item,
+    _validate_cloze_exercise,
+    run_conformance,
+)
 from tests.conftest import entry
 
 
@@ -87,6 +91,161 @@ def test_drift_report_still_validates_as_subject_doctor(install_registry, drifte
     report = run_conformance(get_subject("brokenlang"))
     assert report["healthy"] is False
     assert validate(report, "doctor") == []
+
+
+# --- t3: the `cloze-items` check (pick-the-right-word cloze exercises) ------
+
+
+def test_cloze_free_subject_passes_trivially(install_registry, conformant_prefix) -> None:
+    # A subject that declares NO pick-the-right-word cloze items (the fourthlang
+    # fixture ships none) must not be penalized — the check passes trivially.
+    install_registry([entry("fourthlang", conformant_prefix)])
+    report = run_conformance(get_subject("fourthlang"))
+    check = next(c for c in report["checks"] if c["id"] == "cloze-items")
+    assert check["passed"] is True
+    assert "no pick-the-right-word cloze items" in check["message"]
+
+
+def test_well_formed_cloze_subject_passes(
+    install_registry, cloze_conformant_prefix, capsys
+) -> None:
+    install_registry([entry("clozelang", cloze_conformant_prefix)])
+    rc = main(["subject", "doctor", "clozelang", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert payload["healthy"] is True
+    check = next(c for c in payload["checks"] if c["id"] == "cloze-items")
+    assert check["passed"] is True
+    # The fixture ships ONE pick-the-right-word item plus one legacy
+    # single-blank free-text cloze item — only the former is counted here.
+    assert "1 pick-the-right-word cloze item" in check["message"]
+
+
+def test_well_formed_cloze_report_validates_as_subject_doctor(
+    install_registry, cloze_conformant_prefix
+) -> None:
+    install_registry([entry("clozelang", cloze_conformant_prefix)])
+    report = run_conformance(get_subject("clozelang"))
+    assert validate(report, "doctor") == []
+
+
+def test_malformed_cloze_subject_fails_doctor(
+    install_registry, cloze_broken_prefix, capsys
+) -> None:
+    install_registry([entry("clozebroken", cloze_broken_prefix)])
+    rc = main(["subject", "doctor", "clozebroken", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 2
+    assert payload["healthy"] is False
+    check = next(c for c in payload["checks"] if c["id"] == "cloze-items")
+    assert check["passed"] is False
+    assert "not among its own `options`" in check["message"]
+    assert check["remediation"]
+    # Every OTHER check passed — the failure is specifically about content,
+    # not plumbing (proves the check inspects content, not just wiring).
+    other_failures = {
+        c["id"] for c in payload["checks"] if not c["passed"] and c["id"] != "cloze-items"
+    }
+    assert other_failures == set()
+
+
+def test_malformed_cloze_report_still_validates_as_subject_doctor(
+    install_registry, cloze_broken_prefix
+) -> None:
+    install_registry([entry("clozebroken", cloze_broken_prefix)])
+    report = run_conformance(get_subject("clozebroken"))
+    assert report["healthy"] is False
+    assert validate(report, "doctor") == []
+
+
+# --- t3: `_validate_cloze_exercise` unit coverage (granular pass/fail cases) --
+
+
+def _good_cloze() -> dict:
+    return {
+        "id": "ex1",
+        "type": "cloze",
+        "item_id": "greetings",
+        "prompt": "Fill in the blanks.",
+        "text": "Bonjour, je m'appelle {{name}} et j'ai {{age}} ans.",
+        "blanks": [
+            {"id": "name", "options": ["Marie", "Paris", "bleu"], "answer": "Marie"},
+            {"id": "age", "options": ["dix", "rouge", "vite"], "answer": "dix"},
+        ],
+    }
+
+
+def test_is_cloze_blanks_item_true_for_blanks_shape() -> None:
+    assert _is_cloze_blanks_item(_good_cloze()) is True
+
+
+def test_is_cloze_blanks_item_false_for_legacy_single_blank_cloze() -> None:
+    legacy = {"id": "ex2", "type": "cloze", "item_id": "x", "prompt": "___", "answer": "y"}
+    assert _is_cloze_blanks_item(legacy) is False
+
+
+def test_is_cloze_blanks_item_false_for_non_cloze_type() -> None:
+    mc = {
+        "id": "ex3",
+        "type": "multiple_choice",
+        "item_id": "x",
+        "prompt": "?",
+        "choices": ["a", "b"],
+    }
+    assert _is_cloze_blanks_item(mc) is False
+
+
+def test_validate_cloze_exercise_well_formed_has_no_errors() -> None:
+    assert _validate_cloze_exercise("s1", _good_cloze()) == []
+
+
+def test_validate_cloze_exercise_requires_both_text_and_blanks() -> None:
+    only_text = _good_cloze()
+    del only_text["blanks"]
+    errors = _validate_cloze_exercise("s1", only_text)
+    assert any("BOTH `text` and `blanks`" in e for e in errors)
+
+
+def test_validate_cloze_exercise_rejects_missing_item_id() -> None:
+    ex = _good_cloze()
+    del ex["item_id"]
+    errors = _validate_cloze_exercise("s1", ex)
+    assert any("missing `item_id`" in e for e in errors)
+
+
+def test_validate_cloze_exercise_rejects_answer_not_in_options() -> None:
+    ex = _good_cloze()
+    ex["blanks"][0]["answer"] = "Nope"
+    errors = _validate_cloze_exercise("s1", ex)
+    assert any("not among its own `options`" in e for e in errors)
+
+
+def test_validate_cloze_exercise_rejects_duplicate_blank_ids() -> None:
+    ex = _good_cloze()
+    ex["blanks"][1]["id"] = "name"  # duplicate of blanks[0]'s id
+    errors = _validate_cloze_exercise("s1", ex)
+    assert any("duplicate blank id" in e for e in errors)
+
+
+def test_validate_cloze_exercise_rejects_blank_id_missing_from_text() -> None:
+    ex = _good_cloze()
+    ex["blanks"][0]["id"] = "nickname"  # no {{nickname}} in text
+    errors = _validate_cloze_exercise("s1", ex)
+    assert any("no matching {{nickname}} placeholder" in e for e in errors)
+
+
+def test_validate_cloze_exercise_rejects_orphan_placeholder() -> None:
+    ex = _good_cloze()
+    ex["text"] = ex["text"].replace("{{age}}", "{{stray}}")
+    errors = _validate_cloze_exercise("s1", ex)
+    assert any("placeholder {{stray}} has no matching `blanks` entry" in e for e in errors)
+
+
+def test_validate_cloze_exercise_rejects_too_few_options() -> None:
+    ex = _good_cloze()
+    ex["blanks"][0]["options"] = ["Marie"]
+    errors = _validate_cloze_exercise("s1", ex)
+    assert any("at least 2 words" in e for e in errors)
 
 
 # --- environment + usage error paths ---------------------------------------

@@ -231,6 +231,44 @@ function wireExerciseRecorders() {
   });
 }
 
+// --- pick-the-right-word cloze exercises (§3.6.1) -----------------------
+
+/** Wire the pick-the-right-word cloze blanks the story reader renders inline
+ * in the passage (see [subject]/stories/[id]/index.astro's `.cloze-blank`
+ * markup). Purely client-side: the answer is already public in this page's
+ * own exported data, so checking it makes ZERO network calls and needs no
+ * sign-in — unlike wireExerciseRecorders(), this runs unconditionally,
+ * before bootstrap()'s auth check, so it works on a fully signed-out page
+ * too. Locks the blank to its first pick and reveals the correct option when
+ * the pick was wrong. */
+function wireClozeExercises() {
+  document.querySelectorAll("[data-cloze-blank]").forEach((blank) => {
+    const answer = blank.getAttribute("data-answer");
+    const status = blank.querySelector("[data-cloze-status]");
+    const buttons = Array.from(blank.querySelectorAll(".cloze-option"));
+    if (!answer || buttons.length === 0) return;
+
+    buttons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (buttons.some((b) => b.disabled)) return; // already answered
+        const chosen = btn.getAttribute("data-option");
+        buttons.forEach((b) => {
+          b.disabled = true;
+        });
+        if (chosen === answer) {
+          btn.classList.add("is-correct");
+          if (status) status.textContent = "Correct!";
+        } else {
+          btn.classList.add("is-incorrect");
+          const correctBtn = buttons.find((b) => b.getAttribute("data-option") === answer);
+          if (correctBtn) correctBtn.classList.add("is-correct");
+          if (status) status.textContent = `Not quite — "${answer}" is right.`;
+        }
+      });
+    });
+  });
+}
+
 function wireSignOut() {
   document.querySelectorAll("[data-sign-out]").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -274,5 +312,11 @@ async function bootstrap() {
   wireSignOut();
   await Promise.all([hydratePanels(), Promise.resolve(wireExerciseRecorders())]);
 }
+
+// Sign-in independent: wired before bootstrap() and its auth check, so cloze
+// blanks are interactive even fully signed-out (see wireClozeExercises()'s
+// own header comment). Makes zero fetch() calls; the whitelist check in
+// scripts/check-static-auth.mjs only inspects bootstrap()'s body.
+wireClozeExercises();
 
 bootstrap();
