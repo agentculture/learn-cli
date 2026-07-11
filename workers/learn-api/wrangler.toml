@@ -15,27 +15,34 @@ compatibility_date = "2024-11-01"
 # Node-compat is not required — the Worker uses only Web-standard APIs
 # (fetch, Request/Response, crypto.subtle, btoa/atob). Keep the bundle lean.
 
+# --- Zone route (the same-origin /learn mount) -------------------------------
+# Cloudflare Pages cannot be mounted at a path, so this ONE worker owns
+# agentculture.org/learn/*: /learn/api/* is handled here, everything else
+# proxies to PAGES_ORIGIN (which serves the site under /learn/ too).
+#
+# GOTCHA: `routes` is a TOP-LEVEL key and MUST appear ABOVE the [vars] table.
+# Placed after [vars], TOML scopes it as `vars.routes` and wrangler silently
+# ignores it ("No targets deployed") — the worker uploads but binds no route.
+# This block is live in production (deployed 2026-07-11); the signed-out mount
+# is served by exactly these two patterns.
+routes = [
+  { pattern = "agentculture.org/learn/*", zone_name = "agentculture.org" },
+  { pattern = "agentculture.org/learn", zone_name = "agentculture.org" },
+]
+
 # --- Non-secret vars -------------------------------------------------------
 # INFERENCE_URL points at the cloudai-cli / ec2bedrock-cli SERVED endpoint
 # (an OpenAI-shaped HTTP API), NEVER a bespoke provider SDK. The broker only
 # ever POSTs JSON to this URL. Leave it unset to disable tutoring (broker 503s).
 [vars]
+# GITHUB_CLIENT_ID is public; still REPLACE_ME until the GitHub OAuth app exists
+# (needed only for the signed-in tier — see README "Phase 2").
 GITHUB_CLIENT_ID = "REPLACE_ME_github_oauth_client_id"
-# PUBLIC_URL   = "https://agentculture.org"          # origin used to build the OAuth callback
-# APP_URL      = "https://agentculture.org/learn/"   # where the web callback redirects post-login
-# CORS_ORIGIN  = "https://agentculture.org"          # allow the /learn site to call the API with creds
-# INFERENCE_URL = "https://<cloudai-or-ec2bedrock-served-endpoint>/v1/messages"
-# PAGES_ORIGIN = "https://agentculture-learn.pages.dev"  # static-site origin the /learn zone mount proxies to
-
-# --- Zone route (the same-origin /learn mount) -------------------------------
-# Cloudflare Pages cannot be mounted at a path, so this ONE worker owns
-# agentculture.org/learn/*: /learn/api/* is handled here, everything else
-# proxies to PAGES_ORIGIN (which serves the site under /learn/ too).
-# Uncomment once the zone is reachable from this account's token:
-# routes = [
-#   { pattern = "agentculture.org/learn/*", zone_name = "agentculture.org" },
-#   { pattern = "agentculture.org/learn", zone_name = "agentculture.org" },
-# ]
+PUBLIC_URL   = "https://agentculture.org"          # origin used to build the OAuth callback
+APP_URL      = "https://agentculture.org/learn/"   # where the web callback redirects post-login
+CORS_ORIGIN  = "https://agentculture.org"          # allow the /learn site to call the API with creds
+PAGES_ORIGIN = "https://agentculture-learn.pages.dev"  # static-site origin the /learn zone mount proxies to
+# INFERENCE_URL = "https://<cloudai-or-ec2bedrock-served-endpoint>/v1/messages"  # unset ⇒ tutoring 503s
 
 # --- Secrets (NEVER committed) ---------------------------------------------
 # Set with: wrangler secret put <NAME>
