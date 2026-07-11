@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.3] - 2026-07-11
+
+### Added
+
+- Phase-2 signed-in tier provisioned + deployed: KV namespace SESSIONS + D1 learn-ledger (schema applied), GITHUB_CLIENT_ID wired, SESSION_SECRET + GITHUB_CLIENT_SECRET set as worker secrets. learn-api now serves the full stack (sessions, ledger, tutoring broker) on the same agentculture.org/learn/* route.
+
+### Fixed
+
+- Worker OAuth login built `redirect_uri` from the bare origin (`https://agentculture.org/api/auth/callback`), dropping the `/learn` zone-mount prefix — GitHub would reject the web flow on redirect_uri mismatch and the bare callback would miss the worker route entirely. `handleLogin` now derives the callback from `APP_URL` via `callbackUrl()`; regression test asserts the `/learn` prefix.
+
 ## [0.5.2] - 2026-07-11
 
 ### Added
