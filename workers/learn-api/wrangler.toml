@@ -55,12 +55,27 @@ PAGES_ORIGIN = "https://agentculture-learn.pages.dev"  # static-site origin the 
 # comment). Production admin: 20955789 (OriNachum, per the spec's audience).
 ADMIN_GITHUB_IDS = "20955789"
 
+# --- Voice bridge (task t16; deployed later under supervision) ---------------
+# VOICE_BRIDGE_URL is the API Gateway WebSocket endpoint the SAM stack
+# (infra/template.yaml) outputs after `sam deploy` — leave it unset until the
+# bridge exists (POST /api/voice/token 503s not_configured meanwhile, same
+# posture as INFERENCE_URL). VOICE_MAX_SESSION_SECONDS must equal the stack's
+# MaxSessionSeconds parameter (default 300); VOICE_MONTHLY_SECONDS_CAP is the
+# per-learner monthly allowance of MINTED session-seconds (default 1800 =
+# 30 min — sizing rationale against the $20 Budgets ceiling in src/voice.js).
+# VOICE_BRIDGE_URL          = "wss://<api-id>.execute-api.us-east-1.amazonaws.com/prod"
+# VOICE_MAX_SESSION_SECONDS = "300"   # optional; defaults to 300 in src/voice.js
+# VOICE_MONTHLY_SECONDS_CAP = "1800"  # optional; defaults to 1800 in src/voice.js
+
 # --- Secrets (NEVER committed) ---------------------------------------------
 # Set with: wrangler secret put <NAME>
 #   SESSION_SECRET        random >=32 bytes; signs session tokens (HMAC-SHA256)
 #   GITHUB_CLIENT_ID      the GitHub-App client id (.env GITHUB_APP_CLIENT_ID)
 #   GITHUB_CLIENT_SECRET  from the GitHub OAuth app
 #   INFERENCE_TOKEN       bearer token for the served inference endpoint
+#   VOICE_TOKEN_SECRET    signs voice tokens (t16); MUST equal the SAM stack's
+#                         VoiceTokenSecretValue parameter — the bridge verifies
+#                         with the same shared secret (infra/voice_bridge/tokens.py)
 
 # --- KV: sessions namespace -------------------------------------------------
 # Holds device-flow bookkeeping and session-revocation tombstones. Sessions

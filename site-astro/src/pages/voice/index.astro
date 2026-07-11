@@ -1,0 +1,207 @@
+---
+// The voice-session page — t16, spec c15/h7 (Nova Sonic 2 voice tutoring).
+// The web face of the voice approval gate: signed-out visitors see a static
+// sign-in invitation (visible with no JS at all); a signed-in-but-unapproved
+// learner sees why the mic is locked; only an admin-approved learner gets the
+// mic UI, and even then src/scripts/voice.js opens a WebSocket ONLY after
+// POST /api/voice/token returned a grant (the Worker enforces consented +
+// approved server-side, and the serverless bridge re-verifies the token at
+// $connect — see workers/learn-api/README.md "For t16" and infra/SPIKE.md).
+//
+// Same Layout/PageHero shell as the consent page, zero new design tokens.
+// voice.js is loaded ONLY here (not via Layout.astro) and toggles which
+// [data-state] block under [data-voice-root] is shown — the five states are
+// documented in voice.js's own header. tests/test_voice_page.py (repo root)
+// locks this page's states and voice.js's audited structure.
+import Layout from "../../layouts/Layout.astro";
+import PageHero from "../../components/PageHero.astro";
+import site from "../../data/site";
+import { API_BASE } from "../../lib/api";
+
+const description =
+  "Practice out loud: real-time voice tutoring for approved learners, spoken answers back.";
+---
+
+<Layout
+  title={`Voice practice · ${site.title} · ${site.orgTitle}`}
+  description={description}
+  homeHref="../"
+>
+  <PageHero
+    title="Practice out loud"
+    intro={[
+      "A live voice conversation with the tutor: speak, be understood, and hear the answer back. Voice sessions are part of the tutoring tier — sign in, accept the terms, and ask the admin to enable your account.",
+    ]}
+  />
+
+  <section class="section breadcrumb-section" aria-label="Wayfinding">
+    <div class="container">
+      <a class="breadcrumb" href="../">← Learn</a>
+    </div>
+  </section>
+
+  <section class="section voice-section" aria-label="Voice session" data-voice-root>
+    <div class="container prose">
+      <div data-state="signed-out">
+        <h2 data-reveal>Sign in to practice out loud</h2>
+        <p data-reveal>
+          Voice sessions run against the tutoring tier, so they need a signed-in,
+          approved account. Nothing is stored about you until you sign in and
+          accept the Terms of Use and Privacy Policy.
+        </p>
+        <a class="btn-accept" href={`${API_BASE}/auth/login`} data-reveal>Sign in with GitHub</a>
+      </div>
+
+      <div data-state="consent-needed" hidden>
+        <h2 data-reveal>One step first: the Terms and Privacy Policy</h2>
+        <p data-reveal>
+          You're signed in, but the current Terms of Use and Privacy Policy
+          haven't been accepted yet (or they changed since you last accepted).
+          Review and accept them on the <a href="../consent/">consent page</a>,
+          then come back here.
+        </p>
+      </div>
+
+      <div data-state="not-approved" hidden>
+        <h2 data-reveal>Voice isn't enabled for your account yet</h2>
+        <p data-reveal>
+          Voice sessions spend real model time, so the learn admin enables them
+          per learner — the same approval as text tutoring. Everything else
+          (progress, records, export) keeps working meanwhile. Once you're
+          approved, the microphone appears right here.
+        </p>
+      </div>
+
+      <div data-state="ready" hidden>
+        <h2 data-reveal>Your voice session</h2>
+        <p data-reveal>
+          Press start, allow the microphone, and speak naturally. The tutor
+          hears you in real time and answers out loud; a transcript of what it
+          says appears below.
+        </p>
+        <p class="voice-limits muted" data-voice-limits data-reveal></p>
+        <div class="voice-actions" data-reveal>
+          <button type="button" class="btn-accept" data-voice-start>Start voice session</button>
+          <button type="button" class="btn-decline" data-voice-stop disabled>Stop</button>
+          <span class="voice-timer" data-voice-timer aria-live="off"></span>
+        </div>
+        <p class="voice-status muted" data-voice-status role="status" aria-live="polite"></p>
+        <div class="voice-transcript" data-voice-transcript hidden aria-label="Tutor transcript">
+        </div>
+      </div>
+
+      <div data-state="error" hidden>
+        <h2 data-reveal>Something went wrong</h2>
+        <p data-reveal>
+          We couldn't check your session just now. <a href="../">Return to
+          Learn</a> and try again in a moment.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    import "../../scripts/voice.js";
+  </script>
+</Layout>
+
+<style>
+  .breadcrumb-section {
+    padding-block: 0 0.5rem;
+  }
+
+  .breadcrumb {
+    font-size: 0.92rem;
+    font-weight: 500;
+  }
+
+  .voice-section {
+    padding-top: 0.5rem;
+  }
+
+  .voice-section h2 {
+    margin-top: 0;
+  }
+
+  .voice-section p {
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  .voice-limits {
+    font-size: 0.92rem;
+  }
+
+  .voice-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.8rem;
+    margin-top: 1.2rem;
+  }
+
+  .btn-accept {
+    display: inline-block;
+    padding: 0.6rem 1.3rem;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--on-accent);
+    border: none;
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .btn-accept:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .btn-decline {
+    display: inline-block;
+    padding: 0.6rem 1.3rem;
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+
+  .btn-decline:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .voice-timer {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.95rem;
+    color: var(--ink-soft);
+  }
+
+  .voice-status {
+    margin-top: 0.8rem;
+    font-size: 0.88rem;
+    font-style: italic;
+    min-height: 1.2em;
+  }
+
+  .voice-transcript {
+    margin-top: 1rem;
+    padding: 0.9rem 1.1rem;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    max-height: 16rem;
+    overflow-y: auto;
+  }
+
+  .voice-transcript p {
+    margin: 0 0 0.5em;
+    font-size: 0.95rem;
+  }
+</style>

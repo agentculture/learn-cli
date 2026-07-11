@@ -124,8 +124,9 @@ function listDirs(dir) {
 // src/pages/privacy/) — real top-level routes with no backing entry in the
 // content-export, since they aren't subject content. "consent" is t10's
 // pending-consent notice (src/pages/consent/) — same reasoning: a real
-// top-level route, not subject content.
-const KNOWN_NON_SUBJECT_DIRS = new Set(["_astro", "terms", "privacy", "consent"]);
+// top-level route, not subject content. "voice" is t16's voice-session page
+// (src/pages/voice/) — likewise a real route, not subject content.
+const KNOWN_NON_SUBJECT_DIRS = new Set(["_astro", "terms", "privacy", "consent", "voice"]);
 for (const dirName of listDirs(distDir)) {
   if (KNOWN_NON_SUBJECT_DIRS.has(dirName)) continue;
   if (!subjectNames.has(dirName)) {
