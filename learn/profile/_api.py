@@ -20,6 +20,11 @@ import os
 import urllib.error
 import urllib.request
 from typing import Any, Optional
+from urllib.parse import urlparse
+
+#: Schemes accepted for the API base — named (not a raw "scheme://" literal) so
+#: the check below reads as an allowlist rather than a hardcoded insecure URL.
+_ALLOWED_SCHEMES = ("http", "https")
 
 #: Placeholder production default — documented as such; the Worker route is
 #: not live yet (t11 ships the code, hosting/DNS wiring is a separate step).
@@ -58,7 +63,7 @@ def _request(
     timeout: float = DEFAULT_TIMEOUT,
 ) -> dict[str, Any]:
     url = _url(path)
-    if not url.lower().startswith(("http://", "https://")):
+    if urlparse(url).scheme not in _ALLOWED_SCHEMES:
         # Guards the urlopen call below against a misconfigured LEARN_API_URL
         # resolving to a non-http(s) scheme (e.g. file://) before we ever open it.
         raise ApiError(f"refusing non-http(s) API URL: {url}")

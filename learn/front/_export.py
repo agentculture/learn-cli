@@ -81,32 +81,41 @@ def _subject_record(entry: SubjectEntry, source: str | None) -> dict[str, Any]:
     }
 
 
+def _read_full_story(
+    entry: SubjectEntry, source: str | None, story_id: str
+) -> dict[str, Any] | None:
+    """The full story object from ``story read``, or None if unavailable."""
+    try:
+        read = drive(entry, ("story", "read"), extra=(story_id,), registry_source=source)
+    except CliError:
+        return None
+    candidate = read.get("story")
+    return candidate if isinstance(candidate, dict) else None
+
+
+def _export_story(entry: SubjectEntry, source: str | None, summary: Any) -> dict[str, Any] | None:
+    """The exported record for one ``story list`` summary, or None to skip it."""
+    if not isinstance(summary, dict):
+        return None
+    story_id = summary.get("id")
+    # Subject repos ship `dev-` prefixed stories as in-repo test fixtures;
+    # they are not learner content, so the public export excludes them.
+    if isinstance(story_id, str) and story_id.startswith("dev-"):
+        return None
+    full = None
+    if isinstance(story_id, str) and story_id:
+        full = _read_full_story(entry, source, story_id)
+    return full if full is not None else summary
+
+
 def _subject_stories(entry: SubjectEntry, source: str | None) -> list[dict[str, Any]]:
     """Full story objects from ``story list`` + ``story read`` (list-order)."""
     try:
         listing = drive(entry, ("story", "list"), registry_source=source)
     except CliError:
         return []
-    stories: list[dict[str, Any]] = []
-    for summary in listing.get("stories", []):
-        if not isinstance(summary, dict):
-            continue
-        story_id = summary.get("id")
-        # Subject repos ship `dev-` prefixed stories as in-repo test fixtures;
-        # they are not learner content, so the public export excludes them.
-        if isinstance(story_id, str) and story_id.startswith("dev-"):
-            continue
-        full: dict[str, Any] | None = None
-        if isinstance(story_id, str) and story_id:
-            try:
-                read = drive(entry, ("story", "read"), extra=(story_id,), registry_source=source)
-            except CliError:
-                read = {}
-            candidate = read.get("story")
-            if isinstance(candidate, dict):
-                full = candidate
-        stories.append(full if full is not None else summary)
-    return stories
+    exported = (_export_story(entry, source, summary) for summary in listing.get("stories", []))
+    return [story for story in exported if story is not None]
 
 
 def export_site(

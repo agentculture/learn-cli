@@ -19,6 +19,9 @@ from learn.cli._commands.overview import emit_overview
 from learn.cli._errors import EXIT_SUCCESS
 from learn.cli._output import emit_diagnostic, emit_result
 
+#: Shared ``--json`` help text (repeated per subparser below).
+_JSON_HELP = "Emit structured JSON."
+
 
 def _site_sections() -> list[dict[str, object]]:
     return [
@@ -116,18 +119,18 @@ def register(sub: argparse._SubParsersAction) -> None:
         "site",
         help="The HTTP face + static export (see 'learn site overview').",
     )
-    p.add_argument("--json", action="store_true", help="Emit structured JSON.")
+    p.add_argument("--json", action="store_true", help=_JSON_HELP)
     p.set_defaults(func=_no_verb, json=False)
     noun_sub = p.add_subparsers(dest="site_command", parser_class=type(p))
 
     ov = noun_sub.add_parser("overview", help="Describe the site noun, routes, and export format.")
-    ov.add_argument("--json", action="store_true", help="Emit structured JSON.")
+    ov.add_argument("--json", action="store_true", help=_JSON_HELP)
     ov.set_defaults(func=cmd_site_overview)
 
     serve = noun_sub.add_parser("serve", help="Serve the portal docs as a markdown HTTP site.")
     serve.add_argument("--host", default="127.0.0.1", help="Bind host (default 127.0.0.1).")
     serve.add_argument("--port", type=int, default=8080, help="Bind port (default 8080; 0 = any).")
-    serve.add_argument("--json", action="store_true", help="Emit structured JSON.")
+    serve.add_argument("--json", action="store_true", help=_JSON_HELP)
     serve.set_defaults(func=cmd_site_serve)
 
     export = noun_sub.add_parser(
@@ -135,5 +138,5 @@ def register(sub: argparse._SubParsersAction) -> None:
         help="Write the pinned static content bundle for the Astro site build.",
     )
     export.add_argument("--out", required=True, help="Output directory (created if absent).")
-    export.add_argument("--json", action="store_true", help="Emit structured JSON.")
+    export.add_argument("--json", action="store_true", help=_JSON_HELP)
     export.set_defaults(func=cmd_site_export)

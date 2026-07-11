@@ -18,6 +18,9 @@ from learn.cli._commands.overview import emit_overview
 from learn.cli._errors import EXIT_ENV_ERROR, EXIT_SUCCESS, CliError
 from learn.cli._output import emit_diagnostic
 
+#: Shared ``--json`` help text (repeated per subparser below).
+_JSON_HELP = "Emit structured JSON."
+
 
 def _mcp_sections() -> list[dict[str, object]]:
     return [
@@ -99,17 +102,17 @@ def register(sub: argparse._SubParsersAction) -> None:
         "mcp",
         help="The MCP face — serve the portal's tools over MCP (see 'learn mcp overview').",
     )
-    p.add_argument("--json", action="store_true", help="Emit structured JSON.")
+    p.add_argument("--json", action="store_true", help=_JSON_HELP)
     p.set_defaults(func=_no_verb, json=False)
     noun_sub = p.add_subparsers(dest="mcp_command", parser_class=type(p))
 
     ov = noun_sub.add_parser("overview", help="Describe the MCP noun and its tools.")
-    ov.add_argument("--json", action="store_true", help="Emit structured JSON.")
+    ov.add_argument("--json", action="store_true", help=_JSON_HELP)
     ov.set_defaults(func=cmd_mcp_overview)
 
     serve = noun_sub.add_parser(
         "serve",
         help="Run the MCP server over stdio (single 'run' dispatch tool).",
     )
-    serve.add_argument("--json", action="store_true", help="Emit structured JSON.")
+    serve.add_argument("--json", action="store_true", help=_JSON_HELP)
     serve.set_defaults(func=cmd_mcp_serve)
