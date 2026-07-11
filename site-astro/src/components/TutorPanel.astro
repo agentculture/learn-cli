@@ -1,0 +1,279 @@
+---
+// The Nova Pro tutor panel (t15, spec c24/h11) — a subject page's
+// approved-tier surface, sibling to LearnerPanelSubject.astro.
+//
+// Three nested gates, mirrored from the Worker's own four-level ordering
+// (signed-out < signed-in < consented < APPROVED), each honest in static
+// markup before any JS runs:
+//   1. signed-out — the whole panel is `.signedin-only`, hidden by the
+//      global CSS default; a signed-out (or no-JS) visitor sees nothing,
+//      and src/scripts/tutor.js makes zero fetches for them.
+//   2. signed-in but NOT approved — the [data-tutor-gate-note] block below
+//      renders (visible by default): tutoring is enabled per learner by the
+//      admin. tutor.js checks `me.learner.approved` and simply returns.
+//   3. approved — tutor.js hides the note, un-hides [data-tutor-surface],
+//      and wires the three flows: grade an answer, ask for the next step,
+//      generate + play a personalized cloze story (recorded to the ledger).
+//
+// The Worker enforces the same gate server-side on POST /api/tutor
+// (403 approval_required, zero inference) — this panel is honest UI over
+// that boundary, never the boundary itself.
+//
+// data-tutor-exercises embeds the subject's gradeable exercises as static
+// JSON at build time (same pattern as LearnerPanelOverview's data-subjects
+// roster): prompts, expected answers, and rubrics are already public in
+// this site's own exported story pages, so shipping them here leaks nothing
+// and lets grading work with zero extra content fetches.
+import type { Subject } from "../lib/content";
+import { getStories } from "../lib/content";
+
+interface Props {
+  subject: Subject;
+}
+const { subject } = Astro.props;
+
+// Free-form-gradeable exercises: everything with a prompt EXCEPT the
+// pick-the-right-word cloze variant (its checking is closed-form and already
+// interactive on the story pages — grading free text against it makes no
+// sense). Compact fields only; tutor-core.js's buildGradePayload reads them.
+const gradeables = getStories(subject.name)
+  .flatMap((story) =>
+    story.exercises
+      .filter((ex) => ex.prompt && !(ex.type === "cloze" && ex.blanks && ex.blanks.length > 0))
+      .map((ex) => ({
+        id: ex.id,
+        type: ex.type,
+        prompt: ex.prompt,
+        answer: ex.answer,
+        rubric: ex.rubric,
+        choices: ex.choices,
+        story: story.title,
+      }))
+  )
+  .slice(0, 40);
+---
+
+<div class="card tutor-panel signedin-only" data-tutor-panel data-tutor-subject={subject.name}>
+  <span class="eyebrow">Nova Pro tutor</span>
+
+  <p class="muted gate-note" data-tutor-gate-note>
+    Tutoring is admin-approved: the tutor spends real inference per request,
+    so the learn admin enables it per learner. Everything else — reading,
+    practicing, recording progress — works without it. Your account panel on
+    the home page shows your current tutoring status.
+  </p>
+
+  <div class="tutor-surface" data-tutor-surface hidden>
+    <div class="tutor-block" data-tutor-grade>
+      <h3>Get an answer graded</h3>
+      <label class="tutor-label" for="tutor-grade-exercise">Exercise</label>
+      <select id="tutor-grade-exercise" data-grade-exercise></select>
+      <p class="muted tutor-prompt" data-grade-prompt></p>
+      <label class="tutor-label" for="tutor-grade-answer">Your answer</label>
+      <textarea id="tutor-grade-answer" data-grade-answer rows="3"></textarea>
+      <button type="button" class="tutor-btn" data-grade-submit>Grade my answer</button>
+      <p class="tutor-result muted" data-grade-result role="status" aria-live="polite"></p>
+    </div>
+
+    <div class="tutor-block" data-tutor-next>
+      <h3>What should I do next?</h3>
+      <p class="muted">
+        An adaptive recommendation from your own ledger — the tutor looks at
+        your weakest items here and picks one concrete next step.
+      </p>
+      <button type="button" class="tutor-btn" data-next-submit>Ask the tutor</button>
+      <p class="tutor-result muted" data-next-result role="status" aria-live="polite"></p>
+    </div>
+
+    <div class="tutor-block" data-tutor-cloze>
+      <h3>Personalized practice story</h3>
+      <p class="muted">
+        A new pick-the-right-word story written for your weakest items. Your
+        picks are tallied and recorded to your ledger like any other practice.
+      </p>
+      <button type="button" class="tutor-btn" data-cloze-submit>Write me a story</button>
+      <p class="tutor-result muted" data-cloze-status role="status" aria-live="polite"></p>
+      <div class="tutor-story" data-cloze-story hidden></div>
+    </div>
+  </div>
+
+  <script type="application/json" data-tutor-exercises set:html={JSON.stringify(gradeables)} />
+</div>
+
+<script>
+  import "../scripts/tutor.js";
+</script>
+
+<style>
+  .tutor-panel {
+    margin-bottom: 1.4rem;
+  }
+
+  .gate-note {
+    margin: 0.6rem 0 0;
+    font-size: 0.92rem;
+  }
+
+  :global(html[data-auth="in"]) .tutor-panel {
+    display: block;
+  }
+
+  .tutor-surface {
+    display: grid;
+    gap: 1.6rem;
+    margin-top: 0.9rem;
+  }
+
+  .tutor-surface[hidden] {
+    display: none;
+  }
+
+  .tutor-block {
+    display: grid;
+    gap: 0.55rem;
+    padding-top: 1.1rem;
+    border-top: 1px solid var(--line-soft);
+  }
+
+  .tutor-block h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .tutor-label {
+    font-size: 0.72rem;
+    font-weight: 640;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .tutor-block select,
+  .tutor-block textarea {
+    font: inherit;
+    font-size: 0.9rem;
+    padding: 0.45rem 0.7rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    max-width: 100%;
+  }
+
+  .tutor-prompt {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+
+  .tutor-btn {
+    justify-self: start;
+    display: inline-block;
+    padding: 0.5rem 1.1rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .tutor-btn:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+    color: var(--accent-strong);
+  }
+
+  .tutor-btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  .tutor-result {
+    margin: 0;
+    font-size: 0.88rem;
+    min-height: 1.2em;
+  }
+
+  /* The generated story's interaction nodes are created by tutor.js at
+     runtime, so they carry no Astro scope attribute — style them via
+     :global under the scoped .tutor-story ancestor, same tokens and shapes
+     as the story reader's own cloze widgets. */
+  .tutor-story {
+    --cloze-wrong: #b3401c;
+    margin-top: 0.4rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .tutor-story {
+      --cloze-wrong: #ff9466;
+    }
+  }
+
+  .tutor-story :global(.tutor-story-title) {
+    margin: 0 0 0.3rem;
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+  }
+
+  .tutor-story :global(.tutor-story-prompt) {
+    margin: 0 0 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .tutor-story :global(.cloze-passage) {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 2.1;
+  }
+
+  .tutor-story :global(.cloze-blank) {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0 0.15rem;
+    vertical-align: middle;
+  }
+
+  .tutor-story :global(.cloze-options) {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .tutor-story :global(.cloze-option) {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.2rem 0.75rem;
+    cursor: pointer;
+  }
+
+  .tutor-story :global(.cloze-option:hover:not(:disabled)) {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+    color: var(--accent-strong);
+  }
+
+  .tutor-story :global(.cloze-option:disabled) {
+    cursor: default;
+  }
+
+  .tutor-story :global(.cloze-option.is-correct) {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+    color: var(--accent-strong);
+    opacity: 1;
+  }
+
+  .tutor-story :global(.cloze-option.is-incorrect) {
+    border-color: var(--cloze-wrong);
+    background: color-mix(in srgb, var(--cloze-wrong) 16%, var(--surface));
+    color: var(--cloze-wrong);
+    opacity: 1;
+  }
+</style>
