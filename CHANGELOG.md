@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-07-11
+
+### Added
+
+- The learn platform: subject registry fronting french-cli, spanish-cli, and culture-guide as external runtimes (learn subjects, learn subject doctor <name> conformance gate)
+- Subject-plugin contract v1.0: 11 versioned JSON schemas + stdlib validator as package data (learn/contract), directive pattern, story schema shared by all subjects
+- Motivation layer (learn/motivation): deterministic scores, streaks, time-decayed mastery, review queues, and never-ending what-next over recorded history
+- Learner profile (learn/profile + auth/progress/next/record verbs): GitHub device-flow sign-in, offline-first local ledger with best-effort sync
+- Three faces via agentfront>=0.20: learn mcp serve (stdio MCP), learn site serve (agent-readable web), learn site export (pinned content export), surfaces-agree CI test
+- Web face (site-astro/): 29 static pages in org's design system (zero new tokens), signed-out/in split with client hydration and a zero-API static proof, Cloudflare Pages deploy workflow
+- API worker (workers/learn-api): GitHub OAuth, KV/D1 learner ledger, tutoring broker, and the agentculture.org/learn/* zone mount (API + static proxy in one worker)
+- E2E launch gate (tools/launch-gate): 66 machine-checked assertions across web/CLI/MCP audiences with live-mode rerun
+
+### Changed
+
+- Runtime dependencies: agentfront[mcp]>=0.20 (was zero-dependency scaffold)
+- CLAUDE.md and lint config updated for the new surfaces
+
 ## [0.4.2] - 2026-07-11
 
 ### Added
