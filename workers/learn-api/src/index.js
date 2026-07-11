@@ -102,7 +102,13 @@ async function proxyToPages(request, env, url) {
   requireConfig(env, "PAGES_ORIGIN");
   const origin = env.PAGES_ORIGIN.replace(/\/+$/, "");
   const upstream = origin + url.pathname + url.search;
-  return fetch(new Request(upstream, { method: request.method, headers: request.headers }));
+  // Never forward credentials to the static origin: the session cookie (and
+  // any Authorization header) is for this API only — the Pages origin serves
+  // public files and must not see learner sessions.
+  const headers = new Headers(request.headers);
+  headers.delete("Cookie");
+  headers.delete("Authorization");
+  return fetch(new Request(upstream, { method: request.method, headers }));
 }
 
 // --- public routes ---------------------------------------------------------
@@ -325,6 +331,6 @@ function withCors(env, request, response) {
   headers.set("Access-Control-Allow-Credentials", "true");
   headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  headers.set("Vary", "Origin");
+  headers.append("Vary", "Origin");
   return new Response(response.body, { status: response.status, headers });
 }

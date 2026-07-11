@@ -429,3 +429,47 @@ test("POST under the /learn site mount is rejected (read-only proxy)", async () 
   const res = await call(env, new Request(`${BASE}/learn/french/`, { method: "POST" }));
   assert.equal(res.status, 405);
 });
+
+test("proxy to PAGES_ORIGIN strips Cookie and Authorization headers", async () => {
+  let seenHeaders = null;
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (req) => {
+    seenHeaders = req.headers;
+    return new Response("ok", { status: 200 });
+  };
+  try {
+    const env = makeEnv({ PAGES_ORIGIN: "https://agentculture-learn.pages.dev" });
+    const req = new Request(`${BASE}/learn/french/`, {
+      headers: { Cookie: "session=supersecret", Authorization: "Bearer tok", Accept: "text/html" },
+    });
+    const res = await call(env, req);
+    assert.equal(res.status, 200);
+    assert.equal(seenHeaders.get("Cookie"), null);
+    assert.equal(seenHeaders.get("Authorization"), null);
+    assert.equal(seenHeaders.get("Accept"), "text/html");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("withCors appends to an existing Vary header instead of overwriting", async () => {
+  let called = 0;
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    called += 1;
+    return new Response("ok", { status: 200, headers: { Vary: "Accept-Encoding" } });
+  };
+  try {
+    const env = makeEnv({
+      PAGES_ORIGIN: "https://agentculture-learn.pages.dev",
+      CORS_ORIGIN: "https://agentculture.org",
+    });
+    const res = await call(env, new Request(`${BASE}/learn/french/`, { headers: { Origin: "https://agentculture.org" } }));
+    assert.equal(called, 1);
+    const vary = res.headers.get("Vary");
+    assert.ok(vary.includes("Accept-Encoding"), `Vary lost upstream value: ${vary}`);
+    assert.ok(vary.includes("Origin"), `Vary missing Origin: ${vary}`);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
