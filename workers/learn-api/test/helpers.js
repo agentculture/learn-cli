@@ -35,13 +35,14 @@ export class KVStub {
 
 /**
  * Minimal Cloudflare D1 stub. Recognizes exactly the statements db.js issues
- * (matched by keyword), backing them with a Map of learners + an array of
- * append-only records.
+ * (matched by keyword), backing them with a Map of learners, an array of
+ * append-only records, and an array of consent rows.
  */
 export class D1Stub {
   constructor() {
     this.learners = new Map();
     this.records = [];
+    this.consents = [];
     this._id = 0;
   }
 
@@ -51,6 +52,18 @@ export class D1Stub {
 
   _norm(sql) {
     return sql.replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
+  /** Cloudflare D1's batch API: run already-bound statements in order,
+   * returning their results array. The real D1 wraps this in a transaction;
+   * the stub just runs sequentially, which is enough to test statement order
+   * and aggregate results. */
+  async batch(statements) {
+    const results = [];
+    for (const stmt of statements) {
+      results.push(await stmt.run());
+    }
+    return results;
   }
 }
 
@@ -94,6 +107,37 @@ class D1Prepared {
       });
       return { success: true, meta: { changes: 1, last_row_id: id } };
     }
+    if (this.sql.includes("insert into consents")) {
+      // args: uid, terms_version, granted_at, granted_at(on-conflict update)
+      const [uid, termsVersion, grantedAt] = this.args;
+      const id = String(uid);
+      const existing = this.db.consents.find(
+        (c) => c.github_user_id === id && c.terms_version === termsVersion,
+      );
+      if (existing) {
+        existing.granted_at = grantedAt;
+      } else {
+        this.db.consents.push({ github_user_id: id, terms_version: termsVersion, granted_at: grantedAt });
+      }
+      return { success: true, meta: { changes: 1 } };
+    }
+    if (this.sql.includes("delete from records")) {
+      const [uid] = this.args;
+      const before = this.db.records.length;
+      this.db.records = this.db.records.filter((r) => r.github_user_id !== String(uid));
+      return { success: true, meta: { changes: before - this.db.records.length } };
+    }
+    if (this.sql.includes("delete from consents")) {
+      const [uid] = this.args;
+      const before = this.db.consents.length;
+      this.db.consents = this.db.consents.filter((c) => c.github_user_id !== String(uid));
+      return { success: true, meta: { changes: before - this.db.consents.length } };
+    }
+    if (this.sql.includes("delete from learners")) {
+      const [uid] = this.args;
+      const existed = this.db.learners.delete(String(uid));
+      return { success: true, meta: { changes: existed ? 1 : 0 } };
+    }
     return { success: true, meta: {} };
   }
 
@@ -101,6 +145,13 @@ class D1Prepared {
     if (this.sql.includes("from learners")) {
       const [uid] = this.args;
       return this.db.learners.get(String(uid)) || null;
+    }
+    if (this.sql.includes("from consents")) {
+      const [uid] = this.args;
+      const rows = this.db.consents
+        .filter((c) => c.github_user_id === String(uid))
+        .sort((a, b) => (a.granted_at < b.granted_at ? 1 : a.granted_at > b.granted_at ? -1 : 0));
+      return rows[0] || null;
     }
     const { results } = await this.all();
     return results[0] || null;
