@@ -25,6 +25,55 @@ never signs in costs nothing beyond static bandwidth (free) and cannot trigger a
 model call. This is enforced in code and proven by test
 (`workers/learn-api/test/worker.test.js`).
 
+## How it deploys (CI pipeline)
+
+Both surfaces deploy from CI on merge to `main` — **no local `wrangler`**. Two
+sibling GitHub Actions workflows, each path-filtered so it only runs when its
+surface changes:
+
+| Workflow | Deploys | Triggers |
+| --- | --- | --- |
+| `.github/workflows/deploy-site.yml` | the static shell + tour (Cloudflare **Pages**, project `agentculture-learn`) | push to `main` on `site-astro/**`; PR = preview alias; `workflow_dispatch` |
+| `.github/workflows/deploy-worker.yml` | the `learn-api` **Worker** + the **D1 schema** | push to `main` on `workers/learn-api/**`; `workflow_dispatch` = preview |
+
+The Worker workflow has two paths (added in `learn-cli 0.7.0`, PR #14):
+
+- **Merge to main → production.** Applies `schema.sql` to the `learn-ledger` D1
+  `--remote` (idempotent — every statement is `CREATE … IF NOT EXISTS`, so
+  re-applying is a no-op), syncs the Worker secrets, and runs `wrangler deploy`
+  on the top-level `wrangler.toml` (the config with the `/learn/*` route).
+  **Consequence: merging any PR that touches `workers/learn-api/**` performs a
+  real production Worker deploy.**
+- **Branch `workflow_dispatch` → preview.** Runs `wrangler versions upload
+  --env preview` (uploads a non-promoted version with its own `*.workers.dev`
+  URL) against a **separate preview D1** declared in the `[env.preview]` block
+  (`learn-api-preview`, `learn-ledger-preview`, **no route**). Production —
+  deployed version, route, and D1 — is never touched by a branch run. The
+  dispatch button only appears once the workflow is on the default branch, so
+  the branch-verify path is available **after** the first merge.
+
+Load-bearing safety properties (guarded by
+`tests/test_deploy_pipeline_invariants.py`):
+
+- Every production / promote / prod-D1 step is gated to
+  `github.ref == 'refs/heads/main'`; a branch run can never reach them.
+- Secret sync pipes each value over **stdin** (never a CLI argument) and is
+  **guarded by a non-empty check** — an unset GitHub Actions secret is *skipped*,
+  leaving the deployed value unchanged, so a deploy never clobbers a live prod
+  secret with `""` (and the intentionally-unset optional secrets
+  `INFERENCE_TOKEN` / `VOICE_TOKEN_SECRET`, while tutoring/voice are off, don't
+  wipe or fail).
+- The workflows never touch `infra/` — the SAM voice bridge stays a separate
+  manual `sam deploy`.
+
+**Operator setup and the step-by-step runbook** (provisioning the preview D1,
+the GitHub Actions secrets to create, the post-merge verify via the LIVE launch
+gate, and the OAuth-callback caveat for preview) live in
+[`workers/learn-api/README.md`](../workers/learn-api/README.md) — the single
+source of truth. The design rationale (why a preview *environment* + separate
+D1, why CI-synced secrets) is in the converged spec,
+[`docs/specs/2026-07-11-learn-cli-ships-a-one-command-free-deployment-pipe.md`](specs/2026-07-11-learn-cli-ships-a-one-command-free-deployment-pipe.md).
+
 ## Cost-when-busy
 
 Rough order-of-magnitude figures (Cloudflare pricing as of 2026; confirm

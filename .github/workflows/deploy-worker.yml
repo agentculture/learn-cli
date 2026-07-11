@@ -1,0 +1,199 @@
+name: Deploy Worker
+
+# learn-cli's dynamic face: the learn-api Cloudflare Worker (GitHub OAuth
+# sessions, the learner ledger, the tutoring broker) plus its D1 schema
+# (learn-ledger). This workflow owns ONLY the Worker + D1 — NOT the Astro
+# site (deploy-site.yml owns site-astro/ and Cloudflare Pages); do not add
+# site steps here.
+#
+# Two paths, one workflow, gated purely by github.ref:
+#
+#   - PUSH TO MAIN (or a workflow_dispatch run whose ref IS main): the
+#     PRODUCTION path. Applies workers/learn-api/schema.sql to the live
+#     `learn-ledger` D1 with --remote, syncs the 5 Worker secrets to
+#     production, then `wrangler deploy` promotes the top-level (production)
+#     wrangler.toml config. This is the ONLY path that ever touches
+#     production.
+#   - WORKFLOW_DISPATCH from any OTHER branch: the PREVIEW path. Applies
+#     schema.sql to the `learn-ledger-preview` D1, syncs the 5 Worker secrets
+#     to the `preview` environment, then `wrangler versions upload --env
+#     preview` — a non-promoting upload that proves the deploy pipeline green
+#     without ever touching production. It NEVER runs `wrangler deploy` and
+#     never promotes anything to prod.
+#
+# Every production/promote/prod-D1 step below is guarded by
+# `github.ref == 'refs/heads/main'`; every preview step is guarded by the
+# complementary `github.ref != 'refs/heads/main'`, so the two paths can never
+# both fire in one run. workflow_dispatch deliberately ignores the `paths:`
+# filter below (GitHub's own behavior) — that's intentional, so a branch
+# preview run can always be forced regardless of what changed.
+#
+# Operator prerequisites (one-time, before the preview path can go green):
+#   1. `wrangler d1 create learn-ledger-preview`, then paste the printed
+#      database_id into workers/learn-api/wrangler.toml's
+#      [env.preview.d1_databases] block (replacing PLACEHOLDER_PREVIEW_D1_ID).
+#   2. The 5 Worker secrets referenced below — SESSION_SECRET,
+#      GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, INFERENCE_TOKEN,
+#      VOICE_TOKEN_SECRET — must exist as GitHub Actions repository secrets,
+#      alongside CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.
+# Until both are done, a branch workflow_dispatch run fails red — expected,
+# not a bug in this workflow.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'workers/learn-api/**'
+      - '.github/workflows/deploy-worker.yml'
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: worker-deploy-${{ github.ref }}
+      cancel-in-progress: true
+    # Mapped here so later steps can gate with `if: env.CLOUDFLARE_API_TOKEN
+    # != ''` — secrets.* isn't usable directly in an `if:` conditional.
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
+
+      - name: Skip notice (Cloudflare secrets not configured)
+        if: env.CLOUDFLARE_API_TOKEN == '' || env.CLOUDFLARE_ACCOUNT_ID == ''
+        run: |
+          echo "::notice::CLOUDFLARE_API_TOKEN and/or CLOUDFLARE_ACCOUNT_ID are not configured on this repo yet — skipping the learn-api Worker deploy (both the production and preview paths). This validates the workflow parses and runs cleanly up to that point."
+          {
+            echo '### Deploy skipped'
+            echo ''
+            echo 'The Cloudflare secrets (`CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`) are not both set on this repo yet, so the Worker deploy/upload steps were skipped.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # -----------------------------------------------------------------
+      # PRODUCTION path — push to main, or a workflow_dispatch run whose
+      # ref is main. Never runs on any other branch.
+      # -----------------------------------------------------------------
+
+      - name: "[prod] Apply D1 schema (learn-ledger)"
+        if: >-
+          env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' &&
+          github.ref == 'refs/heads/main'
+        working-directory: workers/learn-api
+        run: npx wrangler@4 d1 execute learn-ledger --remote --file schema.sql
+
+      # Secrets are synced BEFORE the deploy below so the deployed Worker
+      # version has them from the moment it goes live. Each value is piped
+      # over stdin — never a CLI argument — so it never lands in a process
+      # list or shell history. Each put is guarded by a non-empty check: an
+      # unset/empty Actions secret is SKIPPED, leaving the deployed value
+      # unchanged, so we never clobber a live prod secret with "". This lets
+      # optional secrets (INFERENCE_TOKEN, VOICE_TOKEN_SECRET) stay unset while
+      # tutoring/voice are off, and protects pre-existing prod secrets on the
+      # first run before they are mirrored into GitHub Actions.
+      - name: "[prod] Sync Worker secrets"
+        if: >-
+          env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' &&
+          github.ref == 'refs/heads/main'
+        working-directory: workers/learn-api
+        run: |
+          if [ -n "${{ secrets.SESSION_SECRET }}" ]; then
+            printf '%s' "${{ secrets.SESSION_SECRET }}" | npx wrangler@4 secret put SESSION_SECRET
+          else echo "::notice::SESSION_SECRET unset in Actions — leaving deployed value unchanged"; fi
+          if [ -n "${{ secrets.GITHUB_CLIENT_ID }}" ]; then
+            printf '%s' "${{ secrets.GITHUB_CLIENT_ID }}" | npx wrangler@4 secret put GITHUB_CLIENT_ID
+          else echo "::notice::GITHUB_CLIENT_ID unset in Actions — leaving deployed value unchanged"; fi
+          if [ -n "${{ secrets.GITHUB_CLIENT_SECRET }}" ]; then
+            printf '%s' "${{ secrets.GITHUB_CLIENT_SECRET }}" | npx wrangler@4 secret put GITHUB_CLIENT_SECRET
+          else echo "::notice::GITHUB_CLIENT_SECRET unset in Actions — leaving deployed value unchanged"; fi
+          if [ -n "${{ secrets.INFERENCE_TOKEN }}" ]; then
+            printf '%s' "${{ secrets.INFERENCE_TOKEN }}" | npx wrangler@4 secret put INFERENCE_TOKEN
+          else echo "::notice::INFERENCE_TOKEN unset in Actions — leaving deployed value unchanged"; fi
+          if [ -n "${{ secrets.VOICE_TOKEN_SECRET }}" ]; then
+            printf '%s' "${{ secrets.VOICE_TOKEN_SECRET }}" | npx wrangler@4 secret put VOICE_TOKEN_SECRET
+          else echo "::notice::VOICE_TOKEN_SECRET unset in Actions — leaving deployed value unchanged"; fi
+
+      # The only step in this workflow allowed to touch production: promotes
+      # the top-level (production) wrangler.toml config — never
+      # wrangler.signedout.toml, never an --env flag.
+      - name: "[prod] wrangler deploy"
+        if: >-
+          env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' &&
+          github.ref == 'refs/heads/main'
+        working-directory: workers/learn-api
+        run: npx wrangler@4 deploy
+
+      # -----------------------------------------------------------------
+      # PREVIEW path — workflow_dispatch from any branch OTHER than main.
+      # Targets the [env.preview] config only; never deploys/promotes to
+      # production.
+      # -----------------------------------------------------------------
+
+      - name: "[preview] Apply D1 schema (learn-ledger-preview)"
+        if: >-
+          env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' &&
+          github.ref != 'refs/heads/main'
+        working-directory: workers/learn-api
+        run: npx wrangler@4 d1 execute learn-ledger-preview --remote --file schema.sql
+
+      # Same non-empty guard as the prod step: an unset Actions secret is
+      # skipped, leaving the preview Worker's value unchanged.
+      - name: "[preview] Sync Worker secrets"
+        if: >-
+          env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' &&
+          github.ref != 'refs/heads/main'
+        working-directory: workers/learn-api
+        run: |
+          if [ -n "${{ secrets.SESSION_SECRET }}" ]; then
+            printf '%s' "${{ secrets.SESSION_SECRET }}" | npx wrangler@4 secret put SESSION_SECRET --env preview
+          else echo "::notice::SESSION_SECRET unset in Actions — leaving preview value unchanged"; fi
+          if [ -n "${{ secrets.GITHUB_CLIENT_ID }}" ]; then
+            printf '%s' "${{ secrets.GITHUB_CLIENT_ID }}" | npx wrangler@4 secret put GITHUB_CLIENT_ID --env preview
+          else echo "::notice::GITHUB_CLIENT_ID unset in Actions — leaving preview value unchanged"; fi
+          if [ -n "${{ secrets.GITHUB_CLIENT_SECRET }}" ]; then
+            printf '%s' "${{ secrets.GITHUB_CLIENT_SECRET }}" | npx wrangler@4 secret put GITHUB_CLIENT_SECRET --env preview
+          else echo "::notice::GITHUB_CLIENT_SECRET unset in Actions — leaving preview value unchanged"; fi
+          if [ -n "${{ secrets.INFERENCE_TOKEN }}" ]; then
+            printf '%s' "${{ secrets.INFERENCE_TOKEN }}" | npx wrangler@4 secret put INFERENCE_TOKEN --env preview
+          else echo "::notice::INFERENCE_TOKEN unset in Actions — leaving preview value unchanged"; fi
+          if [ -n "${{ secrets.VOICE_TOKEN_SECRET }}" ]; then
+            printf '%s' "${{ secrets.VOICE_TOKEN_SECRET }}" | npx wrangler@4 secret put VOICE_TOKEN_SECRET --env preview
+          else echo "::notice::VOICE_TOKEN_SECRET unset in Actions — leaving preview value unchanged"; fi
+
+      # Non-promoting: uploads a preview version of the Worker without ever
+      # making it the production deployment. This is the ONLY upload command
+      # the preview path is allowed to run.
+      - name: "[preview] wrangler versions upload"
+        if: >-
+          env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' &&
+          github.ref != 'refs/heads/main'
+        working-directory: workers/learn-api
+        run: npx wrangler@4 versions upload --env preview
+
+      - name: Deployment summary
+        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            {
+              echo '### Deployed learn-api Worker (production)'
+              echo ''
+              echo '- D1 schema applied to `learn-ledger` (--remote)'
+              echo '- Worker secrets synced to production'
+              echo '- `wrangler deploy` promoted the top-level (production) config'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo '### Uploaded learn-api Worker (preview)'
+              echo ''
+              echo '- D1 schema applied to `learn-ledger-preview` (--remote)'
+              echo '- Worker secrets synced to the `preview` environment'
+              echo '- `wrangler versions upload --env preview` — non-promoting; production untouched'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-07-11
+
+### Added
+
+- Deploy-worker CI: merges to main now deploy the learn-api Cloudflare Worker and apply the D1 schema automatically via .github/workflows/deploy-worker.yml.
+- Branch-preview verification: a workflow_dispatch path runs wrangler versions upload --env preview against a separate preview D1, so the pipeline can be exercised without touching production.
+- CI-synced Worker secrets: production and preview secrets are pushed from CI on every relevant run, keeping the deployed Worker config in lockstep with the repo. Each sync is guarded by a non-empty check, so an unset Actions secret is skipped rather than clobbering a live deployed secret with an empty value.
+
 ## [0.6.0] - 2026-07-11
 
 ### Added

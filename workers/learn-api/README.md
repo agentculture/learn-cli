@@ -248,33 +248,141 @@ secrets in a git-ignored `.dev.vars` file (see below).
 
 ## Deploy status: two phases
 
-The go-live is staged. **Phase 1 (signed-out) is LIVE** at
-<https://agentculture.org/learn/> (deployed 2026-07-11); **Phase 2 (signed-in)
-is pending** two operator-held credentials.
+The go-live was staged. **Phase 1 (signed-out) went LIVE** at
+<https://agentculture.org/learn/> on 2026-07-11, and **Phase 2 (signed-in)** —
+sessions, ledger, tutoring broker — was provisioned and deployed the same day
+(see `CHANGELOG.md` 0.5.3). Both phases are live today; `wrangler.signedout.toml`
+is kept only as a historical record of the Phase-1 config and is **never**
+deployed by CI (`tests/test_deploy_pipeline_invariants.py` asserts this).
 
-| | Phase 1 — signed-out (LIVE) | Phase 2 — signed-in (pending) |
+| | Phase 1 — signed-out (historical) | Phase 2 — signed-in (LIVE) |
 | --- | --- | --- |
 | Config | [`wrangler.signedout.toml`](wrangler.signedout.toml) | [`wrangler.toml`](wrangler.toml) |
 | Serves | Static `/learn/*` proxied to Pages; `/api/*` returns 401 | + sessions, ledger, tutoring |
 | KV / D1 | none | KV `SESSIONS` + D1 `learn-ledger` |
-| Secrets | none | `SESSION_SECRET`, `GITHUB_CLIENT_SECRET`, `INFERENCE_TOKEN` |
+| Secrets | none | `SESSION_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `INFERENCE_TOKEN`, `VOICE_TOKEN_SECRET` |
 | Token perms | Cloudflare Pages: Edit **+** Workers Scripts: Edit | **+** Workers KV Storage: Edit **+** D1: Edit |
-| Deploy | `wrangler deploy -c wrangler.signedout.toml` | `wrangler deploy` |
+| Deploy | (superseded — see "CI deploy pipeline" below) | `.github/workflows/deploy-worker.yml`, merge to `main` |
 
-The signed-out tier touches no storage and spends no inference — `/api/me` and
+The signed-out tier touched no storage and spent no inference — `/api/me` and
 `POST /api/tutor` return `401` *before* any KV/D1 access (proven live by the
-launch gate's "signed-out fires ONLY GET /api/me" walk). That is why Phase 1
-deploys with a Pages+Workers token and nothing else.
+launch gate's "signed-out fires ONLY GET /api/me" walk); that invariant still
+holds under the full Phase-2 config, just gated one level deeper (consent,
+then approval — see the invariants documented above).
 
-**Phase 1 was deployed with the repo's `.env` token, which carries Pages: Edit
-and Workers Scripts: Edit but NOT KV/D1.** To do Phase 2 self-serve, that token
-needs **Workers KV Storage: Edit** and **D1: Edit** added (or swap in a token
-that has them).
+## CI deploy pipeline
 
-## Provisioning Phase 2 (signed-in)
+`.github/workflows/deploy-worker.yml` is the routine way this Worker ships —
+**merging to `main` is the deploy**; nobody runs `wrangler deploy` from a
+laptop for the normal case anymore (a manual fallback still exists for when
+CI itself is unavailable — see "Manual fallback / break-glass" below). One
+workflow, two paths, gated purely by `github.ref`:
 
-These steps are done once, by the operator, before the signed-in deploy.
-Nothing here is committed.
+| | Push to `main` (production) | `workflow_dispatch` off any other branch (preview) |
+| --- | --- | --- |
+| D1 schema | `wrangler d1 execute learn-ledger --remote --file schema.sql` | `wrangler d1 execute learn-ledger-preview --remote --file schema.sql` |
+| Secrets | synced to production | synced to the `preview` environment (`--env preview`) |
+| Deploy step | `wrangler deploy` — promotes the top-level (production) `wrangler.toml` | `wrangler versions upload --env preview` — uploads a non-promoted preview version |
+| Route touched | `/learn/*` (live) | none — `[env.preview]` declares no route |
+
+`workflow_dispatch` deliberately ignores the `push` path filter
+(`workers/learn-api/**`), so a preview run can always be forced regardless of
+what changed. Every production/promote/prod-D1 step is guarded by
+`github.ref == 'refs/heads/main'`; every preview step is guarded by the
+complementary `github.ref != 'refs/heads/main'`, so the two paths can never
+both fire in the same run. Every secret is piped over stdin
+(`printf '%s' "$VALUE" | wrangler secret put NAME`), never a CLI argument, so
+no value can appear in a process list or a CI log.
+
+If `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` are not both set on the
+repo, the deploy/upload steps are skipped with a `::notice::` and a
+job-summary note — the rest of the workflow still runs, which validates the
+pipeline's shape even before Cloudflare credentials exist.
+
+### One-time operator setup
+
+Before the preview path (and, for the Cloudflare credentials, the production
+path too) can go green, an operator does the following once:
+
+1. **Provision the preview D1**: run `wrangler d1 create learn-ledger-preview`,
+   then paste the printed `database_id` into the `[env.preview.d1_databases]`
+   block in `wrangler.toml`, replacing the `PLACEHOLDER_PREVIEW_D1_ID`
+   placeholder. Do the same for the preview KV namespace — run
+   `wrangler kv namespace create SESSIONS_PREVIEW` and paste its id into
+   `[env.preview.kv_namespaces]`, replacing `PLACEHOLDER_PREVIEW_KV_ID`.
+2. **Create the GitHub Actions repository secrets** the pipeline reads:
+   - `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` — the deploy
+     credentials (Pages: Edit + Workers Scripts: Edit + Workers KV Storage:
+     Edit + D1: Edit).
+   - `SESSION_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`,
+     `INFERENCE_TOKEN`, `VOICE_TOKEN_SECRET` — the five Worker secrets, synced
+     by CI to both the production and preview environments on every relevant
+     run.
+
+Until both steps are done, a branch `workflow_dispatch` run fails red (the
+preview D1/KV ids are still placeholders) — expected, not a bug in the
+workflow.
+
+### Preview-env OAuth-callback caveat
+
+The preview Worker (`learn-api-preview`) has no `routes` binding, so it is
+only reachable at its own `*.workers.dev` origin — which is **not** the
+registered GitHub OAuth app callback
+(`https://agentculture.org/learn/api/auth/callback`, see step 1 below). A full
+authed sign-in against preview will fail GitHub's `redirect_uri` check unless
+a second, preview-scoped OAuth app is registered with a matching
+`*.workers.dev` callback. Absent that, the preview target verifies
+**unauthenticated** probes only — `/api/health`, the `401` shape of
+session-gated routes, and so on — which is still enough to prove the pipeline
+mechanics that matter: the build succeeds, the version uploads, the preview D1
+schema applies cleanly, and the bindings resolve. The full
+consented/approved/tutoring flows stay proven against the real topology by
+`consent_walk.mjs`'s LOCAL mode and the Worker's own unit suite (see
+"Testing" below), and against production by the post-merge verify next.
+
+### Post-merge verify
+
+After a push to `main` deploys, confirm the live surface actually flipped:
+
+```bash
+LIVE_ORIGIN=https://agentculture.org node tools/launch-gate/consent_walk.mjs
+```
+
+Compare the result to
+[`tools/launch-gate/BASELINE-2026-07-11.md`](../../tools/launch-gate/BASELINE-2026-07-11.md):
+every check recorded there as failing pre-uplift (`404` routes/pages) must now
+read `PASS` (routes exist and reject unauth with `401`; pages serve `200`),
+per that file's "Post-deploy: re-run to green" section.
+
+**Idempotency (run-twice) check.** `schema.sql` is entirely
+`CREATE ... IF NOT EXISTS` statements, so re-running the pipeline against
+unchanged source must be a no-op: the schema-apply step changes nothing on
+the second run, and `wrangler deploy` (which does not reset or delete
+already-set Worker secrets) redeploys behavior-identically with secrets
+intact. Verify by triggering the workflow twice in a row (a no-op commit, or
+re-running the job) and confirming the second run's job summary reports the
+same deploy, the `wrangler d1 execute` step exits clean, and a live
+`GET /learn/api/me` with an existing session cookie still `200`s afterward
+(secrets were not rotated out from under it).
+
+### Manual fallback / break-glass
+
+Local `wrangler deploy` is no longer the routine path, but it still works as
+an escape hatch if CI itself is unavailable: authenticate with
+`wrangler login` (or a Cloudflare API token with the same
+Pages/Workers Scripts/KV/D1 Edit scopes CI uses), then from
+`workers/learn-api/` run the same two commands the workflow runs —
+`wrangler d1 execute learn-ledger --remote --file schema.sql` and
+`wrangler deploy`. Prefer fixing the pipeline over reaching for this; a manual
+deploy bypasses the CI audit trail the pipeline exists to provide.
+
+## Initial provisioning reference (historical)
+
+These steps were performed once, by the operator, to stand up the signed-in
+tier originally (2026-07-11 — see `CHANGELOG.md` 0.5.3/0.5.4/0.7.0). They are
+kept here as a disaster-recovery reference (e.g. re-provisioning production
+KV/D1 from scratch) — **not** as the routine deploy path, which is now the CI
+pipeline above. Nothing here is committed.
 
 ### 1. Create the GitHub OAuth app
 
@@ -347,17 +455,14 @@ GITHUB_CLIENT_SECRET = "..."
 INFERENCE_TOKEN = "..."
 ```
 
-### 4. Deploy
+### 4. Deploy (historical — now done by CI)
 
-```bash
-wrangler deploy   # uses wrangler.toml — full stack, same /learn/* route
-```
-
-The `agentculture.org/learn/*` zone route is already live (Phase 1) and is
-declared in `wrangler.toml`, so this deploy upgrades the *same* worker in place
-— the route does not move. Confirm the signed-in path end-to-end afterward
-(`GET /learn/api/me` with a real session cookie should `200`), then merge org's
-Learn-nav link to open public discovery.
+The original Phase-2 deploy ran `wrangler deploy` directly (recorded in
+`CHANGELOG.md` 0.5.3) against the `agentculture.org/learn/*` zone route
+already live from Phase 1. That command still works as the manual fallback
+(see "Manual fallback / break-glass" above), but every deploy since has
+gone through `.github/workflows/deploy-worker.yml` — see "CI deploy
+pipeline" above for the routine path.
 
 ## Endpoint shapes for downstream waves
 

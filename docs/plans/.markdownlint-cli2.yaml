@@ -5,6 +5,8 @@
 #   MD026: the H1 is the announcement sentence and ends with punctuation.
 #   MD033: claim/instruction text may contain <placeholder> tokens
 #          (e.g. "learn subject doctor <subject>") that read as inline HTML.
+#   MD034: claim/instruction text may quote a bare URL verbatim
+#          (e.g. "LIVE_ORIGIN=https://agentculture.org launch gate").
 config:
   default: true
   MD013: false
@@ -13,3 +15,4 @@ config:
     siblings_only: true
   MD026: false
   MD033: false
+  MD034: false
