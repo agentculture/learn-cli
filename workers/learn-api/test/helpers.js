@@ -91,15 +91,28 @@ class D1Prepared {
   async run() {
     if (this.sql.includes("insert into learners")) {
       this._logWrite("learners", "insert");
-      // args: uid, name, now, now, name(update), now(update)
-      const [uid, name] = this.args;
+      // args: uid, name, created_at, updated_at, name(on-conflict update), updated_at(on-conflict update)
+      const [uid, name, createdAt, , , updatedAt] = this.args;
       const existing = this.db.learners.get(String(uid));
       this.db.learners.set(String(uid), {
         github_user_id: String(uid),
         display_name: name,
         state: existing ? existing.state : "{}",
+        created_at: existing ? existing.created_at : createdAt,
+        updated_at: updatedAt || createdAt,
       });
       return { success: true, meta: { changes: 1, last_row_id: 0 } };
+    }
+    if (this.sql.includes("update learners")) {
+      // setLearnerVisibility (t8): UPDATE learners SET state = ?, updated_at = ? WHERE github_user_id = ?
+      this._logWrite("learners", "update");
+      const [state, updatedAt, uid] = this.args;
+      const existing = this.db.learners.get(String(uid));
+      if (existing) {
+        existing.state = state;
+        existing.updated_at = updatedAt;
+      }
+      return { success: true, meta: { changes: existing ? 1 : 0 } };
     }
     if (this.sql.includes("insert into records")) {
       this._logWrite("records", "insert");
@@ -179,6 +192,20 @@ class D1Prepared {
   }
 
   async all() {
+    if (this.sql.includes("from records") && this.sql.includes("group by")) {
+      // listAllLearners' admin aggregate (t8): per (uid, subject) counts,
+      // no bind — the whole point is it is NOT scoped to one learner.
+      const counts = new Map();
+      for (const r of this.db.records) {
+        const key = `${r.github_user_id} ${r.subject}`;
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+      const results = [...counts.entries()].map(([key, count]) => {
+        const [github_user_id, subject] = key.split(" ");
+        return { github_user_id, subject, count };
+      });
+      return { results };
+    }
     if (this.sql.includes("from records")) {
       // listRecords binds (uid, subject); listAllRecords (t7) binds uid
       // only — a missing second bind means "every subject".
@@ -187,8 +214,26 @@ class D1Prepared {
       if (subject !== undefined) results = results.filter((r) => r.subject === subject);
       return { results: [...results].sort((a, b) => a.id - b.id) };
     }
+    if (this.sql.includes("from learners")) {
+      // listAllLearners' admin roster read (t8): no WHERE clause, no bind —
+      // getLearner's single-row lookup goes through first(), never all().
+      const results = [...this.db.learners.values()];
+      return { results };
+    }
     if (this.sql.includes("from consents")) {
-      // listConsents (t7): every consent row for a learner, oldest first —
+      if (this.args.length === 0) {
+        // listAllLearners' admin "everyone's most-recent consent" read
+        // (t8): no WHERE clause, ORDER BY user then granted_at DESC — the
+        // caller (db.js) takes the first row per user as "most recent".
+        const results = [...this.db.consents].sort((a, b) => {
+          if (a.github_user_id !== b.github_user_id) {
+            return a.github_user_id < b.github_user_id ? -1 : 1;
+          }
+          return a.granted_at < b.granted_at ? 1 : a.granted_at > b.granted_at ? -1 : 0;
+        });
+        return { results };
+      }
+      // listConsents (t7): every consent row for ONE learner, oldest first —
       // unlike getConsent's single most-recent-row `first()` query above.
       const [uid] = this.args;
       const results = this.db.consents

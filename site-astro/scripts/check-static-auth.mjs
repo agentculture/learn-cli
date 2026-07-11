@@ -207,7 +207,14 @@ check("story pages keep the signed-out CTA note visible-by-default (no hidden at
 const learnerJsPath = path.join(srcDir, "scripts", "learner.js");
 const learnerJs = readFileSync(learnerJsPath, "utf8");
 
-const ALLOWED_SUFFIX_RE = /^(\/me|\/progress\/|\/record|\/auth\/)/;
+// t8 (roles + visibility) adds /export, /delete (the export/delete web
+// affordance the consent page's own copy promised, deferred from t7), and
+// /admin/ (the admin-only all-learners list, gated client-side on the
+// `is_admin` field GET /api/me now carries — the server enforces the
+// allow-list independently either way). /me/visibility is already covered
+// by the existing `\/me` prefix (unanchored at the end, by design — see the
+// two call sites below).
+const ALLOWED_SUFFIX_RE = /^(\/me|\/progress\/|\/record|\/auth\/|\/export|\/delete|\/admin\/)/;
 
 // t10's consent.js is a SECOND, separately-loaded script (only on
 // src/pages/consent/index.astro, not via Layout.astro) with its own,

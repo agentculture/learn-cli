@@ -133,3 +133,13 @@ def push_record(
     if mastery is not None:
         payload["mastery"] = mastery
     return _request("POST", "/record", token=token, payload=payload, timeout=timeout)
+
+
+def admin_list_learners(token: str, *, timeout: float = DEFAULT_TIMEOUT) -> dict[str, Any]:
+    """Admin-only: ``GET /api/admin/learners`` — every learner + a cheap
+    per-subject progress summary. The server enforces the GitHub-id
+    allow-list (spec c12/h4); a non-admin token gets an ``ApiError`` wrapping
+    the server's ``403 admin_required`` here, same as any other HTTP failure
+    — this client makes no admin decision of its own.
+    """
+    return _request("GET", "/admin/learners", token=token, timeout=timeout)

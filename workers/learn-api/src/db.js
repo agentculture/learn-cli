@@ -161,6 +161,99 @@ export async function listConsents(env, uid) {
 }
 
 /**
+ * List every learner for the admin surface (spec c12/h4, task t8), each
+ * carrying a cheap per-subject record-count summary and their most recent
+ * consent row. THREE total queries, always — a learner scan, one GROUP BY
+ * over records, and a full scan of the (typically small) consents table —
+ * regardless of how many learners exist, so this stays N+1-free as the
+ * roster grows. Policy ("is this consent CURRENT?") is the caller's job
+ * (consent.js#consentSatisfiesCurrentTerms in index.js's admin route) — this
+ * function only returns the raw most-recently-granted consent per learner,
+ * same data getConsent's single-learner query already exposes.
+ */
+export async function listAllLearners(env) {
+  const [learnersOut, countsOut, consentsOut] = await Promise.all([
+    env.DB.prepare(
+      `SELECT github_user_id, display_name, state, created_at
+         FROM learners
+        ORDER BY created_at ASC`,
+    ).all(),
+    env.DB.prepare(
+      `SELECT github_user_id, subject, COUNT(*) as count
+         FROM records
+        GROUP BY github_user_id, subject`,
+    ).all(),
+    env.DB.prepare(
+      `SELECT github_user_id, terms_version, granted_at
+         FROM consents
+        ORDER BY github_user_id ASC, granted_at DESC`,
+    ).all(),
+  ]);
+
+  const recordsByUser = new Map();
+  for (const row of (countsOut && countsOut.results) || []) {
+    const uid = String(row.github_user_id);
+    if (!recordsByUser.has(uid)) recordsByUser.set(uid, {});
+    recordsByUser.get(uid)[row.subject] = row.count;
+  }
+
+  // ORDER BY user, then granted_at DESC: the FIRST row seen for a given
+  // user is their most recent consent (same trick getConsent's single-row
+  // query relies on, done once for every learner instead of per-learner).
+  const latestConsentByUser = new Map();
+  for (const row of (consentsOut && consentsOut.results) || []) {
+    const uid = String(row.github_user_id);
+    if (!latestConsentByUser.has(uid)) {
+      latestConsentByUser.set(uid, {
+        terms_version: row.terms_version,
+        granted_at: row.granted_at,
+      });
+    }
+  }
+
+  return ((learnersOut && learnersOut.results) || []).map((row) => {
+    const uid = String(row.github_user_id);
+    let state = {};
+    try {
+      state = row.state ? JSON.parse(row.state) : {};
+    } catch {
+      state = {};
+    }
+    const records = recordsByUser.get(uid) || {};
+    return {
+      github_user_id: uid,
+      display_name: row.display_name,
+      created_at: row.created_at,
+      // Absent field means "private" — same default getLearner/handleMe use
+      // (spec c12: default-private, no migration needed for existing rows).
+      visibility: state.visibility === "public" ? "public" : "private",
+      consent: latestConsentByUser.get(uid) || null,
+      records,
+      records_total: Object.values(records).reduce((a, b) => a + b, 0),
+    };
+  });
+}
+
+/**
+ * Set a learner's visibility flag inside their `state` blob (spec c12,
+ * task t8). Read-then-write, merging into whatever else already lives in
+ * `state` rather than clobbering it — the same defensive parse getLearner
+ * already does. A learner who never calls this route simply has no
+ * `visibility` key in their state, which every reader treats as "private"
+ * (see getLearner's callers / listAllLearners above) — no migration touches
+ * existing rows.
+ */
+export async function setLearnerVisibility(env, uid, visibility) {
+  const learner = await getLearner(env, uid);
+  const state = { ...(learner ? learner.state : {}), visibility };
+  const now = new Date().toISOString();
+  await env.DB.prepare(`UPDATE learners SET state = ?, updated_at = ? WHERE github_user_id = ?`)
+    .bind(JSON.stringify(state), now, String(uid))
+    .run();
+  return visibility;
+}
+
+/**
  * Erase everything persisted for a learner in one D1 batch: records and
  * consents first, the learners row last (records/consents reference the
  * learner, so deleting them first keeps the batch FK-safe even though this

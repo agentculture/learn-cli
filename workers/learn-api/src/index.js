@@ -18,12 +18,17 @@
 //   GET  /api/export            consent  full self-serve data export (JSON)
 //   POST /api/delete            auth*    consent withdrawal = whole-learner erasure
 //   POST /api/tutor             consent  broker -> env.INFERENCE_URL (model call)
+//   POST /api/me/visibility     consent  set the caller's own visibility (private|public)
+//   GET  /api/admin/learners    admin    list every learner (allow-list only, t8)
 //
 // auth*   = any valid session, INCLUDING pending-consent (requireAuth).
 // consent = full session AND its stored consent still matches the currently
 //           published terms version; pending-consent OR stale-version
 //           sessions get a structured 403 (requireConsented) before the
 //           route body runs.
+// admin   = consent, PLUS the session's uid is on the server-side
+//           ADMIN_GITHUB_IDS allow-list (src/admin.js#requireAdmin) — never
+//           derived from anything the client sends (spec c12/h4).
 //
 // Self-serve export + delete (spec c11/h3, decision c18, task t7): consent
 // withdrawal means deletion, not a soft flag — see handleExport/handleDelete
@@ -63,6 +68,7 @@ import {
   outboundFetch,
 } from "./util.js";
 import { requireAuth, requireConsented } from "./auth.js";
+import { isAdmin, requireAdmin } from "./admin.js";
 import {
   issueSession,
   needsRefresh,
@@ -92,6 +98,8 @@ import {
   getConsent,
   recordConsent,
   deleteLearnerData,
+  listAllLearners,
+  setLearnerVisibility,
 } from "./db.js";
 import { deriveProgress } from "./progress.js";
 import {
@@ -148,6 +156,8 @@ async function route(request, env, ctx) {
   if (method === "GET" && path === "/api/export") return handleExport(request, env);
   if (method === "POST" && path === "/api/delete") return handleDelete(request, env);
   if (method === "POST" && path === "/api/tutor") return handleTutor(request, env, ctx);
+  if (method === "POST" && path === "/api/me/visibility") return handleSetVisibility(request, env);
+  if (method === "GET" && path === "/api/admin/learners") return handleAdminLearners(request, env);
 
   const progressMatch = /^\/api\/progress\/([a-z][a-z0-9-]*)$/.exec(path);
   if (method === "GET" && progressMatch) return handleProgress(request, env, progressMatch[1]);
@@ -372,6 +382,10 @@ async function handleMe(request, env) {
       authenticated: true,
       pending_consent: true,
       consent_required: consentRequirement(env),
+      // is_admin (t8): additive here too — it is a pure config check against
+      // the verified session uid, independent of consent state, so a
+      // pending-consent admin session reports it just like a full one.
+      is_admin: isAdmin(env, session.uid),
       learner: { github_user_id: session.uid, display_name: session.name },
       session: { expires_at: session.exp, refreshed: false },
     });
@@ -405,9 +419,18 @@ async function handleMe(request, env) {
       pending_consent: false,
       reconsent_required: reconsentRequired,
       ...(reconsentRequired ? { consent_required: consentRequirement(env) } : {}),
+      // is_admin (spec c12, t8): additive, config-only — never derived from
+      // anything the client sent (see src/admin.js's own header comment).
+      // The site-astro account panel renders its admin-only list ONLY when
+      // this is true.
+      is_admin: isAdmin(env, session.uid),
       learner: {
         github_user_id: learner.github_user_id,
         display_name: learner.display_name,
+        // visibility (spec c12, t8): additive. Absent in learner.state means
+        // "private" — the default for every existing AND new learner, no
+        // migration required (see db.js#setLearnerVisibility's doc comment).
+        visibility: visibilityOf(learner),
       },
       session: { expires_at: session.exp, refreshed: !!headers["Set-Cookie"] },
     },
@@ -587,6 +610,67 @@ async function handleTutor(request, env, ctx) {
   });
   const data = await upstream.json().catch(() => ({}));
   return jsonResponse(upstream.status, data);
+}
+
+// --- roles + visibility (spec c12/h4, task t8) ------------------------------
+
+const VISIBILITY_VALUES = new Set(["private", "public"]);
+
+// POST /api/me/visibility: a learner's self-serve toggle for their OWN
+// visibility field. requireConsented, same gate as progress/record/export —
+// this is an ordinary write to the caller's own resource, not one of the
+// requireAuth escape-hatch routes. Nothing public-facing reads "public" yet
+// (no leaderboard/profile-sharing surface exists anywhere in this repo) —
+// see README.md's honest note; this route only persists the learner's own
+// forward-looking intent.
+async function handleSetVisibility(request, env) {
+  const session = await requireConsented(request, env);
+  const body = await readJson(request);
+  const visibility = body.visibility;
+  if (!VISIBILITY_VALUES.has(visibility)) {
+    throw new HttpError(
+      400,
+      "invalid_visibility",
+      `visibility must be one of: ${[...VISIBILITY_VALUES].join(", ")}.`,
+      'POST /api/me/visibility with { "visibility": "private" } or { "visibility": "public" }.',
+    );
+  }
+  await setLearnerVisibility(env, session.uid, visibility);
+  return jsonResponse(200, { ok: true, visibility });
+}
+
+// GET /api/admin/learners: the admin list-all surface. requireAdmin (t8)
+// stacks the server-side allow-list check on top of requireConsented — see
+// src/admin.js's own header comment for the h4 guarantee this enforces.
+// consent_status is policy (consentSatisfiesCurrentTerms), decided HERE, not
+// in db.js#listAllLearners, which only returns the raw most-recent consent
+// row per learner. No per-learner detail route exists yet (t8 scope
+// decision, documented in README.md) — this one list is the whole surface.
+async function handleAdminLearners(request, env) {
+  await requireAdmin(request, env);
+  const learners = await listAllLearners(env);
+  return jsonResponse(200, {
+    schema_version: CONTRACT_VERSION,
+    kind: "admin_learners",
+    count: learners.length,
+    learners: learners.map((l) => ({
+      ...l,
+      consent_status: l.consent
+        ? consentSatisfiesCurrentTerms(l.consent, env)
+          ? "current"
+          : "stale"
+        : "none",
+    })),
+  });
+}
+
+// Read a learner's visibility out of their state blob, defaulting to
+// "private" for anything else (absent key, a legacy/malformed state, or the
+// synthetic `{ github_user_id, display_name }` stand-in handleMe uses when
+// no learner row exists yet) — see db.js#setLearnerVisibility's doc comment
+// for why absence-means-private needs no migration.
+function visibilityOf(learner) {
+  return learner && learner.state && learner.state.visibility === "public" ? "public" : "private";
 }
 
 // --- helpers ---------------------------------------------------------------

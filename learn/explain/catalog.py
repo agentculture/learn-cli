@@ -348,6 +348,50 @@ works offline.
     learn auth status --json
 """
 
+_ADMIN = """\
+# learn admin
+
+The admin-only CLI read surface (task t8). One verb: `admin learners`, which
+lists every learner plus a cheap per-subject progress summary via
+`GET /api/admin/learners`. Requires a local session (`learn auth login`) —
+the same authenticated-API pattern `learn auth` uses. Admin-ness itself is a
+SERVER-SIDE decision (spec c12/h4, allow-listed GitHub ids enforced in
+`workers/learn-api/src/admin.js`): this CLI makes none of its own — a
+non-admin token gets whatever structured error the server returns, surfaced
+here as an environment error (exit 2).
+
+## Verbs
+
+- `learn admin learners` — list every learner + a per-subject progress
+  summary (admin-only; server-enforced).
+- `learn admin overview` — describe this noun (you are here).
+
+## Usage
+
+    learn auth login
+    learn admin learners
+    learn admin learners --json
+
+`LEARN_API_URL` overrides the API base (default
+`https://agentculture.org/learn/api`).
+"""
+
+_ADMIN_LEARNERS = """\
+# learn admin learners
+
+Lists every learner registered with the learn API, each with `github_user_id`,
+`display_name`, `created_at`, `visibility`, consent status/version, and a
+per-subject record-count summary — via `GET /api/admin/learners`. Requires a
+local session (`learn auth login`); the server 403s a non-admin token
+(`admin_required`), surfaced here as an environment error (exit 2), never a
+silent empty list.
+
+## Usage
+
+    learn admin learners
+    learn admin learners --json
+"""
+
 _PROGRESS = """\
 # learn progress
 
@@ -434,4 +478,7 @@ ENTRIES: dict[tuple[str, ...], str] = {
     ("progress",): _PROGRESS,
     ("next",): _NEXT,
     ("record",): _RECORD,
+    ("admin",): _ADMIN,
+    ("admin", "overview"): _ADMIN,
+    ("admin", "learners"): _ADMIN_LEARNERS,
 }

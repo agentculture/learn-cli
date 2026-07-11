@@ -77,6 +77,47 @@ unaffected by someone else's deletion) and the full cycle (delete, sign in
 again, land pending-consent with zero consent rows surviving, re-consent,
 start with an empty ledger).
 
+The roles-and-visibility invariant (spec c12/h4, task t8) is the last piece
+before the tutoring-tier approval gate (t9): **admin is a server-side
+GitHub-id allow-list, and no authed route ever returns another learner's
+data to a non-admin.** `ADMIN_GITHUB_IDS` (a comma-separated Worker var, see
+wrangler.toml) is consulted fresh on every admin request by
+`src/admin.js#isAdmin` — never from anything the client sends (a request
+body flag, a header, a query param). `requireAdmin` (also `src/admin.js`)
+stacks that check on top of `requireConsented`, so an admin is a learner
+too and passes through the same consent gate first. h4 is proven literally
+by `test/admin.test.js`, including a forged-claim test (a non-admin session
+sends `?admin=true` plus `X-Admin`/`X-Is-Admin` headers and still gets
+`403 admin_required`), and by `test/visibility.test.js`'s isolation suite
+(every existing route re-checked for cross-learner leaks: `/api/me`,
+`/api/progress/:subject`, `/api/export`, and the visibility toggle each
+stay scoped to the caller's own `session.uid`, which is exactly what was
+already true before t8 — this task adds the tests that prove it, not a
+behavior change).
+
+Visibility (spec c12, t8) is a single field, `visibility` (`"private"` |
+`"public"`), inside `learners.state` — the same small JSON blob
+`upsertLearner` already owns. **No schema change**: an absent key means
+`"private"` for every existing and new learner, asserted directly in
+`test/visibility.test.js`. A consented learner reads it via the additive
+`learner.visibility` field on `GET /api/me` and sets it via
+`POST /api/me/visibility`. Nothing public-facing consumes `"public"`
+visibility yet — there is no leaderboard or shared-profile surface anywhere
+in this repo — so the toggle is honestly forward-looking state today, not a
+live feature; see `db.js#setLearnerVisibility`'s doc comment.
+
+`GET /api/admin/learners` (t8) is the one admin surface that exists today:
+a full learner roster with a cheap per-subject record-count summary
+(`db.js#listAllLearners`, three D1 reads total regardless of learner
+count — a learners scan, one `GROUP BY` over `records`, and a full
+`consents` scan — no N+1 as the roster grows). There is **no per-learner
+detail route** — a deliberate lean-minimal scope decision; the list already
+carries everything the admin surface needs (visibility, consent status/
+version, per-subject counts), and a detail route can be added later if a
+concrete need appears. The approval flag t9 adds (admin approve/revoke for
+the Bedrock tutoring tier) reuses this same `ADMIN_GITHUB_IDS` allow-list
+and `requireAdmin` helper — t9 does not reinvent role enforcement.
+
 No third-party runtime deps: the Worker uses only Web-standard APIs (`fetch`,
 `Request`/`Response`, `crypto.subtle`, `btoa`/`atob`), so the same code runs in
 `wrangler dev`, in production, and under `node --test`.
@@ -99,6 +140,8 @@ No third-party runtime deps: the Worker uses only Web-standard APIs (`fetch`,
 | GET | `/api/export` | consented | Self-serve data export: the learner's identity row, every recorded result across **every subject**, and their full consent history, as one JSON document (t7). Pending OR stale-version session: `403 consent_required` — same gate as progress/record/tutor. |
 | POST | `/api/delete` | session or pending | Self-serve whole-learner erasure — consent withdrawal (t7). Requires `{ "confirm": "<your github_user_id>" }` in the body. Deletes the learners/records/consents rows, revokes the **current** session (KV tombstone), clears the cookie. Deliberately reachable from a stale-consent (and even pending-consent) session — see "Endpoint shapes" below for why. |
 | POST | `/api/tutor` | consented | Broker: forward to `INFERENCE_URL` (a served inference endpoint). Pending OR stale-version session: `403 consent_required`, zero inference calls. |
+| POST | `/api/me/visibility` | consented | Set the caller's OWN `visibility` (`private` \| `public`) in their `state` blob (t8). `400 invalid_visibility` for anything else. Pending OR stale-version session: `403 consent_required` — same gate as progress/record/export. |
+| GET | `/api/admin/learners` | admin | List every learner + a per-subject record-count summary, admin-only (t8). Consented but non-allow-listed: `403 admin_required`. See "Roles + visibility" below. |
 
 Sessions are stateless HMAC-signed tokens (short TTL, ~1h; pending-consent
 tokens 10 min) accepted either as an `Authorization: Bearer <token>` header
@@ -114,7 +157,9 @@ them, which is how sign-in stays write-free until consent.
 - **D1 database `DB` (`learn-ledger`)** — see [`schema.sql`](schema.sql):
   - `learners (github_user_id, display_name, state, ...)` — the entire persisted
     identity is the GitHub id + display name; `state` is a small cross-subject
-    profile blob. No password, no email, ever.
+    profile blob. No password, no email, ever. `state.visibility` (t8) is the
+    one field it carries today — `"private"` (the absent-key default) or
+    `"public"` — see "Roles + visibility" above.
   - `records (...)` — append-only ledger. Every `POST /api/record` inserts one
     row; rows are never updated or deleted. Derived numbers
     (`score`/`grade`/`points`) are rejected before insert.
@@ -469,20 +514,21 @@ since sign-in never wrote anything for it (h1), `deleteLearnerData` is a
 documented no-op (see `test/db.test.js`) and the route still revokes the
 pending token, same effect as `POST /api/consent/decline`.
 
-**Site-side affordance (t7 scope decision):** no `site-astro` change ships
-with this task. The only existing signed-in surface site-wide is
-`Header.astro`'s auth slot (display name + "Sign out", wired by
-`src/scripts/learner.js`, gated by the audited fetch-whitelist in
-`scripts/check-static-auth.mjs`) — there is no account/settings page to
-extend, and the consent notice's own copy ("decline below, or delete your
-account later") is static prose with nothing to hang a live control on yet.
-Wiring a destructive, confirmation-guarded action into a sitewide nav
-partial would be inventing new UI surface, not extending an existing one —
-out of scope per this task's own instructions. Both routes are fully
-CLI/agent-ready today (`curl`/`learn`/MCP can call them right now); the web
-affordance is deferred to **t8** (roles + visibility), which already has to
-build a real account-scoped surface for the private/visible toggle and is
-the natural place to add "Export my data" / "Delete my data" alongside it.
+**Site-side affordance (t7 scope decision, delivered by t8):** no
+`site-astro` change shipped with t7 itself — the only existing signed-in
+surface site-wide at the time was `Header.astro`'s auth slot (display name
+plus "Sign out"), with no account/settings page to extend, and the consent
+notice's own copy ("decline below, or delete your account later") was
+static prose with nothing to hang a live control on yet. That gap is now
+closed: t8's account panel (`src/components/LearnerPanelOverview.astro`'s
+`data-account-panel` block, wired by `hydrateAccountPanel()` in
+`src/scripts/learner.js`) adds "Export my data" (downloads the `GET
+/api/export` response as a file) and "Delete my data" (a type-your-
+github-id confirm flow before `POST /api/delete` — the same one-extra-step
+guard the API itself enforces, just mirrored client-side) alongside the
+visibility toggle. Both routes were already fully CLI/agent-ready
+(`curl`/`learn`/MCP could call them from t7 on); this is their first web
+affordance.
 
 ### For t10 (the consent page, `/learn/consent/`)
 
@@ -501,13 +547,42 @@ carrying a pending-consent `session` cookie (10 min TTL). The page:
    cleared and the session revoked; confirm to the user that nothing was
    stored (`stored: false` in the response is that guarantee, test-proven).
 
+### For t9 (approval gate for tutoring)
+
+Reuse, don't reinvent: t9's admin approve/revoke surface (an `approved` flag
+on the learner row, gating `POST /api/tutor`) sits on top of the exact same
+role machinery t8 just built —
+
+- **`isAdmin(env, uid)` and `requireAdmin(request, env)` live in
+  `src/admin.js`.** `requireAdmin` already stacks the allow-list check on
+  top of `requireConsented`, so any new admin-only route (e.g.
+  `POST /api/admin/learners/:id/approve`) should call it the same way
+  `handleAdminLearners` does — `const session = await requireAdmin(request,
+  env);` — rather than duplicating the allow-list check inline.
+- **`ADMIN_GITHUB_IDS`** (`wrangler.toml` `[vars]`, mirrored as a placeholder
+  in `wrangler.signedout.toml`) is the one config surface for admin-ness;
+  t9 does not need a second var or a different allow-list.
+- **The `approved` flag itself is new state t9 owns** — most naturally
+  another key in `learners.state` next to `visibility` (same
+  no-schema-change pattern db.js#setLearnerVisibility already established;
+  a `setLearnerApproved`-shaped sibling function is the obvious next
+  addition to `db.js`), gated in `handleTutor` (`src/index.js`) BEFORE the
+  `INFERENCE_URL` check, mirroring how `requireConsented` already gates
+  that same handler. `db.js#listAllLearners`'s per-learner shape is a
+  natural place to surface `approved` too, so the admin list can show who's
+  already approved without a second admin route.
+- **The isolation-audit pattern in `test/visibility.test.js`** (seed two
+  learners, assert neither route nor toggle ever leaks or mutates the
+  other's row) is the template t9's own cross-learner tests should follow
+  for the approve/revoke action.
+
 ## Testing
 
 ```bash
 node --test
 ```
 
-100 tests cover session sign/verify/expiry, `recorded` validation (including the
+136 tests cover session sign/verify/expiry, `recorded` validation (including the
 `score`/`grade`/`points` rejection), the full record round-trip, per-learner
 ledger isolation, web + device OAuth flows, the consent gate (zero D1 writes on
 both unconsented sign-in paths, the pending-session 403 wall, accept ordering —
@@ -526,9 +601,19 @@ without re-accepting, isolation — one learner's deletion never touches
 another's rows or their ability to keep appending — and the full
 delete→sign-in-again→pending→re-accept→empty-ledger cycle), and —
 critically — that a signed-out `/api/tutor` request returns `401` with
-**zero** inference calls. Tests invoke the Worker's `fetch` handler
-directly with in-memory KV/D1 stubs (the D1 stub logs every write statement,
-making "zero writes" literal); no network and no wrangler are needed. A
-published-version bump is simulated with `env.TERMS_VERSION_OVERRIDE` (see
-`src/consent.js#currentTermsVersion`) — the real published version in
-`shared/terms-version.mjs` is never edited by a test.
+**zero** inference calls. The roles + visibility gate (`test/admin.test.js`,
+`test/visibility.test.js`) adds: `isAdmin`'s allow-list parsing, the
+allow-list enforced against `GET /api/admin/learners` with a forged
+client-side admin claim (query string + headers) proven ignored (h4), the
+admin payload's per-subject aggregate shape (`test/db.test.js` also proves
+`listAllLearners` issues exactly three D1 reads regardless of learner
+count), default-private visibility with no migration, the
+`POST /api/me/visibility` round-trip, and an explicit cross-learner
+isolation audit across `/api/me`, `/api/progress/:subject`, `/api/export`,
+and the visibility toggle (h4's second half). Tests invoke the Worker's
+`fetch` handler directly with in-memory KV/D1 stubs (the D1 stub logs every
+write statement, making "zero writes" literal); no network and no wrangler
+are needed. A published-version bump is simulated with
+`env.TERMS_VERSION_OVERRIDE` (see `src/consent.js#currentTermsVersion`) —
+the real published version in `shared/terms-version.mjs` is never edited by
+a test.

@@ -14,6 +14,9 @@ import {
   deleteLearnerData,
   listAllRecords,
   listConsents,
+  listAllLearners,
+  setLearnerVisibility,
+  getLearner,
 } from "../src/db.js";
 import { makeEnv } from "./helpers.js";
 
@@ -215,6 +218,112 @@ test("listConsents is per-learner isolated and empty for an unknown learner", as
   const env = makeEnv();
   await recordConsent(env, "42", "1.0.0");
   assert.deepEqual(await listConsents(env, "99"), []);
+});
+
+// --- listAllLearners (t8) -----------------------------------------------
+
+test("listAllLearners: empty when there are no learners", async () => {
+  const env = makeEnv();
+  assert.deepEqual(await listAllLearners(env), []);
+});
+
+test("listAllLearners: default visibility is 'private' when the state has no visibility key", async () => {
+  const env = makeEnv();
+  env.DB.learners.set("42", { github_user_id: "42", display_name: "Ada", state: "{}" });
+  const [row] = await listAllLearners(env);
+  assert.equal(row.visibility, "private");
+});
+
+test("listAllLearners: reports a learner's OWN visibility field", async () => {
+  const env = makeEnv();
+  env.DB.learners.set("42", {
+    github_user_id: "42",
+    display_name: "Ada",
+    state: JSON.stringify({ visibility: "public" }),
+  });
+  const [row] = await listAllLearners(env);
+  assert.equal(row.visibility, "public");
+});
+
+test("listAllLearners: per-subject record counts, no cross-learner bleed", async () => {
+  const env = makeEnv();
+  env.DB.learners.set("42", { github_user_id: "42", display_name: "Ada", state: "{}" });
+  env.DB.learners.set("99", { github_user_id: "99", display_name: "Linus", state: "{}" });
+  env.DB.records.push(
+    { id: 1, github_user_id: "42", subject: "french", item_id: "a1" },
+    { id: 2, github_user_id: "42", subject: "french", item_id: "a2" },
+    { id: 3, github_user_id: "42", subject: "spanish", item_id: "b1" },
+    { id: 4, github_user_id: "99", subject: "french", item_id: "c1" },
+  );
+  const rows = await listAllLearners(env);
+  const ada = rows.find((r) => r.github_user_id === "42");
+  const linus = rows.find((r) => r.github_user_id === "99");
+  assert.deepEqual(ada.records, { french: 2, spanish: 1 });
+  assert.equal(ada.records_total, 3);
+  assert.deepEqual(linus.records, { french: 1 });
+  assert.equal(linus.records_total, 1);
+});
+
+test("listAllLearners: reports each learner's most recent consent row, or null", async () => {
+  const env = makeEnv();
+  env.DB.learners.set("42", { github_user_id: "42", display_name: "Ada", state: "{}" });
+  env.DB.learners.set("7", { github_user_id: "7", display_name: "NoConsent", state: "{}" });
+  env.DB.consents.push(
+    { github_user_id: "42", terms_version: "1.0.0", granted_at: "2026-01-01T00:00:00.000Z" },
+    { github_user_id: "42", terms_version: "1.1.0", granted_at: "2026-06-01T00:00:00.000Z" },
+  );
+  const rows = await listAllLearners(env);
+  const ada = rows.find((r) => r.github_user_id === "42");
+  const noConsent = rows.find((r) => r.github_user_id === "7");
+  assert.deepEqual(ada.consent, { terms_version: "1.1.0", granted_at: "2026-06-01T00:00:00.000Z" });
+  assert.equal(noConsent.consent, null);
+});
+
+test("listAllLearners: three D1 reads regardless of learner count (no N+1)", async () => {
+  const env = makeEnv();
+  for (let i = 0; i < 10; i += 1) {
+    env.DB.learners.set(String(i), { github_user_id: String(i), display_name: `L${i}`, state: "{}" });
+  }
+  let prepareCalls = 0;
+  const realPrepare = env.DB.prepare.bind(env.DB);
+  env.DB.prepare = (sql) => {
+    prepareCalls += 1;
+    return realPrepare(sql);
+  };
+  await listAllLearners(env);
+  assert.equal(prepareCalls, 3, "one learners read, one grouped records read, one consents read");
+});
+
+// --- setLearnerVisibility (t8) --------------------------------------------
+
+test("setLearnerVisibility: sets the field and getLearner reflects it", async () => {
+  const env = makeEnv();
+  env.DB.learners.set("42", { github_user_id: "42", display_name: "Ada", state: "{}" });
+  await setLearnerVisibility(env, "42", "public");
+  const learner = await getLearner(env, "42");
+  assert.equal(learner.state.visibility, "public");
+});
+
+test("setLearnerVisibility: merges into existing state, does not clobber other fields", async () => {
+  const env = makeEnv();
+  env.DB.learners.set("42", {
+    github_user_id: "42",
+    display_name: "Ada",
+    state: JSON.stringify({ keep: "me" }),
+  });
+  await setLearnerVisibility(env, "42", "public");
+  const learner = await getLearner(env, "42");
+  assert.equal(learner.state.keep, "me");
+  assert.equal(learner.state.visibility, "public");
+});
+
+test("setLearnerVisibility: is per-learner isolated", async () => {
+  const env = makeEnv();
+  env.DB.learners.set("42", { github_user_id: "42", display_name: "Ada", state: "{}" });
+  env.DB.learners.set("99", { github_user_id: "99", display_name: "Linus", state: "{}" });
+  await setLearnerVisibility(env, "42", "public");
+  const linus = await getLearner(env, "99");
+  assert.equal(Object.prototype.hasOwnProperty.call(linus.state, "visibility"), false);
 });
 
 test("getConsent: same-millisecond re-consent tie resolves to the newest row (rowid tiebreak)", async () => {
