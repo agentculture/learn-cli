@@ -1,0 +1,193 @@
+---
+// Terms of Use — versioned per spec #11 (plan task t1). Plain prose page,
+// same Layout/PageHero shell as every other page here; no new design
+// tokens. TERMS_VERSION/TERMS_EFFECTIVE_DATE come from src/lib/terms.ts (a
+// re-export of ../../../shared/terms-version.mjs), the one place both this
+// site and workers/learn-api read the published version from — bumping it
+// is what forces re-consent (t6). tests/test_policy_pages.py (repo root)
+// cross-checks this page's wiring and copy against that shared source and
+// against workers/learn-api/schema.sql.
+import Layout from "../../layouts/Layout.astro";
+import PageHero from "../../components/PageHero.astro";
+import site from "../../data/site";
+import { TERMS_VERSION, TERMS_EFFECTIVE_DATE } from "../../lib/terms";
+
+const description = `The Terms of Use for ${site.orgTitle} ${site.title} (agentculture.org/learn) — GitHub-based accounts, acceptable use, and the approved AI-tutoring tier.`;
+---
+
+<Layout
+  title={`Terms of Use · ${site.title} · ${site.orgTitle}`}
+  description={description}
+  homeHref="../"
+>
+  <PageHero
+    title="Terms of Use"
+    intro={[
+      "The rules for using Learn — the site, the CLI, and the MCP server alike. Short version: sign in with GitHub, learn in good faith, and your data stays yours.",
+    ]}
+  />
+
+  <section class="section breadcrumb-section" aria-label="Wayfinding">
+    <div class="container">
+      <a class="breadcrumb" href="../">← Learn</a>
+    </div>
+  </section>
+
+  <section class="section policy-meta-section" aria-label="Document version">
+    <div class="container prose">
+      <p class="policy-meta" data-reveal>
+        Version <strong>{TERMS_VERSION}</strong>
+        <span class="sep" aria-hidden="true">·</span>
+        Effective <strong>{TERMS_EFFECTIVE_DATE}</strong>
+      </p>
+      <p class="muted" data-reveal style="--reveal-delay: 0.05s">
+        Also see the <a href="../privacy/">Privacy Policy</a>, which covers what we
+        collect and who we share it with.
+      </p>
+    </div>
+  </section>
+
+  <section class="section policy" aria-label="Terms of Use">
+    <div class="container prose">
+      <h2 data-reveal>1. Accounts</h2>
+      <p data-reveal>
+        Learn accounts are GitHub-based only. There is no separate username or
+        password to create or remember — signing in runs GitHub's own OAuth flow,
+        and the account it creates here is identified by your GitHub numeric id and
+        your public GitHub display name. You're responsible for whatever GitHub
+        account you sign in with.
+      </p>
+
+      <h2 data-reveal>2. Acceptable use</h2>
+      <p data-reveal>Use Learn to learn. In particular, don't:</p>
+      <ul data-reveal>
+        <li>try to bypass the consent step, the admin approval gate, or any other access control;</li>
+        <li>probe, scrape, or overload the site or the API beyond ordinary study use;</li>
+        <li>submit content to the tutoring tier that you don't have the right to share, or that's
+          abusive, illegal, or intended to misuse the underlying AI model; or</li>
+        <li>impersonate another learner or misrepresent your identity beyond what GitHub already
+          reports.</li>
+      </ul>
+
+      <h2 data-reveal>3. The service is provided "as is"</h2>
+      <p data-reveal>
+        Learn is an open-source, community-run project. It's provided "as is," without
+        warranty of any kind — we don't guarantee it will always be available, error-free,
+        or fit for any particular purpose. Lesson and story content, and anything the
+        tutoring tier generates, may contain mistakes; verify anything that matters before
+        you rely on it.
+      </p>
+
+      <h2 data-reveal>4. The approved AI-tutoring tier</h2>
+      <p data-reveal>
+        Some learners are approved by an admin for the tutoring tier: a Nova Pro-graded
+        text tutor and a Nova Sonic 2 voice session, both running on AWS Bedrock. This
+        tier is opt-in on the admin's side (it costs real money to run) and, separately,
+        requires your own consent before any of your speech or text reaches the model
+        provider — see the <a href="../privacy/">Privacy Policy</a> for exactly what that
+        means. Nothing the AI tutor says is guaranteed accurate; it's a study aid, not an
+        authority, and grading/feedback it gives is a best-effort estimate, not a
+        certification.
+      </p>
+
+      <h2 data-reveal>5. Your data is yours</h2>
+      <p data-reveal>
+        Everything Learn stores about you — your profile row and your learning ledger
+        (the record of activities, results, and mastery you've built up) — belongs to
+        you. You can export a full copy or delete all of it, permanently, at any time
+        from your account settings; deleting your account also withdraws your consent
+        to these Terms and to the Privacy Policy. See the Privacy Policy for the
+        mechanics and the retention rule.
+      </p>
+
+      <h2 data-reveal>6. Termination and suspension</h2>
+      <p data-reveal>
+        You can stop using Learn and delete your account whenever you like — that's
+        always available and always immediate. We may suspend or terminate access for
+        an account that violates Section 2 (acceptable use), including revoking
+        tutoring-tier approval independently of the underlying account. Where practical
+        we'll try to give notice first; for clear abuse (for example, hammering the API
+        or attempting to bypass the approval gate) we may act without warning.
+      </p>
+
+      <h2 data-reveal>7. Changes to these terms</h2>
+      <p data-reveal>
+        When these Terms change in any way that matters, we publish a new version and
+        bump the version number at the top of this page. A version bump means the next
+        time you sign in (or use the API/CLI) you're asked to re-consent before
+        anything further is saved — your previous consent covered the version you
+        accepted, not whatever comes after it. Consent recorded against a given version
+        is never silently carried forward to the next one.
+      </p>
+
+      <h2 data-reveal>8. Contact and governing law</h2>
+      <p data-reveal>
+        Learn is maintained by AgentCulture's agents and human maintainers as an
+        open-source project, not a registered company — so we're keeping this section
+        simple rather than pretending otherwise. Questions, disputes, or requests about
+        these Terms should be opened as an issue on
+        <a href="https://github.com/agentculture/learn-cli/issues">
+          github.com/agentculture/learn-cli
+        </a> — we don't publish a personal contact email for this. Absent a more
+        specific agreement, these Terms are interpreted under the same open-source,
+        good-faith norms as the rest of the AgentCulture project.
+      </p>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .breadcrumb-section {
+    padding-block: 0 0.5rem;
+  }
+
+  .breadcrumb {
+    font-size: 0.92rem;
+    font-weight: 500;
+  }
+
+  .policy-meta-section {
+    padding-block: 0 0.5rem;
+  }
+
+  .policy-meta {
+    font-size: 1rem;
+    color: var(--ink);
+  }
+
+  .policy-meta .sep {
+    margin-inline: 0.5rem;
+    color: var(--ink-soft);
+  }
+
+  .policy {
+    padding-top: 0.5rem;
+  }
+
+  .policy h2 {
+    margin-top: 2rem;
+  }
+
+  .policy h2:first-child {
+    margin-top: 0;
+  }
+
+  .policy p {
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  .policy ul {
+    list-style: disc;
+    padding-left: 1.4rem;
+    display: grid;
+    gap: 0.5rem;
+    margin: 0 0 1.1em;
+    font-size: 1rem;
+    line-height: 1.65;
+  }
+
+  .policy ul:last-child {
+    margin-bottom: 0;
+  }
+</style>
