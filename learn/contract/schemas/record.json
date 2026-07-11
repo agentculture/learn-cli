@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentculture.org/learn/contract/1.0/record.json",
+  "title": "Record acknowledgement payload",
+  "description": "Emitted by `<subject> record --item <id> --result pass|partial|fail [...] --json`. The driver's write-back after grading: the subject appends the raw result to its history, updates the item's mastery on its ladder, and acks with the normalized raw-result object. That `recorded` object is the exact record learn-cli appends to its cross-subject ledger — the sole input to the motivation layer's deterministic scores/streaks/review-queues. Subjects MUST NOT compute scores: the recorded object structurally forbids score-like fields.",
+  "type": "object",
+  "required": ["schema_version", "kind", "subject", "learner", "recorded", "mastery", "next"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "kind": { "const": "record_ack" },
+    "subject": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "learner": { "type": "string", "minLength": 1 },
+    "recorded": {
+      "type": "object",
+      "description": "The normalized raw result, as persisted. Raw observations only — never derived numbers.",
+      "required": ["item_id", "activity", "result", "at"],
+      "not": {
+        "anyOf": [
+          { "required": ["score"] },
+          { "required": ["grade"] },
+          { "required": ["points"] }
+        ]
+      },
+      "properties": {
+        "item_id": { "type": "string", "minLength": 1 },
+        "activity": {
+          "enum": ["lesson", "practice", "story"],
+          "description": "Which activity produced this result."
+        },
+        "exercise_id": { "type": "string" },
+        "story_id": { "type": "string" },
+        "lesson_id": { "type": "string" },
+        "result": { "enum": ["pass", "partial", "fail"] },
+        "correct": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Raw count of correct responses, when countable."
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Raw count of graded responses, when countable."
+        },
+        "duration_seconds": { "type": "number", "minimum": 0 },
+        "notes": { "type": "string" },
+        "at": { "type": "string", "minLength": 1, "description": "ISO-8601 timestamp." }
+      }
+    },
+    "mastery": {
+      "type": "object",
+      "description": "The item's mastery after applying this record (inferred from result unless set explicitly; never regresses on inference).",
+      "required": ["item_id", "level"],
+      "properties": {
+        "item_id": { "type": "string", "minLength": 1 },
+        "level": { "enum": ["unknown", "introduced", "practiced", "mastered"] }
+      }
+    },
+    "next": { "$ref": "#/$defs/recommendation" }
+  },
+  "$defs": {
+    "recommendation": {
+      "type": "object",
+      "description": "The subject's recommended next step within itself, refreshed after the write.",
+      "required": ["done", "text", "command"],
+      "properties": {
+        "done": { "type": "boolean" },
+        "module_id": { "type": "string" },
+        "item_id": { "type": "string" },
+        "text": { "type": "string", "minLength": 1 },
+        "command": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

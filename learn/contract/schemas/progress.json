@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentculture.org/learn/contract/1.0/progress.json",
+  "title": "Progress payload",
+  "description": "Emitted by `<subject> progress --json [--learner <id>]`. The learner's standing inside this subject: per-item mastery, counters, and the subject's own next-step recommendation. Read-only.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "kind",
+    "subject",
+    "learner",
+    "items_total",
+    "items_touched",
+    "items_mastered",
+    "mastery",
+    "next"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "kind": { "const": "progress" },
+    "subject": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "learner": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The resolved learner id — always echoed, even when defaulted."
+    },
+    "started_at": { "type": "string", "description": "ISO-8601 timestamp." },
+    "last_seen_at": { "type": "string", "description": "ISO-8601 timestamp." },
+    "current": {
+      "type": ["object", "null"],
+      "description": "Where the learner is right now; null before any activity.",
+      "properties": {
+        "module_id": { "type": "string" },
+        "item_id": { "type": "string" }
+      }
+    },
+    "items_total": { "type": "integer", "minimum": 0 },
+    "items_touched": { "type": "integer", "minimum": 0 },
+    "items_mastered": { "type": "integer", "minimum": 0 },
+    "completed": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Item ids the learner has completed (mastered at least once)."
+    },
+    "mastery": {
+      "type": "object",
+      "description": "item_id → mastery level for every touched item.",
+      "additionalProperties": { "enum": ["unknown", "introduced", "practiced", "mastered"] }
+    },
+    "weak": {
+      "type": "array",
+      "description": "Touched-but-not-mastered items, for review prompts.",
+      "items": {
+        "type": "object",
+        "required": ["item_id", "mastery"],
+        "properties": {
+          "item_id": { "type": "string", "minLength": 1 },
+          "mastery": { "enum": ["unknown", "introduced", "practiced"] }
+        }
+      }
+    },
+    "next": { "$ref": "#/$defs/recommendation" }
+  },
+  "$defs": {
+    "recommendation": {
+      "type": "object",
+      "description": "The subject's recommended next step within itself. Cross-subject what-next is learn-cli's motivation layer, not the subject's.",
+      "required": ["done", "text", "command"],
+      "properties": {
+        "done": {
+          "type": "boolean",
+          "description": "True when every authored item is mastered (learn-cli then switches the learner to maintenance + depth mode)."
+        },
+        "module_id": { "type": "string" },
+        "item_id": { "type": "string" },
+        "text": { "type": "string", "minLength": 1 },
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A runnable subject-CLI command implementing the recommendation."
+        }
+      }
+    }
+  }
+}

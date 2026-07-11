@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "kind": "story",
+  "id": "fr-beg-au-cafe",
+  "subject": "french",
+  "title": "Au café",
+  "level": "beginner",
+  "level_detail": "A1",
+  "language": "fr",
+  "summary": "Paul orders a coffee and a croissant at a small café.",
+  "body": "Paul entre dans un petit café. « Un café et un croissant, s'il vous plaît. » Il paie trois euros et s'assoit près de la fenêtre.",
+  "glossary": [
+    {
+      "term": "il paie",
+      "definition": "he pays"
+    },
+    {
+      "term": "près de la fenêtre",
+      "definition": "near the window"
+    }
+  ],
+  "exercises": [
+    {
+      "id": "cafe-q1",
+      "type": "multiple_choice",
+      "item_id": "food-vocab",
+      "prompt": "Qu'est-ce que Paul commande ?",
+      "choices": [
+        "Un café et un croissant",
+        "Un thé et une tarte"
+      ],
+      "answer": "Un café et un croissant"
+    }
+  ],
+  "audio": null,
+  "source": {
+    "generator": "hand-authored",
+    "reviewed_by": "learn-cli t2",
+    "generated_at": "2026-07-11"
+  }
+}

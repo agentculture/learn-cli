@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "kind": "subject_overview",
+  "subject": "french",
+  "display_name": "French",
+  "tagline": "Written and spoken French through graded stories.",
+  "description": "A graded-reader French tutor: stories, lessons, and practice from A1 upward, driven by an agent or human over --json.",
+  "language": "fr",
+  "modules": [
+    {
+      "id": "premiers-pas",
+      "title": "Premiers pas",
+      "summary": "Greetings, numbers, and buying things — the survival core.",
+      "level": "beginner"
+    },
+    {
+      "id": "la-vie-quotidienne",
+      "title": "La vie quotidienne",
+      "summary": "Daily routines, food, and the past tense in stories.",
+      "level": "intermediate"
+    }
+  ],
+  "content": {
+    "stories": 12,
+    "lessons": 24,
+    "exercises": 96
+  }
+}

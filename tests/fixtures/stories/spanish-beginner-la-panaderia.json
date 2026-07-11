@@ -1,0 +1,86 @@
+{
+  "schema_version": "1.0",
+  "kind": "story",
+  "id": "es-beg-la-panaderia-de-la-esquina",
+  "subject": "spanish",
+  "title": "La panadería de la esquina",
+  "level": "beginner",
+  "level_detail": "A1",
+  "language": "es",
+  "summary": "Every morning Mateo visits the corner bakery and orders bread and coffee.",
+  "body": "Cada mañana, Mateo va a la panadería de la esquina.\n\n« ¡Buenos días! » dice la panadera. « ¿Qué desea hoy? »\n\n« Un pan integral y un café con leche, por favor », responde Mateo. La panadera pone el pan en una bolsa de papel. « Son tres euros con cincuenta. »\n\nMateo paga y se sienta cerca de la ventana. El café está caliente y el pan está fresco. Antes de ir al trabajo, lee las noticias en su teléfono.\n\nEs un comienzo tranquilo para el día.",
+  "glossary": [
+    {
+      "term": "la panadería",
+      "definition": "the bakery",
+      "note": "From el pan (bread); -ería marks a shop, like librería."
+    },
+    {
+      "term": "la esquina",
+      "definition": "the corner"
+    },
+    {
+      "term": "¿Qué desea hoy?",
+      "definition": "What would you like today? (formal)"
+    },
+    {
+      "term": "el pan integral",
+      "definition": "wholemeal bread"
+    },
+    {
+      "term": "son tres euros con cincuenta",
+      "definition": "that's three euros fifty"
+    },
+    {
+      "term": "se sienta",
+      "definition": "he sits down",
+      "note": "Reflexive: sentarse, an e→ie stem-changing verb."
+    }
+  ],
+  "exercises": [
+    {
+      "id": "panaderia-q1",
+      "type": "multiple_choice",
+      "item_id": "food-vocab",
+      "prompt": "¿Qué pide Mateo en la panadería?",
+      "choices": [
+        "Un pan integral y un café con leche",
+        "Un croissant y un té",
+        "Una tarta y un zumo"
+      ],
+      "answer": "Un pan integral y un café con leche"
+    },
+    {
+      "id": "panaderia-q2",
+      "type": "multiple_choice",
+      "item_id": "numbers-money",
+      "prompt": "¿Cuánto paga Mateo?",
+      "choices": [
+        "Dos euros",
+        "Tres euros con cincuenta",
+        "Cinco euros"
+      ],
+      "answer": "Tres euros con cincuenta"
+    },
+    {
+      "id": "panaderia-q3",
+      "type": "cloze",
+      "item_id": "daily-routine",
+      "prompt": "Cada mañana, Mateo va a la ___ de la esquina.",
+      "answer": "panadería"
+    },
+    {
+      "id": "panaderia-q4",
+      "type": "short_answer",
+      "item_id": "reading-comprehension",
+      "prompt": "¿Qué hace Mateo antes de ir al trabajo?",
+      "rubric": "Passes if the answer mentions reading the news (lee las noticias) on his phone; sitting by the window alone is partial."
+    }
+  ],
+  "audio": null,
+  "source": {
+    "generator": "hand-authored",
+    "reviewed_by": "learn-cli t2",
+    "generated_at": "2026-07-11"
+  }
+}

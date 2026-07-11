@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentculture.org/learn/contract/1.0/story_list.json",
+  "title": "Story list payload",
+  "description": "Emitted by `<subject> story list --json [--level <l>] [--module <m>]`. Story summaries only — bodies come from `story read`. Learner-independent, so the static web catalog can be built from it.",
+  "type": "object",
+  "required": ["schema_version", "kind", "subject", "stories"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "kind": { "const": "story_list" },
+    "subject": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "stories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "level"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+          "title": { "type": "string", "minLength": 1 },
+          "level": { "enum": ["beginner", "intermediate", "advanced"] },
+          "level_detail": { "type": "string" },
+          "language": { "type": "string" },
+          "summary": { "type": "string" },
+          "exercises": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Count of comprehension exercises in the story."
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentculture.org/learn/contract/1.0/story.json",
+  "title": "Story content schema",
+  "description": "The shared story shape across all subjects (spec c29): the unit of committed learning content. Language subjects use it for graded-reader ladders (beginner → advanced); culture-guide uses it for narrative scenarios. Stories live as committed content files in each subject repo and are embedded verbatim in `story read` payloads. Each subject repo validates its story files against this schema in CI.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "kind",
+    "id",
+    "subject",
+    "title",
+    "level",
+    "body",
+    "glossary",
+    "exercises"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "kind": { "const": "story" },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+      "description": "Stable story id, unique within the subject (e.g. 'fr-beg-le-marche-du-samedi')."
+    },
+    "subject": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "title": { "type": "string", "minLength": 1 },
+    "level": {
+      "enum": ["beginner", "intermediate", "advanced"],
+      "description": "Coarse difficulty rung of the graded ladder."
+    },
+    "level_detail": {
+      "type": "string",
+      "description": "Finer grading: a CEFR tag ('A1', 'B2') for languages, 'scenario' for culture-guide narratives."
+    },
+    "language": {
+      "type": "string",
+      "description": "BCP-47 tag of the body text ('fr', 'es', 'en')."
+    },
+    "summary": {
+      "type": "string",
+      "description": "One-line teaser, safe to show signed-out visitors in the catalog."
+    },
+    "body": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The story text. Markdown; paragraphs separated by blank lines."
+    },
+    "glossary": {
+      "type": "array",
+      "description": "Glossary/annotations: terms from the body the learner may not know. May be empty for advanced content.",
+      "items": {
+        "type": "object",
+        "required": ["term", "definition"],
+        "properties": {
+          "term": { "type": "string", "minLength": 1 },
+          "definition": { "type": "string", "minLength": 1 },
+          "note": {
+            "type": "string",
+            "description": "Optional annotation: usage, grammar, or cultural context."
+          }
+        }
+      }
+    },
+    "exercises": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Comprehension exercises over the body; the driver runs and grades them, then records results.",
+      "items": { "$ref": "#/$defs/exercise" }
+    },
+    "audio": {
+      "type": ["object", "null"],
+      "description": "RESERVED for the spoken-practice follow-up (TTS/STT). Producers set null or omit until the audio pipeline exists; consumers must tolerate both.",
+      "properties": {
+        "url": { "type": "string" },
+        "format": { "type": "string" },
+        "voice": { "type": "string" },
+        "duration_seconds": { "type": "number", "minimum": 0 }
+      }
+    },
+    "source": {
+      "type": "object",
+      "description": "Provenance for the batch-generation pipeline: how this story was produced and who reviewed it.",
+      "properties": {
+        "generator": { "type": "string" },
+        "model": { "type": "string" },
+        "reviewed_by": { "type": "string" },
+        "generated_at": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "exercise": {
+      "type": "object",
+      "required": ["id", "type", "prompt"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+        "type": {
+          "enum": [
+            "multiple_choice",
+            "true_false",
+            "cloze",
+            "short_answer",
+            "translation",
+            "open",
+            "discussion"
+          ]
+        },
+        "item_id": {
+          "type": "string",
+          "description": "The curriculum item this exercise evidences — the id `record --item` expects."
+        },
+        "prompt": { "type": "string", "minLength": 1 },
+        "choices": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "type": "string" },
+          "description": "Required in spirit for multiple_choice; unused elsewhere."
+        },
+        "answer": {
+          "type": "string",
+          "description": "The expected answer, when one is checkable verbatim."
+        },
+        "rubric": {
+          "type": "string",
+          "description": "Grading guidance for open-ended exercises: what passes, what is partial."
+        }
+      }
+    }
+  }
+}
