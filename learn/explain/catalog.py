@@ -274,6 +274,137 @@ a subject is missing — an uninstalled subject is listed `available: false`.
 """
 
 
+_AUTH = """\
+# learn auth
+
+GitHub device-flow sign-in linking this CLI to the same learner account the
+web uses. Sign-in is additive, never a gate: every other verb (`progress`,
+`next`, `record`) works fully offline with no session — signing in only adds
+cross-device sync/continuity through the learn API.
+
+## Verbs
+
+- `learn auth login` — start the device flow: prints a verification URL + user
+  code, polls until confirmed, stores the session locally (`~/.local/share/
+  learn_cli/auth.json`, `0600`).
+- `learn auth logout` — best-effort server-side revoke, then always clears the
+  local session.
+- `learn auth status` — local sign-in + sync status. Reads only local files —
+  never touches the network.
+- `learn auth overview` — describe this noun (you are here).
+
+## Usage
+
+    learn auth login
+    learn auth status --json
+    learn auth logout
+
+`LEARN_API_URL` overrides the API base (default
+`https://agentculture.org/learn/api`, a placeholder until the Worker is
+routed live).
+"""
+
+_AUTH_LOGIN = """\
+# learn auth login
+
+Starts the GitHub device flow against the learn API (`POST /api/auth/device`),
+prints the verification URL and user code, then polls until the learner
+confirms in a browser. On success the session (bearer token, expiry, linked
+GitHub identity) is stored at `~/.local/share/learn_cli/auth.json` (`0600`).
+
+## Usage
+
+    learn auth login
+    learn auth login --json
+
+Exits 2 (environment error) on a network failure or a timeout waiting for
+confirmation; retry the command to start a fresh device code.
+"""
+
+_AUTH_LOGOUT = """\
+# learn auth logout
+
+Signs out: attempts a best-effort server-side session revoke
+(`POST /api/auth/logout`), then always clears the local session file —
+signing out succeeds even if the network call fails.
+
+## Usage
+
+    learn auth logout
+    learn auth logout --json
+"""
+
+_AUTH_STATUS = """\
+# learn auth status
+
+Reports local sign-in and sync status: the linked learner identity, token
+expiry, and how many local ledger rows have been pushed vs. are pending.
+Reads only local files — makes no network call, so it is always instant and
+works offline.
+
+## Usage
+
+    learn auth status
+    learn auth status --json
+"""
+
+_PROGRESS = """\
+# learn progress
+
+Cross-subject learning standing. For each registered (and installed) subject,
+drives its own `progress --json` subprocess for the authoritative facts
+(items total/touched/mastered, its mastery map, its own within-subject
+`next`), then blends those with the local ledger via `learn.motivation` for
+what only the ledger can produce: per-subject mean scores and day-based
+streaks (plus an overall cross-subject streak). A subject that isn't
+installed is reported `available: false` rather than failing the command.
+
+Anonymous-safe: drives each subject with no `--learner` flag, so it resolves
+its own default exactly as if run directly by hand.
+
+## Usage
+
+    learn progress
+    learn progress french --json
+"""
+
+_NEXT = """\
+# learn next
+
+The single best next action across every subject, from
+`learn.motivation.what_next()`: folds each installed subject's own progress
+facts with the local ledger and renders one typed recommendation — never
+empty, even for a learner who has mastered everything (maintenance mode:
+review, a fresh story, or a harder repeat).
+
+## Usage
+
+    learn next
+    learn next --json
+"""
+
+_RECORD = """\
+# learn record <subject>
+
+Records one graded outcome. Proxies to the subject's own `record` verb (the
+subject stays the source of truth for its mastery ladder), appends the
+acknowledged `recorded` object to the local cross-subject ledger, and — when
+signed in — makes a best-effort push of unsynced ledger rows to the learn
+API. A network failure during that push never fails the command; the
+`sync` block in the JSON payload reports what happened.
+
+## Usage
+
+    learn record french --item greetings --result pass --activity lesson --json
+    learn record french --item numbers --result partial --correct 2 --total 3 \\
+        --duration-seconds 45 --json
+
+Required: `--item`, `--result` (`pass|partial|fail`). Optional: `--activity`
+(`lesson|practice|story`, default `practice`), `--exercise`, `--story`,
+`--lesson`, `--correct`, `--total`, `--duration-seconds`, `--notes`.
+"""
+
+
 ENTRIES: dict[tuple[str, ...], str] = {
     (): _ROOT,
     ("learn-cli",): _ROOT,
@@ -295,4 +426,12 @@ ENTRIES: dict[tuple[str, ...], str] = {
     ("site", "overview"): _SITE,
     ("site", "serve"): _SITE_SERVE,
     ("site", "export"): _SITE_EXPORT,
+    ("auth",): _AUTH,
+    ("auth", "overview"): _AUTH,
+    ("auth", "login"): _AUTH_LOGIN,
+    ("auth", "logout"): _AUTH_LOGOUT,
+    ("auth", "status"): _AUTH_STATUS,
+    ("progress",): _PROGRESS,
+    ("next",): _NEXT,
+    ("record",): _RECORD,
 }

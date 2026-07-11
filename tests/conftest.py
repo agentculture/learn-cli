@@ -14,6 +14,8 @@ from __future__ import annotations
 import json
 import os
 import stat
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable
 
@@ -73,3 +75,108 @@ def install_registry(
         return path
 
     return _install
+
+
+# --- profile store + fake learn-api fixtures --------------------------------
+
+
+@pytest.fixture
+def profile_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Point the cross-subject profile store (ledger/auth/sync) at a temp dir."""
+    home = tmp_path / "learn_cli_home"
+    monkeypatch.setenv("LEARN_CLI_HOME", os.fspath(home))
+    return home
+
+
+class FakeLearnApi:
+    """A minimal threaded ``http.server`` standing in for ``workers/learn-api``.
+
+    Register canned responses per ``(method, path)`` via :meth:`on`, where the
+    handler is either a static ``(status, payload)`` tuple or a callable
+    ``(body: dict) -> (status, payload)`` for stateful behavior (device-flow
+    pending → complete, a sync push that fails partway). Every request is
+    recorded in :attr:`requests` so a test can assert exactly what the CLI
+    sent — or that it sent nothing at all.
+    """
+
+    def __init__(self) -> None:
+        self._responses: dict[tuple[str, str], Any] = {}
+        self.requests: list[dict[str, Any]] = []
+        fake_self = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *_args: Any) -> None:  # silence default stderr logging
+                pass
+
+            def _handle(self, method: str) -> None:
+                length = int(self.headers.get("Content-Length", 0) or 0)
+                raw = self.rfile.read(length) if length else b""
+                try:
+                    body = json.loads(raw) if raw else {}
+                except json.JSONDecodeError:
+                    body = {}
+                fake_self.requests.append(
+                    {
+                        "method": method,
+                        "path": self.path,
+                        "headers": dict(self.headers),
+                        "body": body,
+                    }
+                )
+                handler = fake_self._responses.get((method, self.path))
+                if handler is None:
+                    status, payload = 404, {"message": f"no fake route for {method} {self.path}"}
+                elif callable(handler):
+                    status, payload = handler(body)
+                else:
+                    status, payload = handler
+                data = json.dumps(payload).encode("utf-8")
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+            def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler naming
+                self._handle("GET")
+
+            def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler naming
+                self._handle("POST")
+
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+
+    @property
+    def base_url(self) -> str:
+        host, port = self.server.server_address[:2]
+        return f"http://{host}:{port}"
+
+    def on(self, method: str, path: str, handler: Any) -> None:
+        self._responses[(method, path)] = handler
+
+    def close(self) -> None:
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join(timeout=2)
+
+
+@pytest.fixture
+def fake_api(monkeypatch: pytest.MonkeyPatch):
+    """A running :class:`FakeLearnApi`, wired in via ``LEARN_API_URL``."""
+    api = FakeLearnApi()
+    monkeypatch.setenv("LEARN_API_URL", api.base_url)
+    try:
+        yield api
+    finally:
+        api.close()
+
+
+@pytest.fixture
+def no_network(monkeypatch: pytest.MonkeyPatch):
+    """Fail loudly on any outbound HTTP call — proves a path never touches the network."""
+
+    def _boom(*_args: Any, **_kwargs: Any) -> Any:
+        raise AssertionError("network should not be touched on this path")
+
+    monkeypatch.setattr("urllib.request.urlopen", _boom)

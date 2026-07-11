@@ -12,6 +12,11 @@ It emits schema-valid v1.x payloads for the read-only contract verbs the gate
 probes (``overview``, ``doctor``, ``progress``, ``advice``, ``story list``) and
 honours the error/exit contract on a bad invocation: stderr carries the
 ``{code, message, remediation}`` shape, stdout stays empty, and it exits 1.
+
+It also implements ``record`` (not probed by the conformance gate — mutating
+verbs are validated by golden payloads in each subject repo's own CI per
+``learn/subjects/conformance.py``'s module docstring) so learn-cli's runtime
+``learn record`` proxy (t12) has something conformant to drive in tests.
 """
 
 from __future__ import annotations
@@ -19,6 +24,8 @@ from __future__ import annotations
 import json
 import sys
 from typing import Any
+
+_LEVEL_FOR_RESULT = {"fail": "introduced", "partial": "practiced", "pass": "mastered"}
 
 SUBJECT = "fourthlang"
 SCHEMA_VERSION = "1.0"
@@ -266,6 +273,18 @@ def _record(learner: str, rest: list[str]) -> dict[str, Any] | None:
         recorded["correct"] = int(correct)
     if total is not None:
         recorded["total"] = int(total)
+    duration = _opt(rest, "--duration-seconds")
+    if duration is not None:
+        recorded["duration_seconds"] = float(duration)
+    story = _opt(rest, "--story")
+    if story:
+        recorded["story_id"] = story
+    lesson = _opt(rest, "--lesson")
+    if lesson:
+        recorded["lesson_id"] = lesson
+    notes = _opt(rest, "--notes")
+    if notes:
+        recorded["notes"] = notes
     return {
         "schema_version": SCHEMA_VERSION,
         "kind": "record_ack",
@@ -275,6 +294,7 @@ def _record(learner: str, rest: list[str]) -> dict[str, Any] | None:
         "mastery": {"item_id": item, "level": _MASTERY_OF[result]},
         "next": {
             "done": False,
+            "module_id": "m1",
             "item_id": item,
             "text": "keep going",
             "command": "fourthlang lesson next --json",
