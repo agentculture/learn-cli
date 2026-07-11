@@ -474,7 +474,7 @@ wheels = [
 
 [[package]]
 name = "learn-cli"
-version = "0.5.1"
+version = "0.5.4"
 source = { editable = "." }
 dependencies = [
     { name = "agentfront", extra = ["mcp"] },

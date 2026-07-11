@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.4] - 2026-07-11
+
+### Added
+
+- Converged devague spec + 18-task build plan for the #8-#11 roadmap uplift (consent gate, Terms/Privacy, roles + approval-gated Bedrock tutoring via Nova Pro / Nova Sonic 2, cloze exercise type): docs/specs/ + docs/plans/ 2026-07-11-agentculture-org-learn-is-now-a-consent-first-role.md, frame + plan state under .devague/
+
 ## [0.5.3] - 2026-07-11
 
 ### Added
