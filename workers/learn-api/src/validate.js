@@ -9,6 +9,15 @@
 //
 // Kept deliberately in sync (by hand + by test) with:
 //   learn/contract/schemas/record.json  ->  properties.recorded
+//
+// Cloze exercises (t3, docs/specs/subject-plugin-contract.md §3.6.1): this
+// file needs NO change for the pick-the-right-word cloze variant. `recorded`
+// carries no exercise-type/shape field at all — a cloze result is recorded
+// exactly like any other exercise's result, via `activity` (unchanged:
+// lesson|practice|story) plus the pre-existing `correct`/`total` counters,
+// which a multi-blank cloze tallies into naturally (e.g. one right of two
+// blanks records `correct: 1, total: 2`). See validate.test.js's
+// "a cloze-originated record validates unchanged" for the proof.
 
 export const CONTRACT_VERSION = "1.0";
 export const SCHEMA_VERSION_RE = /^1\.[0-9]+$/;

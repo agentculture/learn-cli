@@ -114,6 +114,47 @@ def test_stories_file_only_for_available_subjects(tmp_path, mixed_registry) -> N
     assert story["exercises"]
 
 
+# --- t3 acceptance criterion 5: no cloze items -> export is untouched ------
+
+
+def test_export_unchanged_for_a_subject_declaring_no_cloze_items(tmp_path, mixed_registry) -> None:
+    """The t3 cloze contract change (learn/contract/schemas/*.json's optional
+    `text`/`blanks` fields, learn/subjects/conformance.py's `cloze-items`
+    check) touches NEITHER `export_site` nor the exported bytes for a subject
+    that declares no cloze items — the fixture subject predates t3 and ships
+    none. This locks the export's exercise object to its EXACT pre-t3 shape:
+    no `text`/`blanks` keys anywhere, proving the item_id join-key rules and
+    every other exercise field are untouched.
+    """
+    export_site(tmp_path)
+    story = _load(tmp_path / "stories-fourthlang.json")["stories"][0]
+    exercise = story["exercises"][0]
+    # Semantically identical to the exact pre-t3 payload the conformant
+    # fixture has always emitted (tests/fixtures/subjects/conformant_subject.py).
+    assert exercise == {
+        "id": "s1-q1",
+        "type": "multiple_choice",
+        "item_id": "greetings",
+        "prompt": "What does the character say first?",
+        "choices": ["Hello", "Goodbye"],
+        "answer": "Hello",
+    }
+    assert "text" not in exercise
+    assert "blanks" not in exercise
+
+
+def test_export_is_byte_stable_across_repeated_runs_with_no_cloze_content(
+    tmp_path, mixed_registry
+) -> None:
+    # Re-run export_site twice more; the stories file must be byte-identical
+    # every time — the cloze contract addition changed nothing here.
+    export_site(tmp_path / "run1")
+    export_site(tmp_path / "run2")
+    a = (tmp_path / "run1" / "stories-fourthlang.json").read_bytes()
+    b = (tmp_path / "run2" / "stories-fourthlang.json").read_bytes()
+    assert a == b
+
+
 def test_docs_exported(tmp_path, mixed_registry) -> None:
     export_site(tmp_path)
     docs_dir = tmp_path / "docs"

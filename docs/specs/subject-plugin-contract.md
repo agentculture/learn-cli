@@ -129,7 +129,118 @@ plus the directive (optionally with a `persona`). Item ids in the lesson are exa
 A batch of exercises scoped to an item, a module, or `review` (no argument: the subject picks its
 weakest touched items). Exercise types: `multiple_choice`, `true_false`, `cloze`, `short_answer`,
 `translation`, `open`, `discussion`. Checkable types carry `answer`; open types carry `rubric`
-(what passes, what is partial).
+(what passes, what is partial). `cloze` has two variants — §3.6.1.
+
+#### 3.6.1 The `cloze` exercise type: two variants, one `type` value
+
+`cloze` (fill-in-the-blank) has shipped since contract 1.0 as a **single-blank, free-text**
+exercise: `prompt` writes the blank as `___` and a top-level `answer` is the expected string,
+graded conversationally by the driver exactly like `short_answer`/`translation`. That variant is
+**unchanged** — it is still valid, still renders the same, and needs no update from any subject.
+
+t3 adds a second, richer variant to the same `type: "cloze"` value: **pick-the-right-word**, a
+passage with one or more blanks where the learner (or an unauthenticated site reader) picks from a
+closed set of options per blank, checkable without a driver or a model call. It is carried by two
+new, OPTIONAL exercise fields — additive to contract family 1.0, so every payload that predates
+them keeps validating unchanged (open payloads, §2):
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `text` | string | The passage, with each blank marked as a `{{blank_id}}` placeholder. |
+| `blanks` | array | One entry per placeholder in `text`: `{id, options, answer}`. |
+
+Each `blanks[]` entry:
+
+| Field | Req | Meaning |
+| --- | --- | --- |
+| `id` | ✓ | Matches one `{{id}}` placeholder in `text`; unique within the exercise. |
+| `options` | ✓ | ≥2 words the reader picks from: the correct word plus one or more distractors. Must include `answer`. |
+| `answer` | ✓ | The correct option for this blank; must be one of `options`. |
+
+`text` and `blanks` are always present **together** — an exercise with only one of them is
+malformed. An exercise is the pick-the-right-word variant if and only if it carries `text` or
+`blanks`; an exercise with neither is the legacy single-blank form, untouched by anything below.
+
+**Design decision — least invasive shape (spec c16/h8):**
+
+- **No new exercise `type`.** `cloze` already existed and already meant "a fill-in-the-blank";
+  pick-the-right-word is a richer *shape* of the same type, not a new kind. A driver/site that
+  doesn't understand `text`/`blanks` yet can still fall back to `prompt`/`answer` (both remain
+  present on a well-authored pick-the-right-word item, as the driver-facing instruction), since
+  every field addition here is optional.
+- **No new activity.** `record`'s `recorded.activity` stays `lesson | practice | story` — a cloze
+  item's result is recorded exactly like any other exercise's, via whichever activity hosted it
+  (typically `practice` for a practice-batch cloze item, `story` for a comprehension cloze item).
+  `record.json`'s `recorded` object carries no `type`/exercise-shape field at all, so it was
+  **already** forward-compatible with cloze before this change — this is why neither the Python
+  contract validator nor the worker's `validate.js` (`workers/learn-api/src/validate.js`) needed
+  any code change for acceptance criterion 2. What DOES change: a multi-blank cloze result tallies
+  naturally into the pre-existing `recorded.correct`/`recorded.total` counters (already part of
+  `record.json`) — e.g. two blanks, one right, records `--correct 1 --total 2`. No new field.
+- **`item_id` rules are unchanged.** A pick-the-right-word cloze exercise carries `item_id` exactly
+  like every other exercise type: the join key `record --item` expects, the same string other
+  exercises MAY legitimately reuse when they evidence the same curriculum item. This contract does
+  **not** require cloze `item_id`s to be globally unique — only present. What `learn subject
+  doctor` (below) does additionally require unique is the exercise's own `id` (its slug, e.g.
+  `"fr-p1-b1"`) among the subject's declared pick-the-right-word cloze items, since that id is what
+  a driver/site addresses a specific cloze instance by; `item_id` (the mastery join key) keeps its
+  existing, unrestricted reuse semantics.
+- **Marker syntax is `{{blank_id}}`**, chosen for being unambiguous in both markdown-flavored
+  `body`/`text` content and plain prose, and trivial to parse with one regex
+  (`` /\{\{([^{}]+)\}\}/ ``) in Python, JavaScript, or Astro's build-time templating — no parser
+  dependency added anywhere in the pipeline.
+
+**Example** (a `practice` exercise; the same shape is legal inside a `story`'s `exercises`):
+
+```json
+{
+  "id": "fr-p1-b1",
+  "type": "cloze",
+  "item_id": "numbers-money",
+  "prompt": "Fill in each blank with the right word.",
+  "text": "Je vais au marché pour acheter {{qty}} pommes.",
+  "blanks": [
+    { "id": "qty", "options": ["trois", "gris", "trop"], "answer": "trois" }
+  ]
+}
+```
+
+Recording the result once both blanks are graded (one blank here, so `--total 1`):
+
+```bash
+french record --learner ori --item numbers-money --activity practice \
+  --exercise fr-p1-b1 --result pass --correct 1 --total 1 --json
+```
+
+**Validation split** (structural vs. semantic — the mini JSON-Schema validator, §8, only checks
+the former):
+
+- **Schema-checkable** (`learn.contract.validate` / a subject's own schema validation): `text` is
+  a non-empty string; `blanks` is a non-empty array; each blank is an object with `id` (pattern
+  `^[a-z0-9][a-z0-9._-]*$`), `options` (≥2 non-empty strings), and `answer` (non-empty string) —
+  all required.
+- **Semantic, checked by `learn subject doctor`'s `cloze-items` check** (not expressible in the
+  stdlib validator's supported keyword subset, §8): every blank's `answer` is one of its own
+  `options`; blank `id`s are unique within the exercise and match a `{{id}}` placeholder in `text`
+  1:1 (no orphan placeholder, no blank without one); the exercise carries a non-empty `item_id`;
+  the exercise's own `id` is unique among the subject's other declared pick-the-right-word cloze
+  items. The check reads every story via `story read` (the one exception to "runtime gate stays
+  read-only" in `learn/subjects/conformance.py` — still side-effect-free against the dedicated
+  probe learner) and inspects each `type: "cloze"` exercise that carries `text` or `blanks`. **A
+  subject that declares none passes trivially** — this never penalizes pre-cloze content or a
+  subject using only the legacy single-blank form, satisfying the "existing subject exports
+  identically" requirement (spec h8).
+
+**Rendering (`learn site export` + site-astro):** the exporter (`learn/front/_export.py`) needed
+**no code change** — it already writes each subject's `story read` output verbatim, so `text` and
+`blanks` pass through untouched the moment a subject starts emitting them. `site-astro`'s story
+reader page renders a pick-the-right-word cloze exercise (`type: "cloze"` with a non-empty
+`blanks` array) as the passage with one button group per blank (one button per option); clicking
+an option marks it right/wrong immediately, entirely client-side, against the `answer` already
+present in the (public) exported JSON — no fetch, no sign-in required, matching the zero-API-when-
+signed-out invariant the rest of the site enforces. A legacy single-blank cloze exercise (no
+`blanks`) keeps rendering exactly as before (plain prompt, no picker). See
+`site-astro/src/scripts/learner.js`'s `wireClozeExercises()`.
 
 ### 3.7 `record` — the write-back (the motivation layer's input)
 
@@ -160,8 +271,9 @@ Result inference default (culture-guide's proven mapping): `fail → introduced`
 Health checks in the established doctor shape (`{id, passed, severity, message, remediation}`)
 plus **`contract_version`** — the contract version this subject pins. `learn subject doctor`
 (t3) reads the pin first, then validates the other seven verbs' payloads against that version's
-schemas. Exit 0 when healthy, 2 when not. Recommended checks: content files validate against
-`story.json`, learner-state dir writable, pinned contract version supported.
+schemas — plus, since t3, a `cloze-items` check verifying every declared pick-the-right-word cloze
+exercise (§3.6.1). Exit 0 when healthy, 2 when not. Recommended checks: content files validate
+against `story.json`, learner-state dir writable, pinned contract version supported.
 
 ## 4. Shared vocabularies
 

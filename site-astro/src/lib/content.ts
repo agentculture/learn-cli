@@ -36,6 +36,15 @@ export interface GlossaryEntry {
   note?: string;
 }
 
+// A pick-the-right-word cloze blank: the reader picks `answer` out of
+// `options` (distractors + the correct word). See docs/specs/
+// subject-plugin-contract.md §3.6.1 (learn-cli's t3 uplift).
+export interface ClozeBlank {
+  id: string;
+  options: string[];
+  answer: string;
+}
+
 export interface Exercise {
   id: string;
   type: string;
@@ -44,6 +53,12 @@ export interface Exercise {
   choices?: string[];
   answer?: string;
   rubric?: string;
+  // Pick-the-right-word cloze variant ONLY (§3.6.1): the passage with each
+  // blank marked `{{blank_id}}`, plus one `blanks[]` entry per placeholder.
+  // Absent for the legacy single-blank cloze form (prompt + answer only,
+  // unchanged since contract 1.0) and for every non-cloze exercise type.
+  text?: string;
+  blanks?: ClozeBlank[];
 }
 
 export interface Story {

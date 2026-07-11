@@ -71,3 +71,40 @@ test("mastery inference matches culture-guide's mapping", () => {
   assert.equal(inferMastery("fail"), "introduced");
   assert.equal(inferMastery("???"), "unknown");
 });
+
+// --- t3: cloze exercises (docs/specs/subject-plugin-contract.md §3.6.1) -----
+//
+// `recorded` carries no exercise-type/shape field, so a cloze item's result —
+// whether the legacy single-blank free-text form or the new pick-the-right-
+// word form (`text` + `blanks` live only on the PRACTICE/STORY exercise
+// payload, never on `recorded`) — is an ORDINARY contract-valid record. No
+// code change to this module was needed for cloze support; these tests prove
+// it rather than assert it.
+
+test("a cloze-originated record validates unchanged (no code change needed)", () => {
+  // A 2-blank pick-the-right-word cloze exercise, one blank right: the driver
+  // tallies into the pre-existing correct/total counters, exactly as any
+  // other countable exercise would.
+  const clozeRecorded = {
+    item_id: "numbers-money",
+    activity: "practice",
+    exercise_id: "fr-p1-b1",
+    result: "partial",
+    correct: 1,
+    total: 2,
+    at: "2026-07-11T10:00:00Z",
+  };
+  assert.deepEqual(validateRecorded(clozeRecorded), []);
+});
+
+test("a legacy single-blank cloze record (no correct/total) also validates unchanged", () => {
+  const legacyClozeRecorded = {
+    item_id: "food-vocab",
+    activity: "story",
+    story_id: "fr-beg-le-marche-du-samedi",
+    exercise_id: "marche-q3",
+    result: "pass",
+    at: "2026-07-11T10:05:00Z",
+  };
+  assert.deepEqual(validateRecorded(legacyClozeRecorded), []);
+});
