@@ -12,13 +12,21 @@ It emits schema-valid v1.x payloads for the read-only contract verbs the gate
 probes (``overview``, ``doctor``, ``progress``, ``advice``, ``story list``) and
 honours the error/exit contract on a bad invocation: stderr carries the
 ``{code, message, remediation}`` shape, stdout stays empty, and it exits 1.
+
+It also implements ``record`` (not probed by the conformance gate — mutating
+verbs are validated by golden payloads in each subject repo's own CI per
+``learn/subjects/conformance.py``'s module docstring) so learn-cli's runtime
+``learn record`` proxy (t12) has something conformant to drive in tests.
 """
 
 from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime, timezone
 from typing import Any
+
+_LEVEL_FOR_RESULT = {"fail": "introduced", "partial": "practiced", "pass": "mastered"}
 
 SUBJECT = "fourthlang"
 SCHEMA_VERSION = "1.0"
@@ -130,6 +138,63 @@ def _story_list() -> dict[str, Any]:
     }
 
 
+def _parse_flags(tokens: list[str]) -> dict[str, str]:
+    """A tiny ``--flag value`` scanner — enough for the fixture's own verbs."""
+    opts: dict[str, str] = {}
+    i = 0
+    while i < len(tokens):
+        tok = tokens[i]
+        if tok.startswith("--") and i + 1 < len(tokens):
+            opts[tok[2:]] = tokens[i + 1]
+            i += 2
+        else:
+            i += 1
+    return opts
+
+
+def _record(learner: str, tokens: list[str]) -> dict[str, Any]:
+    opts = _parse_flags(tokens)
+    item_id = opts.get("item", "unknown-item")
+    result = opts.get("result", "pass")
+    activity = opts.get("activity", "practice")
+    recorded: dict[str, Any] = {
+        "item_id": item_id,
+        "activity": activity,
+        "result": result,
+        "at": datetime.now(timezone.utc).isoformat(),
+    }
+    if "exercise" in opts:
+        recorded["exercise_id"] = opts["exercise"]
+    if "story" in opts:
+        recorded["story_id"] = opts["story"]
+    if "lesson" in opts:
+        recorded["lesson_id"] = opts["lesson"]
+    if "correct" in opts:
+        recorded["correct"] = int(opts["correct"])
+    if "total" in opts:
+        recorded["total"] = int(opts["total"])
+    if "duration-seconds" in opts:
+        recorded["duration_seconds"] = float(opts["duration-seconds"])
+    if "notes" in opts:
+        recorded["notes"] = opts["notes"]
+    level = _LEVEL_FOR_RESULT.get(result, "unknown")
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "kind": "record_ack",
+        "subject": SUBJECT,
+        "learner": learner,
+        "recorded": recorded,
+        "mastery": {"item_id": item_id, "level": level},
+        "next": {
+            "done": False,
+            "module_id": "m1",
+            "item_id": item_id,
+            "text": "keep going",
+            "command": "fourthlang lesson next --json",
+        },
+    }
+
+
 def main(argv: list[str]) -> int:
     tokens = [t for t in argv if t != "--json"]
     learner = "anonymous"
@@ -153,6 +218,8 @@ def main(argv: list[str]) -> int:
         return _emit(_advice(learner))
     if verb == "story" and rest[:1] == ["list"]:
         return _emit(_story_list())
+    if verb == "record":
+        return _emit(_record(learner, rest))
     return _fail(
         f"unknown verb: {' '.join(tokens) or '<none>'}",
         "run 'fourthlang overview --json' to see valid verbs",
