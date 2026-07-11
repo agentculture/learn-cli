@@ -88,7 +88,7 @@ export async function getConsent(env, uid) {
     `SELECT github_user_id, terms_version, granted_at
        FROM consents
       WHERE github_user_id = ?
-      ORDER BY granted_at DESC
+      ORDER BY granted_at DESC, rowid DESC
       LIMIT 1`,
   )
     .bind(String(uid))

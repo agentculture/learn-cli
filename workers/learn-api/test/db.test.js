@@ -170,3 +170,15 @@ test("deleteLearnerData revokes nothing beyond D1 rows (session revocation is t7
   await deleteLearnerData(env, "42");
   assert.equal(env.SESSIONS.map.size, sessionsBefore, "deleteLearnerData does not touch KV");
 });
+
+test("getConsent: same-millisecond re-consent tie resolves to the newest row (rowid tiebreak)", async () => {
+  const env = makeEnv();
+  const now = "2026-07-11T10:00:00.000Z";
+  // Two versions granted in the same millisecond — the newer insert must win.
+  env.DB.consents.push(
+    { github_user_id: "42", terms_version: "1.0.0", granted_at: now },
+    { github_user_id: "42", terms_version: "1.1.0", granted_at: now },
+  );
+  const consent = await getConsent(env, "42");
+  assert.strictEqual(consent.terms_version, "1.1.0");
+});

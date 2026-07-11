@@ -163,9 +163,15 @@ class D1Prepared {
     }
     if (this.sql.includes("from consents")) {
       const [uid] = this.args;
+      // Mirrors the SQL's `ORDER BY granted_at DESC, rowid DESC`: on a
+      // granted_at tie the LATER insertion (higher rowid) wins.
       const rows = this.db.consents
-        .filter((c) => c.github_user_id === String(uid))
-        .sort((a, b) => (a.granted_at < b.granted_at ? 1 : a.granted_at > b.granted_at ? -1 : 0));
+        .map((c, i) => [c, i])
+        .filter(([c]) => c.github_user_id === String(uid))
+        .sort(([a, ai], [b, bi]) =>
+          a.granted_at < b.granted_at ? 1 : a.granted_at > b.granted_at ? -1 : bi - ai,
+        )
+        .map(([c]) => c);
       return rows[0] || null;
     }
     const { results } = await this.all();
